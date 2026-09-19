@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "name": "mudflow",
+  "worktree_root": "worktrees",
+  "repos": [
+    {
+      "name": "mudflow",
+      "path": ".",
+      "base": "origin/main"
+    }
+  ],
+  "plan": {
+    "path": "mudflow-docs/ROADMAP.md"
+  },
+  "task_id_pattern": "MF-\\d+"
+}
