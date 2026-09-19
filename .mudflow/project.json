@@ -1,7 +1,7 @@
 {
   "version": 1,
   "name": "mudflow",
-  "worktree_root": "worktrees",
+  "worktree_root": "~/worktrees/mudflow",
   "repos": [
     {
       "name": "mudflow",
@@ -10,7 +10,7 @@
     }
   ],
   "plan": {
-    "path": "mudflow-docs/ROADMAP.md"
+    "path": "mudflow-docs/plans/poc.md"
   },
   "task_id_pattern": "MF-\\d+"
 }
