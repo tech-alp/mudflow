@@ -100,6 +100,11 @@ QString gitRequired(const QString& repository, const QStringList& arguments)
     return result.output;
 }
 
+QString gitCommonDir(const QString& repository)
+{
+    return QDir::cleanPath(gitRequired(repository, {QStringLiteral("rev-parse"), QStringLiteral("--path-format=absolute"), QStringLiteral("--git-common-dir")}));
+}
+
 QString nowUtc()
 {
     return QDateTime::currentDateTimeUtc().toString(Qt::ISODate);
@@ -333,19 +338,43 @@ QJsonObject projectStatus(const QString& configPath)
         }
         const QString currentBaseSha = remoteBaseShas.value(event.value(QStringLiteral("repo")).toString());
         if (!completed && !currentBaseSha.isEmpty() && currentBaseSha != event.value(QStringLiteral("base_sha")).toString()) {
-            findings.append(finding(QStringLiteral("git.stale_worktree_base"), QStringLiteral("warning"), QStringLiteral("git"), QStringLiteral("Worktree base is stale"), executionId + QStringLiteral(" was created from an older ") + event.value(QStringLiteral("base")).toString()));
+            findings.append(finding(QStringLiteral("git.stale_worktree_base"), QStringLiteral("warning"), QStringLiteral("git"), QStringLiteral("Worktree base is stale"), executionId + QStringLiteral(" was recorded from an older ") + event.value(QStringLiteral("base")).toString()));
         }
     }
 
     QFile plan(expandPath(config.planPath, paths.root));
-    if (plan.open(QIODevice::ReadOnly)) {
+    if (!plan.open(QIODevice::ReadOnly)) {
+        findings.append(finding(QStringLiteral("plan.unreadable"), QStringLiteral("warning"), QStringLiteral("plan"),
+            QStringLiteral("Plan file cannot be read"),
+            config.planPath + QStringLiteral(" could not be opened; no plan rule was evaluated"),
+            QStringLiteral("Fix project.plan.path in project.json.")));
+    } else {
+        const QRegularExpression checklistItem(QStringLiteral("^\\s*-\\s*\\[[ xX]\\]"));
+        const QRegularExpression anyTask(QStringLiteral("^\\s*-\\s*\\[[ xX]\\].*(") + config.taskIdPattern + QStringLiteral(")"), QRegularExpression::CaseInsensitiveOption);
         const QRegularExpression doneTask(QStringLiteral("^\\s*-\\s*\\[x\\].*(") + config.taskIdPattern + QStringLiteral(")"), QRegularExpression::CaseInsensitiveOption);
+        int checklistCount = 0;
+        int taskCount = 0;
         while (!plan.atEnd()) {
             const QString line = QString::fromUtf8(plan.readLine());
+            if (checklistItem.match(line).hasMatch()) {
+                ++checklistCount;
+            }
+            if (anyTask.match(line).hasMatch()) {
+                ++taskCount;
+            }
             const QRegularExpressionMatch match = doneTask.match(line);
             if (match.hasMatch() && !evidencedTasks.contains(match.captured(1))) {
                 findings.append(finding(QStringLiteral("plan.done_without_evidence"), QStringLiteral("warning"), QStringLiteral("plan"), QStringLiteral("Done plan task has no evidence"), match.captured(1)));
             }
+        }
+        // Sessizce hicbir sey olcmemek, temiz cikmakla ayni seye benzer. Ayirt et.
+        if (taskCount == 0) {
+            findings.append(finding(QStringLiteral("plan.no_parsable_tasks"), QStringLiteral("warning"), QStringLiteral("plan"),
+                QStringLiteral("Plan yields no task candidates"),
+                checklistCount == 0
+                    ? config.planPath + QStringLiteral(" has no \"- [ ]\" / \"- [x]\" checklist item; plan rules evaluated nothing")
+                    : QString::number(checklistCount) + QStringLiteral(" checklist items found in ") + config.planPath + QStringLiteral(" but none matched task_id_pattern ") + config.taskIdPattern,
+                QStringLiteral("Write tasks as \"- [x] <TASK-ID> ...\" items, or fix project.task_id_pattern.")));
         }
     }
 
@@ -372,27 +401,53 @@ QJsonObject startExecution(const QString& configPath, const QString& task, const
     if (!gitRequired(repositoryPath, {QStringLiteral("status"), QStringLiteral("--porcelain")}).isEmpty()) {
         fail(QStringLiteral("Refusing start: repository has uncommitted changes"));
     }
-    const QString baseSha = gitRequired(repositoryPath, {QStringLiteral("rev-parse"), repository.base});
+    const QString remoteBaseSha = gitRequired(repositoryPath, {QStringLiteral("rev-parse"), repository.base});
     const QString worktreeRoot = expandPath(config.worktreeRoot, paths.root);
     const QString worktree = QDir(worktreeRoot).filePath(task);
     const QString executionId = QDateTime::currentDateTimeUtc().toString(QStringLiteral("yyyyMMdd'T'HHmmss'Z'")) + QLatin1Char('-') + task;
-    if (QFileInfo::exists(worktree) || QFileInfo::exists(QDir(paths.ledger).filePath(executionId + QStringLiteral(".jsonl")))) {
-        fail(QStringLiteral("Refusing start: worktree or execution already exists"));
+    if (QFileInfo::exists(QDir(paths.ledger).filePath(executionId + QStringLiteral(".jsonl")))) {
+        fail(QStringLiteral("Refusing start: execution already exists"));
     }
-    if (!QDir().mkpath(worktreeRoot)) {
-        fail(QStringLiteral("Cannot create worktree root: %1").arg(worktreeRoot));
+    QString branch;
+    QString baseSha;
+    QString headSha;
+    QString workspaceSource;
+    if (QFileInfo::exists(worktree)) {
+        if (gitCommonDir(worktree) != gitCommonDir(repositoryPath)) {
+            fail(QStringLiteral("Refusing start: existing worktree belongs to another repository"));
+        }
+        if (!gitRequired(worktree, {QStringLiteral("status"), QStringLiteral("--porcelain")}).isEmpty()) {
+            fail(QStringLiteral("Refusing start: existing worktree has uncommitted changes"));
+        }
+        for (const QJsonObject& event : readEvents(paths)) {
+            if (event.value(QStringLiteral("type")).toString() == QLatin1String("execution.started")
+                    && event.value(QStringLiteral("worktree")).toString() == worktree) {
+                fail(QStringLiteral("Refusing start: worktree already belongs to execution %1").arg(event.value(QStringLiteral("exec")).toString()));
+            }
+        }
+        branch = gitRequired(worktree, {QStringLiteral("branch"), QStringLiteral("--show-current")});
+        headSha = gitRequired(worktree, {QStringLiteral("rev-parse"), QStringLiteral("HEAD")});
+        baseSha = gitRequired(worktree, {QStringLiteral("merge-base"), QStringLiteral("HEAD"), repository.base});
+        workspaceSource = QStringLiteral("adopted");
+    } else {
+        if (!QDir().mkpath(worktreeRoot)) {
+            fail(QStringLiteral("Cannot create worktree root: %1").arg(worktreeRoot));
+        }
+        branch = QStringLiteral("task/") + task;
+        gitRequired(repositoryPath, {QStringLiteral("worktree"), QStringLiteral("add"), QStringLiteral("-b"), branch, worktree, repository.base});
+        baseSha = remoteBaseSha;
+        headSha = baseSha;
+        workspaceSource = QStringLiteral("created");
     }
-    const QString branch = QStringLiteral("task/") + task;
-    gitRequired(repositoryPath, {QStringLiteral("worktree"), QStringLiteral("add"), QStringLiteral("-b"), branch, worktree, repository.base});
 
     appendEvent(paths, executionId, {
         {QStringLiteral("ts"), nowUtc()}, {QStringLiteral("type"), QStringLiteral("execution.started")}, {QStringLiteral("exec"), executionId},
         {QStringLiteral("task"), task}, {QStringLiteral("agent"), agent}, {QStringLiteral("repo"), repository.name},
         {QStringLiteral("worktree"), worktree}, {QStringLiteral("branch"), branch}, {QStringLiteral("base"), repository.base},
-        {QStringLiteral("base_sha"), baseSha}, {QStringLiteral("head_sha"), baseSha}, {QStringLiteral("plan_ref"), planReference(config, paths, task)},
+        {QStringLiteral("workspace_source"), workspaceSource}, {QStringLiteral("base_sha"), baseSha}, {QStringLiteral("head_sha"), headSha}, {QStringLiteral("plan_ref"), planReference(config, paths, task)},
         {QStringLiteral("plan_sha1"), sha1File(expandPath(config.planPath, paths.root))},
     });
-    return {{QStringLiteral("exec"), executionId}, {QStringLiteral("worktree"), worktree}, {QStringLiteral("branch"), branch}, {QStringLiteral("base_sha"), baseSha}};
+    return {{QStringLiteral("exec"), executionId}, {QStringLiteral("worktree"), worktree}, {QStringLiteral("branch"), branch}, {QStringLiteral("workspace_source"), workspaceSource}, {QStringLiteral("base_sha"), baseSha}};
 }
 
 QJsonObject finishExecution(const QString& configPath, const QString& executionId, const QString& outcome)

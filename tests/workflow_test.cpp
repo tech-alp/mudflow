@@ -14,6 +14,14 @@ bool git(const QStringList& arguments)
     return QProcess::execute(QStringLiteral("git"), arguments) == 0;
 }
 
+QString gitOutput(const QStringList& arguments)
+{
+    QProcess process;
+    process.start(QStringLiteral("git"), arguments);
+    if (!process.waitForFinished() || process.exitCode() != 0) return {};
+    return QString::fromUtf8(process.readAllStandardOutput()).trimmed();
+}
+
 bool writeFile(const QString& path, const QByteArray& contents)
 {
     QFile file(path);
@@ -109,6 +117,25 @@ int main()
         if (!writeFile(activeLedger, activeLedgerContents)) return 1;
         const QJsonArray invalidTimestampFindings = mudflow::projectStatus(config).value(QStringLiteral("findings")).toArray();
         if (!hasFinding(invalidTimestampFindings, QStringLiteral("context.invalid_ledger_timestamp"))) return 1;
+
+        const QString externalWorktree = root + QStringLiteral("/worktrees/MF-3");
+        if (!git({QStringLiteral("-C"), repository, QStringLiteral("worktree"), QStringLiteral("add"), QStringLiteral("-b"), QStringLiteral("external/MF-3"), externalWorktree, QStringLiteral("origin/main")})
+                || !writeFile(externalWorktree + QStringLiteral("/untracked.txt"), "dirty\n")) return 1;
+        try {
+            mudflow::startExecution(config, QStringLiteral("MF-3"), QStringLiteral("claude"), {});
+            return 1;
+        } catch (const std::exception&) {
+        }
+        if (!QFile::remove(externalWorktree + QStringLiteral("/untracked.txt"))
+                || !git({QStringLiteral("-C"), repository, QStringLiteral("commit"), QStringLiteral("--allow-empty"), QStringLiteral("-m"), QStringLiteral("advance after external worktree")})
+                || !git({QStringLiteral("-C"), repository, QStringLiteral("push")})) return 1;
+        const QString externalHead = gitOutput({QStringLiteral("-C"), externalWorktree, QStringLiteral("rev-parse"), QStringLiteral("HEAD")});
+        const QJsonObject adopted = mudflow::startExecution(config, QStringLiteral("MF-3"), QStringLiteral("claude"), {});
+        if (externalHead.isEmpty()
+                || adopted.value(QStringLiteral("worktree")).toString() != externalWorktree
+                || adopted.value(QStringLiteral("branch")).toString() != QLatin1String("external/MF-3")
+                || adopted.value(QStringLiteral("workspace_source")).toString() != QLatin1String("adopted")
+                || adopted.value(QStringLiteral("base_sha")).toString() != externalHead) return 1;
 
         if (!writeFile(config, R"({"version":1,"name":"test","worktree_root":"worktrees","repos":[{"name":"repo","path":"worktrees/MF-1","base":"origin/main"}],"plan":{"path":"plan.md"},"task_id_pattern":"MF-\\d+"})")) return 1;
         if (!writeFile(root + QStringLiteral("/plan.md"), "- [x] MF-1\nupdated\n")

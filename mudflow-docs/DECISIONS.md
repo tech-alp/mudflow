@@ -73,3 +73,22 @@ CMake
 Accepted.
 
 Her warning somut evidence göstermeli.
+
+## ADR-013 — Workspace core'da kalır, mevcut worktree sahiplenilir
+Accepted.
+
+Mudflow workspace yaratabilir; MudIssue, IDE veya elle oluşturulmuş geçerli
+worktree'yi de kullanabilir. Workspace'i kimin yarattığı dış mekanizmadır.
+
+Mudflow her durumda kendi ölçümünü kaydeder:
+
+```text
+fetch remote base
+→ workspace/repo ilişkisini doğrula
+→ dirty state kontrol et
+→ HEAD ve merge-base'i ölç
+→ ledger'a kaydet
+```
+
+MudIssue zorunlu bağımlılık değildir. v0.1'de workspace provider veya Mud
+adapter'ı yoktur.

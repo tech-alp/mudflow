@@ -10,3 +10,7 @@ add_executable(cli_contract_test cli_contract_test.cpp)
 target_link_libraries(cli_contract_test PRIVATE Qt6::Core)
 add_dependencies(cli_contract_test mudflow)
 add_test(NAME cli_contract COMMAND cli_contract_test $<TARGET_FILE:mudflow>)
+
+add_executable(plan_rules_test plan_rules_test.cpp)
+target_link_libraries(plan_rules_test PRIVATE mudflow::core Qt6::Core)
+add_test(NAME plan_rules COMMAND plan_rules_test)

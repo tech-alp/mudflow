@@ -65,8 +65,8 @@ Format kararı: TECH_CHOICES.md TC-003 (YAML yerine JSON → Qt dışı sıfır 
 
 - `worktree_root` — ADR-006: project anchor != workspace root
 - `repos[].base` — ADR-007: verified remote base
-- `task_id_pattern` — ADR-013 (öneri): Plan ↔ evidence eşleşmesinin dayandığı
-  konvansiyon. Bu pattern olmadan PlanTruthEngine çalışmaz.
+- `task_id_pattern` — Plan ↔ evidence eşleşmesinin dayandığı konvansiyon. Bu
+  pattern olmadan PlanTruthEngine çalışmaz.
 
 v0.1'de `repos` tek elemanlı. Liste olması multi-repo'yu şema değiştirmeden açar.
 
@@ -92,6 +92,7 @@ Ortak alanlar: `ts` (UTC ISO8601), `type`, `exec`.
   "repo": "scms-core",
   "worktree": "~/worktrees/SCMS-042",
   "branch": "task/SCMS-042",
+  "workspace_source": "created",
   "base": "origin/development",
   "base_sha": "a1b2c3d4",
   "head_sha": "a1b2c3d4",
@@ -100,6 +101,11 @@ Ortak alanlar: `ts` (UTC ISO8601), `type`, `exec`.
 ```
 
 `plan_ref` boş olabilir → `plan.execution_without_plan_link` finding'i doğar.
+
+`workspace_source`: `created` | `adopted`. `created` için `base_sha`, fetch
+sonrası remote base'dir. `adopted` için Mudflow'un ölçtüğü
+`merge-base(HEAD, base)` değeridir; dış aracın "hangi SHA'dan açtım" iddiası
+ledger'a yazılmaz.
 
 ### 3.2 execution.finished
 
@@ -276,7 +282,7 @@ Mudflow'un git'ten ölçtüğü ile agent'ın iddia ettiği aynı bölümde durm
 
 ---
 
-## 6. ADR-013 önerisi — Handoff'u kim üretir
+## 6. Handoff policy — Handoff'u kim üretir
 
 **Melez.**
 

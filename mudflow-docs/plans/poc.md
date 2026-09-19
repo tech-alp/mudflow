@@ -1,15 +1,19 @@
 # Mudflow POC Plan
 
-## [x] MF-1 — Core POC
+Görevler `- [ ]` / `- [x]` checklist maddesi olarak yazılır ve task ID taşır.
+Format `project.json` içindeki `task_id_pattern` ile eşleşmezse `mudflow status`
+`plan.no_parsable_tasks` uyarısı verir — kurallar sessizce kör kalmaz.
 
-`project.json`, Git health, execution ledger, evidence ve handoff akışını
-doğrula.
+- [x] MF-1 — Core POC
 
-## [ ] MF-2 — Plan-linked execution doğrulaması
+  `project.json`, Git health, execution ledger, evidence ve handoff akışını
+  doğrula.
 
-Bir execution'ı plan task'ına bağla; commit, test evidence ve handoff üret.
+- [ ] MF-2 — Plan-linked execution doğrulaması
 
-## [x] MF-3 — GitHub base üzerinde plan-linked execution
+  Bir execution'ı plan task'ına bağla; commit, test evidence ve handoff üret.
 
-GitHub `origin/main` üzerinden worktree aç; commit, test evidence ve handoff
-ile plan bağlantısını doğrula.
+- [x] MF-3 — GitHub base üzerinde plan-linked execution
+
+  GitHub `origin/main` üzerinden worktree aç; commit, test evidence ve handoff
+  ile plan bağlantısını doğrula.
