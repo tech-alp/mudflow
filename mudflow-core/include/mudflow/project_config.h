@@ -9,7 +9,8 @@ namespace mudflow {
 struct RepositoryConfig {
     QString name;
     QString path;
-    QString base;
+    QString remote;
+    QString branch;
 };
 
 struct ProjectConfig {

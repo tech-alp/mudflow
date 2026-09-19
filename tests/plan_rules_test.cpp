@@ -46,7 +46,7 @@ int main()
     const QString plan = root + QStringLiteral("/plan.md");
 
     if (!QDir().mkpath(root + QStringLiteral("/.mudflow"))
-            || !writeFile(config, R"({"version":1,"name":"t","worktree_root":"w","repos":[{"name":"r","path":"missing-repo","base":"origin/main"}],"plan":{"path":"plan.md"},"task_id_pattern":"MF-\\d+"})")) return 1;
+            || !writeFile(config, R"({"version":1,"name":"t","worktree_root":"w","repos":[{"name":"r","path":"missing-repo","base":{"remote":"origin","branch":"main"}}],"plan":{"path":"plan.md"},"task_id_pattern":"MF-\\d+"})")) return 1;
 
     try {
         // 1. Baslik formati ("## [x] MF-1") parser'in gormedigi format: uyarmali.

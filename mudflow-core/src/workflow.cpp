@@ -11,8 +11,10 @@
 #include <QJsonDocument>
 #include <QJsonParseError>
 #include <QProcess>
+#include <QProcessEnvironment>
 #include <QRegularExpression>
 #include <QSet>
+#include <QTemporaryFile>
 #include <QTextStream>
 
 #include <stdexcept>
@@ -61,18 +63,12 @@ Paths pathsFor(const QString& configPath)
     return {root, state, QDir(state).filePath(QStringLiteral("ledger")), QDir(state).filePath(QStringLiteral("evidence")), QDir(state).filePath(QStringLiteral("handoffs"))};
 }
 
-void ensureDirectories(const Paths& paths)
-{
-    if (!QDir().mkpath(paths.ledger) || !QDir().mkpath(paths.evidence) || !QDir().mkpath(paths.handoffs)) {
-        fail(QStringLiteral("Cannot create .mudflow state directories"));
-    }
-}
-
-ProcessResult run(const QString& program, const QStringList& arguments)
+ProcessResult run(const QString& program, const QStringList& arguments, const QProcessEnvironment& environment = QProcessEnvironment::systemEnvironment())
 {
     QProcess process;
     process.setProgram(program);
     process.setArguments(arguments);
+    process.setProcessEnvironment(environment);
     process.start();
     if (!process.waitForStarted(5000)) {
         fail(QStringLiteral("Cannot start %1: %2").arg(program, process.errorString()));
@@ -100,9 +96,105 @@ QString gitRequired(const QString& repository, const QStringList& arguments)
     return result.output;
 }
 
+QString gitWithIndexRequired(const QString& repository, const QStringList& arguments, const QString& indexPath)
+{
+    QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
+    environment.insert(QStringLiteral("GIT_INDEX_FILE"), indexPath);
+    QStringList gitArguments{QStringLiteral("-C"), repository};
+    gitArguments.append(arguments);
+    const ProcessResult result = run(QStringLiteral("git"), gitArguments, environment);
+    if (result.exitCode != 0) {
+        fail(QStringLiteral("git -C %1 %2: %3").arg(repository, arguments.join(QLatin1Char(' ')), result.error));
+    }
+    return result.output;
+}
+
+QString preserveWorktree(const QString& worktree, const QString& executionId, const QString& previousRef = {})
+{
+    if (gitRequired(worktree, {QStringLiteral("status"), QStringLiteral("--porcelain")}).isEmpty()) return {};
+
+    QTemporaryFile temporaryIndex;
+    if (!temporaryIndex.open()) fail(QStringLiteral("Cannot create temporary Git index"));
+    const QString indexPath = temporaryIndex.fileName();
+    temporaryIndex.close();
+    if (!QFile::remove(indexPath)) fail(QStringLiteral("Cannot prepare temporary Git index"));
+
+    gitWithIndexRequired(worktree, {QStringLiteral("read-tree"), QStringLiteral("HEAD")}, indexPath);
+    gitWithIndexRequired(worktree, {QStringLiteral("add"), QStringLiteral("-A")}, indexPath);
+    const QString tree = gitWithIndexRequired(worktree, {QStringLiteral("write-tree")}, indexPath);
+    QStringList commitArguments{QStringLiteral("commit-tree"), tree, QStringLiteral("-p"), QStringLiteral("HEAD")};
+    if (!previousRef.isEmpty()) {
+        const ProcessResult previous = git(worktree, {QStringLiteral("rev-parse"), QStringLiteral("--verify"), previousRef});
+        if (previous.exitCode == 0) {
+            commitArguments.append({QStringLiteral("-p"), previous.output});
+        }
+    }
+    commitArguments.append({QStringLiteral("-m"), QStringLiteral("mudflow: preserve uncommitted work for ") + executionId});
+    const QString preservedObject = gitRequired(worktree, commitArguments);
+    const QString preservedRef = QStringLiteral("refs/mudflow/preserved/") + executionId;
+    gitRequired(worktree, {QStringLiteral("update-ref"), preservedRef, preservedObject});
+    return preservedRef;
+}
+
 QString gitCommonDir(const QString& repository)
 {
-    return QDir::cleanPath(gitRequired(repository, {QStringLiteral("rev-parse"), QStringLiteral("--path-format=absolute"), QStringLiteral("--git-common-dir")}));
+    const QString commonDir = gitRequired(repository, {QStringLiteral("rev-parse"), QStringLiteral("--git-common-dir")});
+    const QString absolutePath = QDir::isAbsolutePath(commonDir) ? QDir::cleanPath(commonDir) : QDir::cleanPath(QDir(repository).absoluteFilePath(commonDir));
+    const QString canonicalPath = QFileInfo(absolutePath).canonicalFilePath();
+    return canonicalPath.isEmpty() ? absolutePath : canonicalPath;
+}
+
+void ensureGitExcludes(const Paths& paths)
+{
+    const ProcessResult insideWorktree = git(paths.root, {QStringLiteral("rev-parse"), QStringLiteral("--is-inside-work-tree")});
+    if (insideWorktree.exitCode != 0 || insideWorktree.output != QLatin1String("true")) {
+        return;
+    }
+    const QString repositoryRoot = QDir::cleanPath(QDir(paths.root).absoluteFilePath(
+        gitRequired(paths.root, {QStringLiteral("rev-parse"), QStringLiteral("--show-cdup")})));
+    const QString commonDir = gitCommonDir(paths.root);
+    const QString statePath = QDir::cleanPath(QDir(repositoryRoot).relativeFilePath(paths.state));
+    const QStringList patterns{
+        QLatin1Char('/') + statePath + QStringLiteral("/ledger/"),
+        QLatin1Char('/') + statePath + QStringLiteral("/evidence/"),
+        QLatin1Char('/') + statePath + QStringLiteral("/handoffs/"),
+    };
+
+    QFile exclude(QDir(commonDir).filePath(QStringLiteral("info/exclude")));
+    QByteArray contents;
+    if (exclude.exists()) {
+        if (!exclude.open(QIODevice::ReadOnly)) {
+            fail(QStringLiteral("Cannot read Git exclude file: %1").arg(exclude.fileName()));
+        }
+        contents = exclude.readAll();
+        exclude.close();
+    }
+    QSet<QString> existing;
+    for (const QByteArray& line : contents.split('\n')) {
+        existing.insert(QString::fromUtf8(line).trimmed());
+    }
+    QStringList missing;
+    for (const QString& pattern : patterns) {
+        if (!existing.contains(pattern)) missing.append(pattern);
+    }
+    if (missing.isEmpty()) return;
+
+    if (!exclude.open(QIODevice::WriteOnly | QIODevice::Append)) {
+        fail(QStringLiteral("Cannot write Git exclude file: %1").arg(exclude.fileName()));
+    }
+    if (!contents.isEmpty() && !contents.endsWith('\n')) exclude.write("\n");
+    for (const QString& pattern : missing) {
+        exclude.write(pattern.toUtf8());
+        exclude.write("\n");
+    }
+}
+
+void ensureDirectories(const Paths& paths)
+{
+    if (!QDir().mkpath(paths.ledger) || !QDir().mkpath(paths.evidence) || !QDir().mkpath(paths.handoffs)) {
+        fail(QStringLiteral("Cannot create .mudflow state directories"));
+    }
+    ensureGitExcludes(paths);
 }
 
 QString nowUtc()
@@ -180,6 +272,11 @@ const RepositoryConfig& repositoryFor(const ProjectConfig& config, const QString
     fail(QStringLiteral("Unknown repository: %1").arg(name.isEmpty() ? QStringLiteral("(select --repo)") : name));
 }
 
+QString baseRef(const RepositoryConfig& repository)
+{
+    return repository.remote + QLatin1Char('/') + repository.branch;
+}
+
 QJsonObject finding(const QString& id, const QString& severity, const QString& domain, const QString& title, const QString& explanation, const QString& action = {})
 {
     QJsonObject value{
@@ -243,8 +340,9 @@ QJsonObject projectStatus(const QString& configPath)
 
     for (const RepositoryConfig& repository : config.repositories) {
         const QString repositoryPath = expandPath(repository.path, paths.root);
-        QJsonObject report{{QStringLiteral("name"), repository.name}, {QStringLiteral("path"), repositoryPath}, {QStringLiteral("base"), repository.base}};
-        const ProcessResult fetchResult = git(repositoryPath, {QStringLiteral("fetch"), QStringLiteral("--quiet"), QStringLiteral("origin")});
+        const QString remoteBase = baseRef(repository);
+        QJsonObject report{{QStringLiteral("name"), repository.name}, {QStringLiteral("path"), repositoryPath}, {QStringLiteral("base"), remoteBase}};
+        const ProcessResult fetchResult = git(repositoryPath, {QStringLiteral("fetch"), QStringLiteral("--quiet"), repository.remote});
         if (fetchResult.exitCode != 0) {
             report.insert(QStringLiteral("fetch_error"), fetchResult.error);
             findings.append(finding(QStringLiteral("git.fetch_failed"), QStringLiteral("warning"), QStringLiteral("git"), QStringLiteral("Cannot fetch remote"), repository.name + QStringLiteral(": ") + fetchResult.error, QStringLiteral("Restore remote access, then run status again.")));
@@ -253,8 +351,8 @@ QJsonObject projectStatus(const QString& configPath)
             const QString dirty = gitRequired(repositoryPath, {QStringLiteral("status"), QStringLiteral("--porcelain")});
             const QString head = gitRequired(repositoryPath, {QStringLiteral("rev-parse"), QStringLiteral("HEAD")});
             const QString branch = gitRequired(repositoryPath, {QStringLiteral("branch"), QStringLiteral("--show-current")});
-            const QString remoteBaseSha = gitRequired(repositoryPath, {QStringLiteral("rev-parse"), repository.base});
-            const QString counts = gitRequired(repositoryPath, {QStringLiteral("rev-list"), QStringLiteral("--left-right"), QStringLiteral("--count"), repository.base + QStringLiteral("...HEAD")});
+            const QString remoteBaseSha = gitRequired(repositoryPath, {QStringLiteral("rev-parse"), remoteBase});
+            const QString counts = gitRequired(repositoryPath, {QStringLiteral("rev-list"), QStringLiteral("--left-right"), QStringLiteral("--count"), remoteBase + QStringLiteral("...HEAD")});
             const QStringList countParts = counts.split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
             const int behind = countParts.value(0).toInt();
             const int ahead = countParts.value(1).toInt();
@@ -268,15 +366,15 @@ QJsonObject projectStatus(const QString& configPath)
                 findings.append(finding(QStringLiteral("git.dirty_workspace"), QStringLiteral("warning"), QStringLiteral("git"), QStringLiteral("Workspace has uncommitted changes"), repository.name + QStringLiteral(" is dirty")));
             }
             if (behind > 0) {
-                findings.append(finding(QStringLiteral("git.remote_ahead"), QStringLiteral("warning"), QStringLiteral("git"), QStringLiteral("Branch is behind remote base"), repository.name + QStringLiteral(" is ") + QString::number(behind) + QStringLiteral(" commits behind ") + repository.base));
+                findings.append(finding(QStringLiteral("git.remote_ahead"), QStringLiteral("warning"), QStringLiteral("git"), QStringLiteral("Branch is behind remote base"), repository.name + QStringLiteral(" is ") + QString::number(behind) + QStringLiteral(" commits behind ") + remoteBase));
             }
-            const QString localBase = repository.base.section(QLatin1Char('/'), 1);
+            const QString localBase = repository.branch;
             const ProcessResult localBaseExists = git(repositoryPath, {QStringLiteral("rev-parse"), QStringLiteral("--verify"), localBase});
             if (localBaseExists.exitCode == 0) {
-                const QString localCounts = gitRequired(repositoryPath, {QStringLiteral("rev-list"), QStringLiteral("--left-right"), QStringLiteral("--count"), repository.base + QStringLiteral("...") + localBase});
+                const QString localCounts = gitRequired(repositoryPath, {QStringLiteral("rev-list"), QStringLiteral("--left-right"), QStringLiteral("--count"), remoteBase + QStringLiteral("...") + localBase});
                 const int localBehind = localCounts.split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts).value(0).toInt();
                 if (localBehind > 0) {
-                    findings.append(finding(QStringLiteral("git.stale_local_base"), QStringLiteral("warning"), QStringLiteral("git"), QStringLiteral("Local base is behind remote"), localBase + QStringLiteral(" is ") + QString::number(localBehind) + QStringLiteral(" commits behind ") + repository.base));
+                    findings.append(finding(QStringLiteral("git.stale_local_base"), QStringLiteral("warning"), QStringLiteral("git"), QStringLiteral("Local base is behind remote"), localBase + QStringLiteral(" is ") + QString::number(localBehind) + QStringLiteral(" commits behind ") + remoteBase));
                 }
             }
             remoteBaseShas.insert(repository.name, remoteBaseSha);
@@ -320,6 +418,16 @@ QJsonObject projectStatus(const QString& configPath)
         }
         if (completed && !hasHandoff) {
             findings.append(finding(QStringLiteral("context.no_handoff"), QStringLiteral("warning"), QStringLiteral("context"), QStringLiteral("Completed execution has no handoff"), executionId));
+        }
+        const QString executionWorktree = event.value(QStringLiteral("worktree")).toString();
+        // Bitmis execution'in worktree'si diskte kalirsa aktif is sanilabilir.
+        // Silme otomatik degil (ARCHITECTURE.md "Guvenlik"); yalnizca gorunur yapilir.
+        if (completed && !executionWorktree.isEmpty() && QFileInfo::exists(executionWorktree)) {
+            findings.append(finding(QStringLiteral("git.orphaned_worktree"), QStringLiteral("info"), QStringLiteral("git"),
+                QStringLiteral("Completed execution still has a worktree"),
+                executionWorktree + QStringLiteral(" remains on disk after ") + executionId + QStringLiteral(" (")
+                    + event.value(QStringLiteral("workspace_source")).toString() + QStringLiteral(")"),
+                QStringLiteral("git worktree remove ") + executionWorktree));
         }
         if (!completed && !hasHandoff) {
             const QDateTime startedAt = QDateTime::fromString(event.value(QStringLiteral("ts")).toString(), Qt::ISODate);
@@ -397,11 +505,21 @@ QJsonObject startExecution(const QString& configPath, const QString& task, const
 
     const RepositoryConfig& repository = repositoryFor(config, repositoryName);
     const QString repositoryPath = expandPath(repository.path, paths.root);
-    gitRequired(repositoryPath, {QStringLiteral("fetch"), QStringLiteral("--quiet"), QStringLiteral("origin")});
-    if (!gitRequired(repositoryPath, {QStringLiteral("status"), QStringLiteral("--porcelain")}).isEmpty()) {
-        fail(QStringLiteral("Refusing start: repository has uncommitted changes"));
+    const QString remoteBase = baseRef(repository);
+    gitRequired(repositoryPath, {QStringLiteral("fetch"), QStringLiteral("--quiet"), repository.remote});
+    // ADR-014: ana repo'nun kirliligi baslatmayi engellemez. Base uzak ref'ten
+    // cozuldugu icin teknik engel yok; durum kaydedilir ve uyarilir.
+    // Worktree'nin kendi kirliligi preserved ref'e yakalanir; aksi halde
+    // merge-base..HEAD diff muhasebesinde gorunmez kanit olur.
+    const bool repositoryDirty = !gitRequired(repositoryPath, {QStringLiteral("status"), QStringLiteral("--porcelain")}).isEmpty();
+    QJsonArray warnings;
+    if (repositoryDirty) {
+        warnings.append(finding(QStringLiteral("git.dirty_workspace"), QStringLiteral("warning"), QStringLiteral("git"),
+            QStringLiteral("Repository has uncommitted changes"),
+            repository.name + QStringLiteral(" was dirty when this execution started"),
+            QStringLiteral("Commit or stash before the next start if this was unintended.")));
     }
-    const QString remoteBaseSha = gitRequired(repositoryPath, {QStringLiteral("rev-parse"), repository.base});
+    const QString remoteBaseSha = gitRequired(repositoryPath, {QStringLiteral("rev-parse"), remoteBase});
     const QString worktreeRoot = expandPath(config.worktreeRoot, paths.root);
     const QString worktree = QDir(worktreeRoot).filePath(task);
     const QString executionId = QDateTime::currentDateTimeUtc().toString(QStringLiteral("yyyyMMdd'T'HHmmss'Z'")) + QLatin1Char('-') + task;
@@ -412,29 +530,28 @@ QJsonObject startExecution(const QString& configPath, const QString& task, const
     QString baseSha;
     QString headSha;
     QString workspaceSource;
+    QString preservedRef;
     if (QFileInfo::exists(worktree)) {
-        if (gitCommonDir(worktree) != gitCommonDir(repositoryPath)) {
-            fail(QStringLiteral("Refusing start: existing worktree belongs to another repository"));
-        }
-        if (!gitRequired(worktree, {QStringLiteral("status"), QStringLiteral("--porcelain")}).isEmpty()) {
-            fail(QStringLiteral("Refusing start: existing worktree has uncommitted changes"));
-        }
+        const QString worktreeCommonDir = gitCommonDir(worktree);
+        const QString repositoryCommonDir = gitCommonDir(repositoryPath);
+        if (worktreeCommonDir != repositoryCommonDir) fail(QStringLiteral("Refusing start: existing worktree belongs to another repository"));
         for (const QJsonObject& event : readEvents(paths)) {
             if (event.value(QStringLiteral("type")).toString() == QLatin1String("execution.started")
                     && event.value(QStringLiteral("worktree")).toString() == worktree) {
                 fail(QStringLiteral("Refusing start: worktree already belongs to execution %1").arg(event.value(QStringLiteral("exec")).toString()));
             }
         }
+        preservedRef = preserveWorktree(worktree, executionId);
         branch = gitRequired(worktree, {QStringLiteral("branch"), QStringLiteral("--show-current")});
         headSha = gitRequired(worktree, {QStringLiteral("rev-parse"), QStringLiteral("HEAD")});
-        baseSha = gitRequired(worktree, {QStringLiteral("merge-base"), QStringLiteral("HEAD"), repository.base});
+        baseSha = gitRequired(worktree, {QStringLiteral("merge-base"), QStringLiteral("HEAD"), remoteBase});
         workspaceSource = QStringLiteral("adopted");
     } else {
         if (!QDir().mkpath(worktreeRoot)) {
             fail(QStringLiteral("Cannot create worktree root: %1").arg(worktreeRoot));
         }
         branch = QStringLiteral("task/") + task;
-        gitRequired(repositoryPath, {QStringLiteral("worktree"), QStringLiteral("add"), QStringLiteral("-b"), branch, worktree, repository.base});
+        gitRequired(repositoryPath, {QStringLiteral("worktree"), QStringLiteral("add"), QStringLiteral("-b"), branch, worktree, remoteBase});
         baseSha = remoteBaseSha;
         headSha = baseSha;
         workspaceSource = QStringLiteral("created");
@@ -443,11 +560,15 @@ QJsonObject startExecution(const QString& configPath, const QString& task, const
     appendEvent(paths, executionId, {
         {QStringLiteral("ts"), nowUtc()}, {QStringLiteral("type"), QStringLiteral("execution.started")}, {QStringLiteral("exec"), executionId},
         {QStringLiteral("task"), task}, {QStringLiteral("agent"), agent}, {QStringLiteral("repo"), repository.name},
-        {QStringLiteral("worktree"), worktree}, {QStringLiteral("branch"), branch}, {QStringLiteral("base"), repository.base},
-        {QStringLiteral("workspace_source"), workspaceSource}, {QStringLiteral("base_sha"), baseSha}, {QStringLiteral("head_sha"), headSha}, {QStringLiteral("plan_ref"), planReference(config, paths, task)},
+        {QStringLiteral("worktree"), worktree}, {QStringLiteral("branch"), branch}, {QStringLiteral("base"), remoteBase},
+        {QStringLiteral("workspace_source"), workspaceSource}, {QStringLiteral("repo_dirty"), repositoryDirty},
+        {QStringLiteral("preserved_ref"), preservedRef.isEmpty() ? QJsonValue::Null : QJsonValue(preservedRef)},
+        {QStringLiteral("base_sha"), baseSha}, {QStringLiteral("head_sha"), headSha}, {QStringLiteral("plan_ref"), planReference(config, paths, task)},
         {QStringLiteral("plan_sha1"), sha1File(expandPath(config.planPath, paths.root))},
     });
-    return {{QStringLiteral("exec"), executionId}, {QStringLiteral("worktree"), worktree}, {QStringLiteral("branch"), branch}, {QStringLiteral("workspace_source"), workspaceSource}, {QStringLiteral("base_sha"), baseSha}};
+    return {{QStringLiteral("exec"), executionId}, {QStringLiteral("worktree"), worktree}, {QStringLiteral("branch"), branch},
+        {QStringLiteral("workspace_source"), workspaceSource}, {QStringLiteral("base_sha"), baseSha},
+        {QStringLiteral("preserved_ref"), preservedRef.isEmpty() ? QJsonValue::Null : QJsonValue(preservedRef)}, {QStringLiteral("warnings"), warnings}};
 }
 
 QJsonObject finishExecution(const QString& configPath, const QString& executionId, const QString& outcome)
@@ -467,6 +588,9 @@ QJsonObject finishExecution(const QString& configPath, const QString& executionI
         }
     }
     const QString worktree = started.value(QStringLiteral("worktree")).toString();
+    QString preservedRef = started.value(QStringLiteral("preserved_ref")).toString();
+    const QString finishPreservedRef = preserveWorktree(worktree, executionId, preservedRef);
+    if (!finishPreservedRef.isEmpty()) preservedRef = finishPreservedRef;
     const QString baseSha = started.value(QStringLiteral("base_sha")).toString();
     const QString headSha = gitRequired(worktree, {QStringLiteral("rev-parse"), QStringLiteral("HEAD")});
     const QStringList commitLines = gitRequired(worktree, {QStringLiteral("log"), QStringLiteral("--format=%h%x09%s"), baseSha + QStringLiteral("..HEAD")}).split(QLatin1Char('\n'), Qt::SkipEmptyParts);
@@ -501,6 +625,7 @@ QJsonObject finishExecution(const QString& configPath, const QString& executionI
     output << "\nDeğişen dosyalar: " << filesChanged << " (+" << insertions << " / -" << deletions << ")\n";
     for (const QString& file : files) output << "- " << file << '\n';
     output << "\nEvidence: " << filesRef << '\n';
+    if (!preservedRef.isEmpty()) output << "\nPreserved uncommitted snapshot: " << preservedRef << '\n';
     output << "\n## Agent notu (zayıf evidence — doğrulanmadı)\n\n";
     bool hasAgentSummary = false;
     for (const QJsonObject& event : events) {
@@ -530,8 +655,10 @@ QJsonObject finishExecution(const QString& configPath, const QString& executionI
         fail(QStringLiteral("Cannot write handoff: %1").arg(handoff.fileName()));
     }
     handoff.close();
-    appendEvent(paths, executionId, {{QStringLiteral("ts"), nowUtc()}, {QStringLiteral("type"), QStringLiteral("execution.finished")}, {QStringLiteral("exec"), executionId}, {QStringLiteral("outcome"), outcome}, {QStringLiteral("head_sha"), headSha}, {QStringLiteral("commits"), commitJson}, {QStringLiteral("files_changed"), filesChanged}, {QStringLiteral("insertions"), insertions}, {QStringLiteral("deletions"), deletions}, {QStringLiteral("files_ref"), filesRef}});
-    return {{QStringLiteral("exec"), executionId}, {QStringLiteral("outcome"), outcome}, {QStringLiteral("head_sha"), headSha}, {QStringLiteral("handoff"), QStringLiteral("handoffs/") + executionId + QStringLiteral(".md")}};
+    appendEvent(paths, executionId, {{QStringLiteral("ts"), nowUtc()}, {QStringLiteral("type"), QStringLiteral("execution.finished")}, {QStringLiteral("exec"), executionId}, {QStringLiteral("outcome"), outcome}, {QStringLiteral("head_sha"), headSha}, {QStringLiteral("commits"), commitJson}, {QStringLiteral("files_changed"), filesChanged}, {QStringLiteral("insertions"), insertions}, {QStringLiteral("deletions"), deletions}, {QStringLiteral("files_ref"), filesRef}, {QStringLiteral("preserved_ref"), preservedRef.isEmpty() ? QJsonValue::Null : QJsonValue(preservedRef)}});
+    return {{QStringLiteral("exec"), executionId}, {QStringLiteral("outcome"), outcome}, {QStringLiteral("head_sha"), headSha},
+        {QStringLiteral("preserved_ref"), preservedRef.isEmpty() ? QJsonValue::Null : QJsonValue(preservedRef)},
+        {QStringLiteral("handoff"), QStringLiteral("handoffs/") + executionId + QStringLiteral(".md")}};
 }
 
 void recordEvidence(const QString& configPath, const QString& executionId, const QString& kind, const QString& summary, const QString& reference)

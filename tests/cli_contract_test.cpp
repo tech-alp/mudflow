@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
 
     QTemporaryDir directory;
     if (!directory.isValid()
-            || !writeFile(directory.filePath(QStringLiteral("project.json")), R"({"version":1,"name":"test","worktree_root":"worktrees","repos":[{"name":"repo","path":".","base":"origin/main"}],"plan":{"path":"plan.md"},"task_id_pattern":"MF-\\d+"})")) return 1;
+            || !writeFile(directory.filePath(QStringLiteral("project.json")), R"({"version":1,"name":"test","worktree_root":"worktrees","repos":[{"name":"repo","path":".","base":{"remote":"origin","branch":"main"}}],"plan":{"path":"plan.md"},"task_id_pattern":"MF-\\d+"})")) return 1;
     if (!run(executable, {QStringLiteral("--project"), directory.filePath(QStringLiteral("project.json")), QStringLiteral("inspect")}, 0, &standardOutput, &standardError)
             || !standardError.isEmpty()
             || !QJsonDocument::fromJson(standardOutput).isObject()) return 1;

@@ -56,6 +56,11 @@ Tam parser, bu üçünden fazlası gerektiğinde konuşulur.
 **Bağımlılık politikası (v0.1): Qt dışı sıfır.**
 İlk dış bağımlılık bilinçli bir karar olmalı, kaza olmamalı.
 
+Commit edilmemiş worktree snapshot'ı için `git stash` kullanılmaz: stash
+kullanıcıya ait global yığındır ve çalışma alanını değiştirir. Mevcut
+`QProcess` ile geçici index + `git commit-tree` kullanılır; yeni bağımlılık
+veya provider gerekmez.
+
 ---
 
 ## TC-003 — Config formatı JSON

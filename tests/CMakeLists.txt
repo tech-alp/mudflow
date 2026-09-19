@@ -6,6 +6,18 @@ add_executable(workflow_test workflow_test.cpp)
 target_link_libraries(workflow_test PRIVATE mudflow::core Qt6::Core)
 add_test(NAME workflow COMMAND workflow_test)
 
+add_executable(state_exclude_test state_exclude_test.cpp)
+target_link_libraries(state_exclude_test PRIVATE mudflow::core Qt6::Core)
+add_test(NAME state_exclude COMMAND state_exclude_test)
+
+add_executable(base_ref_test base_ref_test.cpp)
+target_link_libraries(base_ref_test PRIVATE mudflow::core Qt6::Core)
+add_test(NAME base_ref COMMAND base_ref_test)
+
+add_executable(preserved_worktree_test preserved_worktree_test.cpp)
+target_link_libraries(preserved_worktree_test PRIVATE mudflow::core Qt6::Core)
+add_test(NAME preserved_worktree COMMAND preserved_worktree_test)
+
 add_executable(cli_contract_test cli_contract_test.cpp)
 target_link_libraries(cli_contract_test PRIVATE Qt6::Core)
 add_dependencies(cli_contract_test mudflow)

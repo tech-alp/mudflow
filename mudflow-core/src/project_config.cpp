@@ -70,10 +70,16 @@ ProjectConfig ProjectConfig::load(const QString& path)
             fail(QStringLiteral("Every project.repos item must be an object"));
         }
         const QJsonObject repository = value.toObject();
+        const QJsonValue base = repository.value(QStringLiteral("base"));
+        if (!base.isObject()) {
+            fail(QStringLiteral("project.repos[].base must be an object with non-empty remote and branch"));
+        }
+        const QJsonObject baseObject = base.toObject();
         config.repositories.append({
             requiredString(repository, "name", QStringLiteral("project.repos[]")),
             requiredString(repository, "path", QStringLiteral("project.repos[]")),
-            requiredString(repository, "base", QStringLiteral("project.repos[]")),
+            requiredString(baseObject, "remote", QStringLiteral("project.repos[].base")),
+            requiredString(baseObject, "branch", QStringLiteral("project.repos[].base")),
         });
     }
 
@@ -87,7 +93,7 @@ QJsonObject ProjectConfig::toJson() const
         repositoriesJson.append(QJsonObject{
             {QStringLiteral("name"), repository.name},
             {QStringLiteral("path"), repository.path},
-            {QStringLiteral("base"), repository.base},
+            {QStringLiteral("base"), QJsonObject{{QStringLiteral("remote"), repository.remote}, {QStringLiteral("branch"), repository.branch}}},
         });
     }
 

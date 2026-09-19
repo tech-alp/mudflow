@@ -27,6 +27,11 @@ ARCHITECTURE.md'deki `cache/` ve `index/` v0.1'de yok.
 Ledger birkaç yüz satır; her `status`'ta baştan okunur.
 `status` 200 ms'yi geçerse index eklenir.
 
+Project anchor bir Git worktree içindeyse Mudflow yalnız ürettiği `ledger/`,
+`evidence/` ve `handoffs/` yollarını ortak Git dizinindeki `info/exclude`a
+idempotent ekler. `.mudflow/project.json` dışlanmaz; proje config'i takip
+edilir. Paylaşılan `.gitignore` Mudflow tarafından değiştirilmez.
+
 **Execution ID formatı:**
 
 ```text
@@ -53,7 +58,7 @@ Format kararı: TECH_CHOICES.md TC-003 (YAML yerine JSON → Qt dışı sıfır 
     {
       "name": "scms-core",
       "path": "~/projects/scms-core",
-      "base": "origin/development"
+      "base": {"remote": "origin", "branch": "development"}
     }
   ],
 
@@ -64,7 +69,9 @@ Format kararı: TECH_CHOICES.md TC-003 (YAML yerine JSON → Qt dışı sıfır 
 ```
 
 - `worktree_root` — ADR-006: project anchor != workspace root
-- `repos[].base` — ADR-007: verified remote base
+- `repos[].base.remote` + `repos[].base.branch` — ADR-007: verified remote
+  base. Git ref'i `remote + "/" + branch` olarak türetilir; eski
+  `"origin/main"` string biçimi kabul edilmez.
 - `task_id_pattern` — Plan ↔ evidence eşleşmesinin dayandığı konvansiyon. Bu
   pattern olmadan PlanTruthEngine çalışmaz.
 
@@ -93,6 +100,8 @@ Ortak alanlar: `ts` (UTC ISO8601), `type`, `exec`.
   "worktree": "~/worktrees/SCMS-042",
   "branch": "task/SCMS-042",
   "workspace_source": "created",
+  "repo_dirty": false,
+  "preserved_ref": null,
   "base": "origin/development",
   "base_sha": "a1b2c3d4",
   "head_sha": "a1b2c3d4",
@@ -101,6 +110,13 @@ Ortak alanlar: `ts` (UTC ISO8601), `type`, `exec`.
 ```
 
 `plan_ref` boş olabilir → `plan.execution_without_plan_link` finding'i doğar.
+
+`repo_dirty`: start anında ana repo'nun kirli olup olmadığı (ADR-014).
+Bloklamaz, kaydedilir ve `start` çıktısının `warnings` dizisinde döner.
+
+`preserved_ref`: worktree'de commit edilmemiş iş varsa
+`refs/mudflow/preserved/<exec>`; yoksa `null`. Ref, geçici index ile üretilen
+snapshot commit'ini gösterir; working tree ve stash değiştirilmez.
 
 `workspace_source`: `created` | `adopted`. `created` için `base_sha`, fetch
 sonrası remote base'dir. `adopted` için Mudflow'un ölçtüğü
@@ -122,7 +138,8 @@ ledger'a yazılmaz.
   "files_changed": 12,
   "insertions": 340,
   "deletions": 58,
-  "files_ref": "evidence/3a7f91c2.json"
+  "files_ref": "evidence/3a7f91c2.json",
+  "preserved_ref": null
 }
 ```
 
@@ -182,7 +199,29 @@ Karar ve açık maddeler.
 
 ---
 
-## 4. Finding
+## 4. Invariants
+
+- **Ledger append-only'dir.** Hiçbir olay değiştirilmez veya silinmez; aksi
+  halde geçmiş execution kanıtı sonradan yeniden yazılabilir.
+- **Teşhis bilgisi kanıt değildir.** Repository raporundaki `error` ve
+  `fetch_error` yalnız yönlendirme içindir, ledger'a yazılmaz; aksi halde
+  geçici ağ/ortam hatası kalıcı execution gerçeği gibi görünür.
+- **Finding'ler türetilir, saklanmaz.** Her `status`, ledger + Git + plan'dan
+  yeniden hesaplar; aksi halde bayat finding gerçek durumla çelişir.
+- **`base_sha` Mudflow'un kendi ölçümüdür.** Provider'ın söylediği SHA olduğu
+  gibi kaydedilmez; aksi halde ADR-002'nin evidence > claim sınırı bozulur.
+- **Evidence gücü `kind`'dan türetilir.** Ayrı bir güç alanı saklanmaz; aksi
+  halde aynı evidence için iki çelişen otorite oluşur.
+- **Handoff ölçülen gerçekleri agent iddialarından ayrı tutar.** Mudflow'un
+  ürettiği bölüm ile `agent_summary` aynı başlıkta birleşmez; aksi halde iddia
+  doğrulanmış veri gibi okunur.
+- **Bloklayan ölçümü bozar, uyarı hijyeni bildirir.** ADR-014 uyarınca kanıtı
+  güvenilmez yapan durumlar durur, yalnız çalışma hijyenini etkileyenler
+  warning olur; aksi halde araç ya kanıtsız devam eder ya da gereksiz engeller.
+
+---
+
+## 5. Finding
 
 TRUST_MODEL.md'deki modelin birebir karşılığı. **Diske yazılmaz** — her
 `status` çağrısında ledger + git + plan'dan yeniden hesaplanır.
@@ -234,7 +273,7 @@ ilk blocking kural geldiğinde şema değişmesin.
 
 ---
 
-## 5. Handoff
+## 6. Handoff
 
 `mudflow finish` üretir. Okuyucusu bir sonraki **agent**, o yüzden format
 markdown; makine alanları frontmatter'da.
@@ -267,6 +306,8 @@ Değişen dosyalar: 12 (+340 / -58)
 
 Test: ctest 148 passed, 0 failed  (15:40)
 
+Preserved uncommitted snapshot: refs/mudflow/preserved/20260918T142231Z-SCMS-042
+
 ## Agent notu (zayıf evidence — doğrulanmadı)
 
 Eski format okuma yolu loader.cpp'de duruyor, henüz silinmedi.
@@ -282,7 +323,7 @@ Mudflow'un git'ten ölçtüğü ile agent'ın iddia ettiği aynı bölümde durm
 
 ---
 
-## 6. Handoff policy — Handoff'u kim üretir
+## 7. Handoff policy — Handoff'u kim üretir
 
 **Melez.**
 
@@ -297,7 +338,7 @@ birlikte sağlanır ve handoff hiçbir zaman saf agent çıktısı olmaz.
 
 ---
 
-## 7. v0.1'de bilerek yok
+## 8. v0.1'de bilerek yok
 
 | Yok | Ne zaman eklenir |
 |---|---|

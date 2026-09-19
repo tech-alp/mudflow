@@ -69,10 +69,14 @@ int main()
 
     if (!QDir().mkpath(root + QStringLiteral("/.mudflow"))
             || !writeFile(root + QStringLiteral("/plan.md"), "- [x] MF-1\n")
-            || !writeFile(config, R"({"version":1,"name":"test","worktree_root":"worktrees","repos":[{"name":"repo","path":"repo","base":"origin/main"}],"plan":{"path":"plan.md"},"task_id_pattern":"MF-\\d+"})")) return 1;
+            || !writeFile(config, R"({"version":1,"name":"test","worktree_root":"worktrees","repos":[{"name":"repo","path":"repo","base":{"remote":"origin","branch":"main"}}],"plan":{"path":"plan.md"},"task_id_pattern":"MF-\\d+"})")) return 1;
 
     try {
+        // ADR-014: kirli ana repo baslatmayi engellemez, uyarir ve ledger'a yazar.
+        if (!writeFile(repository + QStringLiteral("/scratch.txt"), "dirty\n")) return 1;
         const QJsonObject started = mudflow::startExecution(config, QStringLiteral("MF-1"), QStringLiteral("codex"), {});
+        if (!hasFinding(started.value(QStringLiteral("warnings")).toArray(), QStringLiteral("git.dirty_workspace"))) return 1;
+        if (!QFile::remove(repository + QStringLiteral("/scratch.txt"))) return 1;
         const QString executionId = started.value(QStringLiteral("exec")).toString();
         const QString worktree = started.value(QStringLiteral("worktree")).toString();
         if (executionId.isEmpty() || !git({QStringLiteral("-C"), worktree, QStringLiteral("config"), QStringLiteral("user.email"), QStringLiteral("test@example.invalid")})
@@ -120,13 +124,6 @@ int main()
 
         const QString externalWorktree = root + QStringLiteral("/worktrees/MF-3");
         if (!git({QStringLiteral("-C"), repository, QStringLiteral("worktree"), QStringLiteral("add"), QStringLiteral("-b"), QStringLiteral("external/MF-3"), externalWorktree, QStringLiteral("origin/main")})
-                || !writeFile(externalWorktree + QStringLiteral("/untracked.txt"), "dirty\n")) return 1;
-        try {
-            mudflow::startExecution(config, QStringLiteral("MF-3"), QStringLiteral("claude"), {});
-            return 1;
-        } catch (const std::exception&) {
-        }
-        if (!QFile::remove(externalWorktree + QStringLiteral("/untracked.txt"))
                 || !git({QStringLiteral("-C"), repository, QStringLiteral("commit"), QStringLiteral("--allow-empty"), QStringLiteral("-m"), QStringLiteral("advance after external worktree")})
                 || !git({QStringLiteral("-C"), repository, QStringLiteral("push")})) return 1;
         const QString externalHead = gitOutput({QStringLiteral("-C"), externalWorktree, QStringLiteral("rev-parse"), QStringLiteral("HEAD")});
@@ -137,7 +134,7 @@ int main()
                 || adopted.value(QStringLiteral("workspace_source")).toString() != QLatin1String("adopted")
                 || adopted.value(QStringLiteral("base_sha")).toString() != externalHead) return 1;
 
-        if (!writeFile(config, R"({"version":1,"name":"test","worktree_root":"worktrees","repos":[{"name":"repo","path":"worktrees/MF-1","base":"origin/main"}],"plan":{"path":"plan.md"},"task_id_pattern":"MF-\\d+"})")) return 1;
+        if (!writeFile(config, R"({"version":1,"name":"test","worktree_root":"worktrees","repos":[{"name":"repo","path":"worktrees/MF-1","base":{"remote":"origin","branch":"main"}}],"plan":{"path":"plan.md"},"task_id_pattern":"MF-\\d+"})")) return 1;
         if (!writeFile(root + QStringLiteral("/plan.md"), "- [x] MF-1\nupdated\n")
                 || !git({QStringLiteral("-C"), repository, QStringLiteral("commit"), QStringLiteral("--allow-empty"), QStringLiteral("-m"), QStringLiteral("advance base")})
                 || !git({QStringLiteral("-C"), repository, QStringLiteral("push")})) return 1;
@@ -154,6 +151,7 @@ int main()
                 || !handoffText.contains(QStringLiteral("## Açık kalanlar"))
                 || !handoffText.contains(QStringLiteral("Needs follow-up"))
                 || !hasFinding(findings, QStringLiteral("context.unresolved_without_ref"))
+                || !hasFinding(findings, QStringLiteral("git.orphaned_worktree"))
                 || hasFindingFor(findings, QStringLiteral("plan.changed_during_execution"), QStringLiteral("MF-1"))
                 || hasFindingFor(findings, QStringLiteral("git.stale_worktree_base"), executionId)) return 1;
 

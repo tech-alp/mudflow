@@ -92,3 +92,29 @@ fetch remote base
 
 MudIssue zorunlu bağımlılık değildir. v0.1'de workspace provider veya Mud
 adapter'ı yoktur.
+
+## ADR-014 — Ne bloklar, ne uyarır
+Accepted.
+
+Ana repo'nun kirliliği `start`'ı **engellemez**. Base uzak ref'ten çözüldüğü
+için teknik bir engel yoktur; bu bir proje hijyeni tercihiydi ve bloklayıcı
+olması insanları aracın dışına itiyordu.
+
+Durum kaybolmaz: `execution.started` olayına `repo_dirty` yazılır ve `start`
+çıktısı `warnings` dizisinde `git.dirty_workspace` döndürür.
+
+Bloklayıcı kalanlar:
+
+```text
+worktree başka repo'nun   ölçüm yanlış repoyu ölçer
+worktree başka execution'a ait
+execution zaten var
+task, task_id_pattern'e uymuyor
+```
+
+Worktree kirliliği artık bloklamaz. Mudflow, working tree veya stash'e
+dokunmadan geçici index ile snapshot commit'i üretir ve bunu
+`refs/mudflow/preserved/<exec-id>` altında saklar. Bu yakalama başarısızsa
+`start`/`finish` başarısız olur; aksi halde kanıtsız iş üretirdi.
+
+İlke: **ölçümü bozan şey bloklar, hijyen tercihi uyarır.**

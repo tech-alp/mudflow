@@ -6,7 +6,7 @@
     {
       "name": "mudflow",
       "path": ".",
-      "base": "origin/main"
+      "base": {"remote": "origin", "branch": "main"}
     }
   ],
   "plan": {
