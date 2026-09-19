@@ -8,3 +8,8 @@ doğrula.
 ## [ ] MF-2 — Plan-linked execution doğrulaması
 
 Bir execution'ı plan task'ına bağla; commit, test evidence ve handoff üret.
+
+## [ ] MF-3 — GitHub base üzerinde plan-linked execution
+
+GitHub `origin/main` üzerinden worktree aç; commit, test evidence ve handoff
+ile plan bağlantısını doğrula.
