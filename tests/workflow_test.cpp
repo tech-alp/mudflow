@@ -28,6 +28,16 @@ bool hasFinding(const QJsonArray& findings, const QString& id)
     return false;
 }
 
+bool hasFindingFor(const QJsonArray& findings, const QString& id, const QString& value)
+{
+    for (const QJsonValue& finding : findings) {
+        const QJsonObject object = finding.toObject();
+        if (object.value(QStringLiteral("id")).toString() == id
+                && object.value(QStringLiteral("explanation")).toString().contains(value)) return true;
+    }
+    return false;
+}
+
 } // namespace
 
 int main()
@@ -78,6 +88,28 @@ int main()
         QFile handoffFile(handoff);
         if (!handoffFile.open(QIODevice::ReadOnly)) return 1;
         const QString handoffText = QString::fromUtf8(handoffFile.readAll());
+
+        const QJsonObject active = mudflow::startExecution(config, QStringLiteral("MF-2"), QStringLiteral("codex"), {});
+        const QString activeExecutionId = active.value(QStringLiteral("exec")).toString();
+        const QString activeLedger = root + QStringLiteral("/.mudflow/ledger/") + activeExecutionId + QStringLiteral(".jsonl");
+        const QJsonArray activeFindings = mudflow::projectStatus(config).value(QStringLiteral("findings")).toArray();
+        if (!hasFinding(activeFindings, QStringLiteral("context.active_execution"))) return 1;
+        QFile activeLedgerFile(activeLedger);
+        if (!activeLedgerFile.open(QIODevice::ReadOnly)) return 1;
+        QByteArray activeLedgerContents = activeLedgerFile.readAll();
+        activeLedgerFile.close();
+        const int timestampStart = activeLedgerContents.indexOf("\"ts\":\"");
+        if (timestampStart < 0) return 1;
+        const int timestampValue = timestampStart + 6;
+        activeLedgerContents.replace(timestampValue, 20, "2000-01-01T00:00:00Z");
+        if (!writeFile(activeLedger, activeLedgerContents)) return 1;
+        const QJsonArray orphanFindings = mudflow::projectStatus(config).value(QStringLiteral("findings")).toArray();
+        if (!hasFinding(orphanFindings, QStringLiteral("context.orphaned_execution"))) return 1;
+        activeLedgerContents.replace("2000-01-01T00:00:00Z", "BOZUK-TARIH");
+        if (!writeFile(activeLedger, activeLedgerContents)) return 1;
+        const QJsonArray invalidTimestampFindings = mudflow::projectStatus(config).value(QStringLiteral("findings")).toArray();
+        if (!hasFinding(invalidTimestampFindings, QStringLiteral("context.invalid_ledger_timestamp"))) return 1;
+
         if (!writeFile(config, R"({"version":1,"name":"test","worktree_root":"worktrees","repos":[{"name":"repo","path":"worktrees/MF-1","base":"origin/main"}],"plan":{"path":"plan.md"},"task_id_pattern":"MF-\\d+"})")) return 1;
         if (!writeFile(root + QStringLiteral("/plan.md"), "- [x] MF-1\nupdated\n")
                 || !git({QStringLiteral("-C"), repository, QStringLiteral("commit"), QStringLiteral("--allow-empty"), QStringLiteral("-m"), QStringLiteral("advance base")})
@@ -95,8 +127,8 @@ int main()
                 || !handoffText.contains(QStringLiteral("## Açık kalanlar"))
                 || !handoffText.contains(QStringLiteral("Needs follow-up"))
                 || !hasFinding(findings, QStringLiteral("context.unresolved_without_ref"))
-                || hasFinding(findings, QStringLiteral("plan.changed_during_execution"))
-                || hasFinding(findings, QStringLiteral("git.stale_worktree_base"))) return 1;
+                || hasFindingFor(findings, QStringLiteral("plan.changed_during_execution"), QStringLiteral("MF-1"))
+                || hasFindingFor(findings, QStringLiteral("git.stale_worktree_base"), executionId)) return 1;
 
         if (!writeFile(worktree + QStringLiteral("/untracked.txt"), "dirty\n")
                 || !git({QStringLiteral("-C"), worktree, QStringLiteral("remote"), QStringLiteral("set-url"), QStringLiteral("origin"), root + QStringLiteral("/missing.git")})) return 1;

@@ -3,3 +3,4 @@
 /.mudflow/ledger/
 /.mudflow/evidence/
 /.mudflow/handoffs/
+/CMakeUserPresets.json

@@ -6,9 +6,25 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QJsonDocument>
+#include <QJsonObject>
 #include <QTextStream>
 
 #include <exception>
+
+namespace {
+
+// stdout = sonuc, stderr = hata. Ikisi de JSON; sinyal exit kodu.
+int emitError(const QString& code, const QString& message, int exitCode)
+{
+    const QJsonObject payload{{QStringLiteral("error"), QJsonObject{
+        {QStringLiteral("code"), code},
+        {QStringLiteral("message"), message},
+    }}};
+    QTextStream(stderr) << QJsonDocument(payload).toJson(QJsonDocument::Indented);
+    return exitCode;
+}
+
+} // namespace
 
 int main(int argc, char* argv[])
 {
@@ -57,13 +73,12 @@ int main(int argc, char* argv[])
             mudflow::recordNote(configPath, arguments.constLast(), parser.value(kindOption), parser.value(textOption), parser.value(referenceOption));
             result = {{QStringLiteral("recorded"), QStringLiteral("note")}};
         } else {
-            QTextStream(stderr) << "Usage: mudflow <inspect|status|start|finish|evidence|note> [argument] [options]\n";
-            return 2;
+            return emitError(QStringLiteral("usage"),
+                QStringLiteral("Usage: mudflow <inspect|status|start|finish|evidence|note> [argument] [options]"), 2);
         }
         QTextStream(stdout) << QJsonDocument(result).toJson(QJsonDocument::Indented);
         return 0;
     } catch (const std::exception& error) {
-        QTextStream(stderr) << "mudflow: " << error.what() << '\n';
-        return 1;
+        return emitError(QStringLiteral("runtime"), QString::fromUtf8(error.what()), 1);
     }
 }

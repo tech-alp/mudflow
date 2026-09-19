@@ -218,6 +218,9 @@ MVP.md §8'in birebir karşılığı. Dokuz kural, fazlası yok.
 | `plan.execution_without_plan_link` | info |
 | `plan.changed_during_execution` | warning |
 | `context.no_handoff` | warning |
+| `context.active_execution` | info |
+| `context.orphaned_execution` | warning |
+| `context.invalid_ledger_timestamp` | warning |
 | `context.unresolved_without_ref` | info |
 
 `blocking` v0.1'de kullanılmıyor. Severity alanı yine de üç değerli —

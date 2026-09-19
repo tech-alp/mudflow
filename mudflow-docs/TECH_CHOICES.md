@@ -134,6 +134,75 @@ Geri dönüş maliyeti: **yok** — henüz kod yazılmıyor.
 
 ---
 
+## TC-006 — Katmanlama: taşıyan katman taşıdığını bilmez
+
+Provider'ı **çalıştıran** kod, provider'ın **ne dediğini** bilmez.
+
+```text
+Alt katman (taşıma)      başlat · çağır · cevabı al · zaman aşımı · hata · durdur
+Üst katman (anlam)       planları listele · task durumu güncelle · testi çalıştır
+```
+
+Gerekçe: bu iki katman farklı hızlarda değişir. Taşıma neredeyse hiç değişmez;
+provider API'si ilk aylarda sürekli değişir. Ayrı tutulmazlarsa üstteki her
+değişiklik alttakine dokunur ve her yeni provider tipi tesisatı kopyalatır.
+
+Referans: Vicinae'nin `manager.fig`'i aynı ayrımı yapıyor — manager eklentiyi
+load/unload eder ve mesajı iletir, ama *"payload'ın neyden yapıldığını bilmez"*;
+asıl API ayrı bir spec'te (`tsapi.fig`) durur.
+
+### Bugün ne demek
+
+**Hiçbir yeni soyutlama değil.** Provider'lar hâlâ düz C++ sınıfı (ADR-004).
+Kural sadece şu: "provider'ı bul, çağır, hatasını yakala" ile
+"plan dosyasını parse et" aynı fonksiyonda olmasın.
+
+Mevcut kodda uygulanmış hali: `run()` / `git()` / `gitRequired()` taşıma,
+çağıranlar yorumlama. TC-007'deki hata sözleşmesi de aynı ayrımın örneği —
+çekirdek yapısal hata üretir, çıktı biçimine CLI karar verir.
+
+### Sırası geldiğinde (Phase 6)
+
+Süreç sınırı eklemek **alt katmanı** değiştirmek olur; üst katman değişmez.
+
+Ve o gün kendi IDL'ini yazma — **JSON-RPC 2.0 over stdio** yeterli.
+Vicinae figura'yı kendine özgü kısıtları için yazdı (üçüncü parti eklentiler,
+farklı dil, kamuya açık versiyonlu sözleşme); bunların hiçbiri Mudflow'da yok.
+JSON-RPC aynı katmanlamayı verir ve bakılacak bir derleyici bırakmaz.
+
+Geri dönüş maliyeti: **yok** — bugün kod değil, kural.
+
+---
+
+## TC-007 — CLI çıktı sözleşmesi
+
+```text
+stdout    sonuç JSON'u        (yalnızca başarıda)
+stderr    hata JSON'u         (yalnızca başarısızlıkta)
+exit      0 başarı · 1 runtime · 2 kullanım
+```
+
+Hata gövdesi:
+
+```json
+{ "error": { "code": "runtime", "message": "Cannot read /yok/project.json: ..." } }
+```
+
+Neden ayrı akış: stdout "sonuç" kanalıdır, taşıma düzeyindeki başarısızlıkları
+taşımaz — TC-006'nın aynı ayrımı. Böylece `mudflow status | jq` boruya hata
+sızdırmaz ve desktop, CLI'ı spawn ederse iki kanalı karıştırmadan okur.
+
+`code` şimdilik yalnızca iki değer alıyor: `usage`, `runtime`. Daha ince bir
+taksonomi (`git.fetch_failed` gibi) **ilk gerçek tüketici bir koda göre dallanmak
+isteyince** eklenir, önce değil.
+
+Bu sözleşme, desktop'ın core'u link mi edeceği yoksa CLI'ı spawn mı edeceği
+kararını açık tutar. Sözleşme olmazsa spawn seçeneği sessizce ölür.
+
+Geri dönüş maliyeti: **düşük.** Tek fonksiyon (`emitError`).
+
+---
+
 ## Özet: neyi ne zaman değiştiririz
 
 | Karar | Şimdi | Tetikleyici |
@@ -145,3 +214,5 @@ Geri dönüş maliyeti: **yok** — henüz kod yazılmıyor.
 | Recursive izleme | — | FD limiti veya kaynak ağacı izleme ihtiyacı → Watchman |
 | Markdown | 2 regex | Checkbox/başlık/ID'den fazlası → parser |
 | Qt dışı bağımlılık | Sıfır | Her biri ayrı karar |
+| Provider katmanlaması | Kural, kod değil | Phase 6 → JSON-RPC 2.0 over stdio |
+| Hata `code` alanı | `usage` / `runtime` | Tüketici koda göre dallanmak isteyince |

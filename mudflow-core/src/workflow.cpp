@@ -306,14 +306,26 @@ QJsonObject projectStatus(const QString& configPath)
         const QString executionId = event.value(QStringLiteral("exec")).toString();
         const QString task = event.value(QStringLiteral("task")).toString();
         const bool completed = completedExecutions.contains(executionId);
+        const bool hasHandoff = QFileInfo::exists(QDir(paths.handoffs).filePath(executionId + QStringLiteral(".md")));
         if (executionsWithCommits.contains(executionId)) {
             evidencedTasks.insert(task);
         }
         if (event.value(QStringLiteral("plan_ref")).toString().isEmpty()) {
             findings.append(finding(QStringLiteral("plan.execution_without_plan_link"), QStringLiteral("info"), QStringLiteral("plan"), QStringLiteral("Execution has no plan link"), executionId + QStringLiteral(" has no matching task in plan")));
         }
-        if (completed && !QFileInfo::exists(QDir(paths.handoffs).filePath(executionId + QStringLiteral(".md")))) {
+        if (completed && !hasHandoff) {
             findings.append(finding(QStringLiteral("context.no_handoff"), QStringLiteral("warning"), QStringLiteral("context"), QStringLiteral("Completed execution has no handoff"), executionId));
+        }
+        if (!completed && !hasHandoff) {
+            const QDateTime startedAt = QDateTime::fromString(event.value(QStringLiteral("ts")).toString(), Qt::ISODate);
+            if (!startedAt.isValid()) {
+                findings.append(finding(QStringLiteral("context.invalid_ledger_timestamp"), QStringLiteral("warning"), QStringLiteral("context"), QStringLiteral("Execution has an invalid ledger timestamp"), executionId + QStringLiteral(" has invalid ts: ") + event.value(QStringLiteral("ts")).toString()));
+            } else if (startedAt.secsTo(QDateTime::currentDateTimeUtc()) >= 24 * 60 * 60) {
+                const qint64 ageSeconds = startedAt.secsTo(QDateTime::currentDateTimeUtc());
+                findings.append(finding(QStringLiteral("context.orphaned_execution"), QStringLiteral("warning"), QStringLiteral("context"), QStringLiteral("Execution appears abandoned"), executionId + QStringLiteral(" started ") + QString::number(ageSeconds / 3600) + QStringLiteral(" hours ago without finish or handoff")));
+            } else {
+                findings.append(finding(QStringLiteral("context.active_execution"), QStringLiteral("info"), QStringLiteral("context"), QStringLiteral("Execution is still active"), executionId + QStringLiteral(" has no finish event or handoff yet")));
+            }
         }
         const QString recordedPlanSha = event.value(QStringLiteral("plan_sha1")).toString();
         if (!completed && !recordedPlanSha.isEmpty() && recordedPlanSha != sha1File(expandPath(config.planPath, paths.root))) {
