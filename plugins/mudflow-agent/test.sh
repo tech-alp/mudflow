@@ -131,8 +131,10 @@ else process.stdout.write(process.env.FAKE_RESUME || '');
       assert.equal(result.stderr, '');
       // Hook yalnizca cagirir; secici vermez, karar vermez (TC-006).
       assert.deepEqual(result.calls, [['--version'], ['resume', '--markdown', '--hook']]);
+      // hookEventName olmadan Claude Code ciktiyi yonlendirmiyor: hook
+      // calisir, JSON uretir, ajana hicbir sey ulasmaz.
       assert.deepEqual(JSON.parse(result.stdout), {
-        hookSpecificOutput: { additionalContext: '# Mudflow resume: MF-1\n' } });
+        hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: '# Mudflow resume: MF-1\n' } });
     }
   });
   check('empty resume output: no injection', () => {

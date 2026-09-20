@@ -47,7 +47,8 @@ try {
     windowsHide: true,
   });
   if (context.trim()) {
-    process.stdout.write(JSON.stringify({ hookSpecificOutput: { additionalContext: context } }));
+    process.stdout.write(JSON.stringify({ hookSpecificOutput: {
+      hookEventName: 'SessionStart', additionalContext: context } }));
   }
 } catch {
   // Missing CLI, malformed input and command failures must not break the session.
