@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(Mudflow VERSION 0.1.0 LANGUAGES CXX)
+project(Mudflow VERSION 0.2.0 LANGUAGES CXX)
 
 option(MUDFLOW_BUILD_CLI "Build the Mudflow CLI" ON)
 option(MUDFLOW_BUILD_UI "Build the Mudflow UI" OFF)

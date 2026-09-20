@@ -52,7 +52,8 @@ int main(int argc, char* argv[])
     const QCommandLineOption referenceOption(QStringLiteral("ref"), QStringLiteral("Durable source reference."), QStringLiteral("reference"));
     const QCommandLineOption instructionOption(QStringLiteral("instruction"), QStringLiteral("Instruction path, added to project instructions; repeatable."), QStringLiteral("path"));
     const QCommandLineOption markdownOption(QStringLiteral("markdown"), QStringLiteral("Render resume as Markdown."));
-    parser.addOptions({agentOption, repositoryOption, outcomeOption, kindOption, summaryOption, textOption, referenceOption, instructionOption, markdownOption});
+    const QCommandLineOption hookOption(QStringLiteral("hook"), QStringLiteral("Record that an agent hook ran this command."));
+    parser.addOptions({agentOption, repositoryOption, outcomeOption, kindOption, summaryOption, textOption, referenceOption, instructionOption, markdownOption, hookOption});
     parser.addPositionalArgument(QStringLiteral("command"), QStringLiteral("inspect, status, start, finish, resume, evidence, or note."));
     parser.addPositionalArgument(QStringLiteral("argument"), QStringLiteral("Task or execution ID, depending on command."), QStringLiteral("[argument]"));
     parser.process(app);
@@ -70,7 +71,7 @@ int main(int argc, char* argv[])
         } else if ((arguments.size() == 1 || arguments.size() == 2) && arguments.constFirst() == QLatin1String("resume")) {
             // Argumansiz resume = en son execution. SessionStart hook'u hangi
             // task'ta oldugunu bilmez; secici vermeden cagirabilmeli.
-            result = mudflow::resumeExecution(configPath, arguments.size() == 2 ? arguments.constLast() : QString());
+            result = mudflow::resumeExecution(configPath, arguments.size() == 2 ? arguments.constLast() : QString(), parser.isSet(hookOption));
             if (parser.isSet(markdownOption)) {
                 QTextStream(stdout) << mudflow::resumeMarkdown(result);
                 return 0;

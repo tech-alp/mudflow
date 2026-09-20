@@ -35,7 +35,9 @@ try {
 
   // Argument-less resume means "latest execution": selection lives in core, and
   // the hook must not infer it from Git, findings or files (TC-006).
-  const context = execFileSync('mudflow', ['resume', '--markdown'], {
+  // --hook records that this ran, so a hook that silently stops firing becomes
+  // a status finding instead of looking like a clean project.
+  const context = execFileSync('mudflow', ['resume', '--markdown', '--hook'], {
     cwd: input.cwd,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],

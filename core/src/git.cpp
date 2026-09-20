@@ -263,6 +263,7 @@ void ensureGitExcludes(const Paths& paths)
         QLatin1Char('/') + statePath + QStringLiteral("/ledger/"),
         QLatin1Char('/') + statePath + QStringLiteral("/evidence/"),
         QLatin1Char('/') + statePath + QStringLiteral("/handoffs/"),
+        QLatin1Char('/') + statePath + QStringLiteral("/hook-observed.json"),
     };
 
     QFile exclude(QDir(commonDir).filePath(QStringLiteral("info/exclude")));

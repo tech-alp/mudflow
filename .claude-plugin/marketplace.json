@@ -1,6 +1,9 @@
 {
   "name": "mudflow",
-  "owner": { "name": "Mudflow" },
+  "owner": {
+    "name": "Mudflow"
+  },
+  "description": "Mudflow yurutme kontrol duzlemi icin ajan eklentileri.",
   "plugins": [
     {
       "name": "mudflow-agent",

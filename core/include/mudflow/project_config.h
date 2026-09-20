@@ -21,6 +21,7 @@ struct ProjectConfig {
     QVector<RepositoryConfig> repositories;
     QString planPath;
     QString taskIdPattern;
+    bool hooksExpected = false;   // proje bir ajan hook'u bekliyor mu
     QStringList instructions;
 
     static ProjectConfig load(const QString& path);

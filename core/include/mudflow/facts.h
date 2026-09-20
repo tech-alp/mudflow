@@ -53,6 +53,10 @@ struct StatusFacts {
     QVector<QJsonObject> events;
     QVector<ExecutionFacts> executions;
     PlanFacts plan;
+    // Hook'un son calistigi an. Yoksa nullopt: "hic gorulmedi" ile "okunamadi"
+    // ayrimini hookError tasir.
+    std::optional<QDateTime> lastHookObserved;
+    QString hookError;
 };
 
 struct FileFacts {

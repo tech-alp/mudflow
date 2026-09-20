@@ -57,6 +57,8 @@ StatusFacts observe(const ProjectConfig& config, const Paths& paths)
         facts.repos.append(observeRepo(repository, expandPath(repository.path, paths.root)));
     }
 
+    facts.hookError = readHookObservation(paths, facts.lastHookObserved);
+
     for (const QJsonObject& event : facts.events) {
         if (event.value(QStringLiteral("type")).toString() != QLatin1String("execution.started")) {
             continue;
@@ -95,10 +97,14 @@ QJsonObject projectStatus(const QString& configPath)
             {QStringLiteral("findings"), evaluate(config, facts)}};
 }
 
-QJsonObject resumeExecution(const QString& configPath, const QString& taskOrExecution)
+QJsonObject resumeExecution(const QString& configPath, const QString& taskOrExecution, bool observedByHook)
 {
     const ProjectConfig config = ProjectConfig::load(configPath);
     const Paths paths = pathsFor(configPath);
+    // Hook'un calistigini baska hicbir sey kanitlamaz: bir oturum acilir, hook
+    // sessizce patlar ve status bunu temiz bir proje sanir. Yazim basarisiz
+    // olursa gormezden gel; o zaman bulgu "gorulmedi" der, guvenli yon budur.
+    if (observedByHook) writeHookObservation(paths);
     ResumeFacts facts = observeResumeLedger(paths, taskOrExecution);
     if (!facts.started.isEmpty()) {
         facts.planSha1 = observePlan(config, paths.root).sha1;

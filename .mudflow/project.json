@@ -6,11 +6,15 @@
     {
       "name": "mudflow",
       "path": ".",
-      "base": {"remote": "origin", "branch": "main"}
+      "base": {
+        "remote": "origin",
+        "branch": "main"
+      }
     }
   ],
   "plan": {
     "path": "docs/plans/poc.md"
   },
-  "task_id_pattern": "MF-\\d+"
+  "task_id_pattern": "MF-\\d+",
+  "hooks_expected": true
 }

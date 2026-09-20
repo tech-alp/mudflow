@@ -190,5 +190,34 @@ int main()
         f.started.insert(QStringLiteral("instructions"), QJsonArray{QJsonObject{{QStringLiteral("path"), QStringLiteral("missing.md")}, {QStringLiteral("sha1"), QJsonValue::Null}}});
         if (!has(mudflow::evaluateResume(f), QStringLiteral("context.instruction_unreadable"))) return 1;
     }
+
+    // 6. Hook körlüğü: beklenti yazıldıysa gözlem yokluğu bulgudur; beklenti
+    //    yoksa sessiz kalmalı, aksi halde CLI'yi tek başına kullanan proje
+    //    kapatamayacağı bir uyarı görür.
+    {
+        mudflow::StatusFacts f;
+        f.now = now;
+        f.plan.readable = true;
+        f.plan.taskCount = 1;
+        mudflow::ProjectConfig expects = config();
+        expects.hooksExpected = true;
+        if (has(mudflow::evaluate(config(), f), QStringLiteral("context.hooks_not_observed"))) return 1;
+        if (!has(mudflow::evaluate(expects, f), QStringLiteral("context.hooks_not_observed"))) return 1;
+        f.lastHookObserved = now.addSecs(-3600);
+        if (has(mudflow::evaluate(expects, f), QStringLiteral("context.hooks_not_observed"))) return 1;
+        // Bozuk kayıt "görüldü" sayılmamalı; sebep açıklamada durmalı.
+        f.lastHookObserved.reset();
+        f.hookError = QStringLiteral("Invalid ts: soon");
+        const QJsonArray broken = mudflow::evaluate(expects, f);
+        if (!has(broken, QStringLiteral("context.hooks_not_observed"))) return 1;
+        bool explained = false;
+        for (const QJsonValue& value : broken) {
+            if (value.toObject().value(QStringLiteral("id")).toString() == QLatin1String("context.hooks_not_observed")) {
+                explained = value.toObject().value(QStringLiteral("explanation")).toString().contains(QStringLiteral("Invalid ts: soon"));
+            }
+        }
+        if (!explained) return 1;
+    }
+
     return 0;
 }

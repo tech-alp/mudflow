@@ -58,6 +58,25 @@ int main()
         }
     }
 
+    // hooks_expected isteğe bağlı, varsayılanı false, ama yazıldıysa boolean.
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) return 1;
+    file.write(QJsonDocument(valid).toJson());
+    file.close();
+    if (mudflow::ProjectConfig::load(path).hooksExpected) return 1;
+    for (const QJsonValue& hooks : {QJsonValue(true), QJsonValue("yes"), QJsonValue(1)}) {
+        QJsonObject candidate = valid;
+        candidate.insert(QStringLiteral("hooks_expected"), hooks);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) return 1;
+        file.write(QJsonDocument(candidate).toJson());
+        file.close();
+        try {
+            if (mudflow::ProjectConfig::load(path).hooksExpected != hooks.toBool()) return 1;
+            if (!hooks.isBool()) return 1;
+        } catch (const std::exception&) {
+            if (hooks.isBool()) return 1;
+        }
+    }
+
     file.setFileName(directory.filePath(QStringLiteral("invalid.json")));
     if (!file.open(QIODevice::WriteOnly) || file.write(R"({"version": 2})") < 0) {
         return 1;

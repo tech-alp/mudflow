@@ -251,6 +251,18 @@ QJsonArray evaluate(const ProjectConfig& config, const StatusFacts& facts)
         }
     }
 
+    // --- Hook ---
+    // Kurulu sanilan ama hic calismamis bir hook, temiz bir projeden ayirt
+    // edilemez. Beklenti yazildiysa gozlem yoklugu bulgudur.
+    if (config.hooksExpected && !facts.lastHookObserved.has_value()) {
+        findings.append(finding(QStringLiteral("context.hooks_not_observed"), QStringLiteral("warning"), QStringLiteral("context"),
+            QStringLiteral("No agent hook has been observed"),
+            facts.hookError.isEmpty()
+                ? QStringLiteral("project.hooks_expected is true but no session start hook has run mudflow yet")
+                : QStringLiteral("Hook observation cannot be read: ") + facts.hookError,
+            QStringLiteral("Install the mudflow-agent plugin, then open a new agent session.")));
+    }
+
     return findings;
 }
 

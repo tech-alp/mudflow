@@ -46,6 +46,14 @@ QByteArray readFile(const QString& path)
     return file.readAll();
 }
 
+bool hasFinding(const QJsonObject& status, const QString& id)
+{
+    for (const QJsonValue& value : status.value(QStringLiteral("findings")).toArray()) {
+        if (value.toObject().value(QStringLiteral("id")) == id) return true;
+    }
+    return false;
+}
+
 bool hasGap(const QJsonObject& package, const QString& id)
 {
     for (const QJsonValue& value : package.value(QStringLiteral("gaps")).toArray()) {
@@ -153,6 +161,20 @@ void resumeContract(const QString& executable)
         && stderrOutput.isEmpty() && markdown.startsWith("# Mudflow resume:")
         && markdown.contains(QStringLiteral("Agent notu (zayıf evidence — doğrulanmadı)").toUtf8()) && markdown.contains(handoff.value("sha1").toString().toUtf8()), "markdown contract");
     check(readFile(ledger) == before, "resume never appends delivery event");
+
+    // --hook: hook'un calistigi ledger'a degil ayri bir dosyaya yazilir; bu
+    // olmadan hic calismamis bir hook temiz projeden ayirt edilemez.
+    const QString hookObserved = root + "/.mudflow/hook-observed.json";
+    check(!QFile::exists(hookObserved), "no observation before --hook");
+    QJsonObject hooked = config;
+    hooked.insert("hooks_expected", true);
+    check(writeFile(configPath, QJsonDocument(hooked).toJson()), "hooks_expected config");
+    check(hasFinding(cli({"status"}), "context.hooks_not_observed"), "hook blindness reported");
+    cli({"resume", exec, "--hook"});
+    check(QFile::exists(hookObserved), "--hook records the observation");
+    check(readFile(ledger) == before, "--hook appends no ledger event");
+    check(!hasFinding(cli({"status"}), "context.hooks_not_observed"), "observation clears the finding");
+    check(writeFile(configPath, QJsonDocument(config).toJson()), "restore config");
 
     check(writeFile(handoffPath, "changed handoff\n"), "tamper handoff");
     check(hasGap(cli({"resume", exec}), "context.handoff_changed"), "tampered handoff gap");

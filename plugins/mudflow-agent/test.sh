@@ -105,7 +105,7 @@ else process.stdout.write(process.env.FAKE_RESUME || '');
     fs.writeFileSync(log, '');
     const result = spawnSync(process.execPath, [path.join(plugin, 'hooks/mudflow-session-start.js')], {
       input, encoding: 'utf8', timeout: 6000,
-      env: { ...process.env, PATH: bin, CALL_LOG: log, FAKE_VERSION: 'mudflow 0.1.0', FAKE_MODE: '', ...env },
+      env: { ...process.env, PATH: bin, CALL_LOG: log, FAKE_VERSION: 'mudflow 0.2.0', FAKE_MODE: '', ...env },
     });
     assert.ifError(result.error);
     assert.equal(result.status, 0);
@@ -125,12 +125,12 @@ else process.stdout.write(process.env.FAKE_RESUME || '');
     assert.equal(result.stderr, '');
     assert.deepEqual(result.calls, []);
   });
-  check('TC-006: compatible CLI injects selector-less resume, writes nothing', () => {
-    for (const version of ['0.1.0', '0.1.0+build.1', '0.10.0', '1.0.0', '0.2.0-rc.1']) {
+  check('TC-006: compatible CLI injects selector-less resume, hook itself touches no files', () => {
+    for (const version of ['0.2.0', '0.2.0+build.1', '0.10.0', '1.0.0', '0.3.0-rc.1']) {
       const result = run(valid, { FAKE_VERSION: `mudflow ${version}`, FAKE_RESUME: '# Mudflow resume: MF-1\n' });
       assert.equal(result.stderr, '');
       // Hook yalnizca cagirir; secici vermez, karar vermez (TC-006).
-      assert.deepEqual(result.calls, [['--version'], ['resume', '--markdown']]);
+      assert.deepEqual(result.calls, [['--version'], ['resume', '--markdown', '--hook']]);
       assert.deepEqual(JSON.parse(result.stdout), {
         hookSpecificOutput: { additionalContext: '# Mudflow resume: MF-1\n' } });
     }
@@ -139,12 +139,12 @@ else process.stdout.write(process.env.FAKE_RESUME || '');
     const result = run(valid, { FAKE_RESUME: '   \n' });
     assert.equal(result.stderr, '');
     assert.equal(result.stdout, '');
-    assert.deepEqual(result.calls, [['--version'], ['resume', '--markdown']]);
+    assert.deepEqual(result.calls, [['--version'], ['resume', '--markdown', '--hook']]);
   });
   check('incompatible or unknown version: explicit minimum on stderr, exit 0', () => {
-    for (const version of ['mudflow 0.0.9', 'mudflow 0.1.0-rc.1', 'unknown']) {
+    for (const version of ['mudflow 0.1.9', 'mudflow 0.2.0-rc.1', 'unknown']) {
       const result = run(valid, { FAKE_VERSION: version });
-      assert.match(result.stderr, /requires >= 0\.1\.0/);
+      assert.match(result.stderr, /requires >= 0\.2\.0/);
       assert.deepEqual(result.calls, [['--version']]);
       assert.equal(result.stdout, '');
     }

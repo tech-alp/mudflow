@@ -118,3 +118,33 @@ dokunmadan geçici index ile snapshot commit'i üretir ve bunu
 `start`/`finish` başarısız olur; aksi halde kanıtsız iş üretirdi.
 
 İlke: **ölçümü bozan şey bloklar, hijyen tercihi uyarır.**
+
+---
+
+## ADR-015 — Hook'un çalıştığı ölçülür, varsayılmaz
+Accepted.
+
+Kurulu sanılan ama hiç çalışmayan bir SessionStart hook'u, temiz bir projeden
+ayırt edilemez: ikisinde de `status` sessizdir. Bu, projenin avladığı sessiz
+körlük sınıfının aynısıdır.
+
+`resume --hook` çağrıldığında `.mudflow/hook-observed.json` yazılır. Üç sonuç:
+
+```text
+hooks_expected yok        → kural değerlendirilmez
+beklenti var, gözlem yok  → context.hooks_not_observed (warning)
+gözlem var                → sessiz
+```
+
+Beklenti `project.json`'da opt-in'dir. Her projede uyarmak, CLI'yi tek başına
+kullanan projeye kapatamayacağı bir bulgu üretirdi — ADR-014'teki "hijyen
+tercihi uyarır" ilkesi burada uyarının kendisini opt-in yapar.
+
+Gözlem ledger olayı **değildir**. Ledger execution'a bağlı, append-only olay
+kaydıdır; hook gözlemi hiçbir execution'a ait değil ve yalnız son değeri
+anlamlı. Ayrıca `resume` bir okuma yoludur: oraya olay yazmak `resume`'u
+idempotent olmaktan çıkarır ve ledger'ı ölçümle değil trafikle şişirirdi.
+
+Yalnız "hiç görüldü mü" ölçülür. "En son ne zaman" tutulur ama henüz kural
+üretmez; hook'un sonradan bozulduğunu yakalamak ayrı bir karardır.
+

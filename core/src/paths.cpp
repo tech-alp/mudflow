@@ -3,10 +3,13 @@
 #include "error.h"
 
 #include <QCryptographicHash>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonParseError>
 
 namespace mudflow {
 
@@ -29,7 +32,8 @@ Paths pathsFor(const QString& configPath)
     }
     const QString root = configDirectory.absolutePath();
     const QString state = QDir(root).filePath(QStringLiteral(".mudflow"));
-    return {root, state, QDir(state).filePath(QStringLiteral("ledger")), QDir(state).filePath(QStringLiteral("evidence")), QDir(state).filePath(QStringLiteral("handoffs"))};
+    return {root, state, QDir(state).filePath(QStringLiteral("ledger")), QDir(state).filePath(QStringLiteral("evidence")),
+            QDir(state).filePath(QStringLiteral("handoffs")), QDir(state).filePath(QStringLiteral("hook-observed.json"))};
 }
 
 void ensureDirectories(const Paths& paths)
@@ -72,6 +76,39 @@ FileFacts observePath(const QString& path)
         }
     }
     return facts;
+}
+
+QString readHookObservation(const Paths& paths, std::optional<QDateTime>& lastSeen)
+{
+    if (!QFileInfo::exists(paths.hookObserved)) {
+        return {};
+    }
+    QFile file(paths.hookObserved);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return file.errorString();
+    }
+    QJsonParseError parseError;
+    const QJsonDocument document = QJsonDocument::fromJson(file.readAll(), &parseError);
+    if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+        return QStringLiteral("Invalid JSON: ") + parseError.errorString();
+    }
+    const QString ts = document.object().value(QStringLiteral("ts")).toString();
+    const QDateTime observed = QDateTime::fromString(ts, Qt::ISODate);
+    if (!observed.isValid()) {
+        return QStringLiteral("Invalid ts: ") + ts;
+    }
+    lastSeen = observed;
+    return {};
+}
+
+void writeHookObservation(const Paths& paths)
+{
+    // Sessizce vazgec: hook'un asil isi baglam uretmek, bu kayit yan urun.
+    if (!QDir().mkpath(paths.state)) return;
+    QFile file(paths.hookObserved);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;
+    file.write(QJsonDocument(QJsonObject{{QStringLiteral("ts"),
+        QDateTime::currentDateTimeUtc().toString(Qt::ISODate)}}).toJson(QJsonDocument::Compact));
 }
 
 QJsonArray observeInstructions(const QStringList& instructions, const QString& root)

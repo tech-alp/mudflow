@@ -66,7 +66,7 @@ int main()
         mudflow::projectStatus(config);
         const QString commonDirValue = gitOutput({QStringLiteral("-C"), repository, QStringLiteral("rev-parse"), QStringLiteral("--git-common-dir")});
         const QString commonDir = QDir::isAbsolutePath(commonDirValue) ? commonDirValue : QDir(repository).filePath(commonDirValue);
-        for (const QString& pattern : {QStringLiteral("/.mudflow/ledger/"), QStringLiteral("/.mudflow/evidence/"), QStringLiteral("/.mudflow/handoffs/")}) {
+        for (const QString& pattern : {QStringLiteral("/.mudflow/ledger/"), QStringLiteral("/.mudflow/evidence/"), QStringLiteral("/.mudflow/handoffs/"), QStringLiteral("/.mudflow/hook-observed.json")}) {
             const int occurrences = lineCount(commonDir + QStringLiteral("/info/exclude"), pattern);
             if (occurrences != 1) return 1;
         }

@@ -1,6 +1,8 @@
 #pragma once
 
+#include <QDateTime>
 #include <QString>
+#include <optional>
 #include "mudflow/facts.h"
 
 namespace mudflow {
@@ -12,6 +14,7 @@ struct Paths {
     QString ledger;
     QString evidence;
     QString handoffs;
+    QString hookObserved;
 };
 
 QString expandPath(const QString& value, const QString& root);
@@ -20,5 +23,10 @@ void ensureDirectories(const Paths& paths);
 QString sha1File(const QString& path);
 FileFacts observePath(const QString& path);
 QJsonArray observeInstructions(const QStringList& instructions, const QString& root);
+
+// .mudflow/hook-observed.json: ajan hook'unun son calistigi an. Ledger olayi
+// degil; bir execution'a ait degil ve okuma yolunda yazilir.
+QString readHookObservation(const Paths& paths, std::optional<QDateTime>& lastSeen);
+void writeHookObservation(const Paths& paths);
 
 } // namespace mudflow

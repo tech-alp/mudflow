@@ -15,7 +15,8 @@ Genişleme noktaları en altta işaretli.
 ├ project.json                                  el ile yazılır
 ├ ledger/20260918T142231Z-SCMS-042.jsonl        execution başına 1 dosya
 ├ handoffs/20260918T142231Z-SCMS-042.md         execution başına 1 dosya
-└ evidence/<sha1>.json                          büyük payload'lar
+├ evidence/<sha1>.json                          büyük payload'lar
+└ hook-observed.json                            ajan hook'unun son çalıştığı an
 ```
 
 **Execution başına ayrı dosya** — iki agent aynı anda iki worktree'de çalışırken
@@ -27,8 +28,13 @@ ARCHITECTURE.md'deki `cache/` ve `index/` v0.1'de yok.
 Ledger birkaç yüz satır; her `status`'ta baştan okunur.
 `status` 200 ms'yi geçerse index eklenir.
 
+`hook-observed.json` tek alanlı (`ts`) ve execution'a bağlı değildir; bu yüzden
+ledger'da yeri yoktur. Ledger append-only bir **olay** kaydıdır, bu dosya ise
+üzerine yazılan tek bir **gözlem**dir. Son değerden fazlası tutulmaz: soru
+"hook en son ne zaman çalıştı" değil, "hiç çalıştı mı".
+
 Project anchor bir Git worktree içindeyse Mudflow yalnız ürettiği `ledger/`,
-`evidence/` ve `handoffs/` yollarını ortak Git dizinindeki `info/exclude`a
+`evidence/`, `handoffs/` ve `hook-observed.json` yollarını ortak Git dizinindeki `info/exclude`a
 idempotent ekler. `.mudflow/project.json` dışlanmaz; proje config'i takip
 edilir. Paylaşılan `.gitignore` Mudflow tarafından değiştirilmez.
 
@@ -65,7 +71,8 @@ Format kararı: TECH_CHOICES.md TC-003 (YAML yerine JSON → Qt dışı sıfır 
   "plan": { "path": "docs/plans/config-migration.md" },
 
   "task_id_pattern": "SCMS-\\d+",
-  "instructions": ["AGENTS.md", "docs/WORKFLOW.md"]
+  "instructions": ["AGENTS.md", "docs/WORKFLOW.md"],
+  "hooks_expected": true
 }
 ```
 
@@ -75,6 +82,10 @@ Format kararı: TECH_CHOICES.md TC-003 (YAML yerine JSON → Qt dışı sıfır 
   `"origin/main"` string biçimi kabul edilmez.
 - `task_id_pattern` — Plan ↔ evidence eşleşmesinin dayandığı konvansiyon. Bu
   pattern olmadan PlanTruthEngine çalışmaz.
+- `hooks_expected` — opsiyonel boolean, varsayılanı `false`. Proje bir ajan
+  eklentisi kurduysa `true` yazılır; ancak o zaman `context.hooks_not_observed`
+  değerlendirilir. Beklenti yazılmadan uyarmak, CLI'yi tek başına kullanan
+  projeye kapatamayacağı bir bulgu üretirdi.
 
 v0.1'de `repos` tek elemanlı. Liste olması multi-repo'yu şema değiştirmeden açar.
 
@@ -311,6 +322,7 @@ MVP.md §8'in birebir karşılığı. Dokuz kural, fazlası yok.
 | `context.orphaned_execution` | warning |
 | `context.invalid_ledger_timestamp` | warning |
 | `context.unresolved_without_ref` | info |
+| `context.hooks_not_observed` | warning |
 
 `blocking` v0.1'de kullanılmıyor. Severity alanı yine de üç değerli —
 ilk blocking kural geldiğinde şema değişmesin.
@@ -401,6 +413,11 @@ Seçim mantığı çekirdekte durur — hook'un Git'ten, finding'lerden veya dos
 adlarından task çıkarması TC-006'yı bozardı. Hiç execution yoksa yine paket
 döner, `context.no_execution` gap'iyle: sessiz boş çıktı ile "kayıt yok" aynı
 şeye benzememeli.
+
+`--hook`, çağıranın bir ajan hook'u olduğunu bildirir ve `hook-observed.json`'a
+zaman damgası yazar (§1). Paketi değiştirmez, ledger'a dokunmaz. Yazım
+başarısız olursa sessizce geçilir: hook'un asıl işi bağlam üretmek, bu kayıt
+yan ürün. Başarısızlık "görülmedi" tarafına düşer, güvenli yön budur.
 
 ```json
 {

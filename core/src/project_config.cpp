@@ -55,6 +55,12 @@ ProjectConfig ProjectConfig::load(const QString& path)
         fail(QStringLiteral("project.task_id_pattern must be a valid regular expression"));
     }
 
+    const QJsonValue hooks = root.value(QStringLiteral("hooks_expected"));
+    if (!hooks.isUndefined()) {
+        if (!hooks.isBool()) fail(QStringLiteral("project.hooks_expected must be a boolean"));
+        config.hooksExpected = hooks.toBool();
+    }
+
     const QJsonValue plan = root.value(QStringLiteral("plan"));
     if (!plan.isObject()) {
         fail(QStringLiteral("project.plan must be an object"));
@@ -115,6 +121,7 @@ QJsonObject ProjectConfig::toJson() const
         {QStringLiteral("repos"), repositoriesJson},
         {QStringLiteral("plan"), QJsonObject{{QStringLiteral("path"), planPath}}},
         {QStringLiteral("task_id_pattern"), taskIdPattern},
+        {QStringLiteral("hooks_expected"), hooksExpected},
         {QStringLiteral("instructions"), QJsonArray::fromStringList(instructions)},
     };
 }
