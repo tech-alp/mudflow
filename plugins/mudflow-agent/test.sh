@@ -56,9 +56,14 @@ check('single SessionStart hook and manifest contracts', () => {
   assert.equal(session.hooks.length, 1);
   assert.equal(session.hooks[0].type, 'command');
   assert.equal(session.hooks[0].timeout, 10);
-  for (const field of ['command', 'commandWindows']) {
-    assert.equal(session.hooks[0][field], 'node "${CLAUDE_PLUGIN_ROOT}/hooks/mudflow-session-start.js"');
-  }
+  // Codex komutu shell gibi bolmuyor: `node "<yol>"` string'i exit 127 verdi.
+  // Dogrudan calistirilabilir yol iki runtime'da da calisir — ama o zaman
+  // shebang ve +x biti sozlesmenin parcasi, ikisi de burada denetlenir.
+  assert.equal(session.hooks[0].command, '${CLAUDE_PLUGIN_ROOT}/hooks/mudflow-session-start.js');
+  assert.equal(session.hooks[0].commandWindows, 'node "${CLAUDE_PLUGIN_ROOT}/hooks/mudflow-session-start.js"');
+  const entry = path.join(plugin, 'hooks/mudflow-session-start.js');
+  assert(fs.readFileSync(entry, 'utf8').startsWith('#!/usr/bin/env node\n'), 'shebang');
+  assert(fs.statSync(entry).mode & 0o111, 'hook must be executable');
 });
 for (const runtime of ['claude', 'codex']) {
   check(`${runtime} marketplace JSON and source directory`, () => {
