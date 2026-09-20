@@ -47,9 +47,11 @@ try {
     maxBuffer: 1024 * 1024,
     windowsHide: true,
   });
+  // Duz stdout iki runtime'da da baglam olarak alinir. Claude'un JSON bicimi
+  // (hookSpecificOutput.additionalContext) da calisir ama Codex onu almaz;
+  // tek bicim tutmak ayrismayi kaldiriyor.
   if (context.trim()) {
-    process.stdout.write(JSON.stringify({ hookSpecificOutput: {
-      hookEventName: 'SessionStart', additionalContext: context } }));
+    process.stdout.write(context);
   }
 } catch {
   // Missing CLI, malformed input and command failures must not break the session.
