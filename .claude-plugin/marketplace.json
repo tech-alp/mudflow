@@ -1,0 +1,11 @@
+{
+  "name": "mudflow",
+  "owner": { "name": "Mudflow" },
+  "plugins": [
+    {
+      "name": "mudflow-agent",
+      "source": "./plugins/mudflow-agent",
+      "description": "Mudflow SessionStart pilot and CLI evidence guidance."
+    }
+  ]
+}

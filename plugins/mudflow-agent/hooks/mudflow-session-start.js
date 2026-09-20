@@ -1,0 +1,41 @@
+'use strict';
+
+const { readFileSync } = require('node:fs');
+const { execFileSync } = require('node:child_process');
+const { isAbsolute } = require('node:path');
+
+try {
+  const input = JSON.parse(readFileSync(0, 'utf8'));
+  if (!input || typeof input.cwd !== 'string' || !isAbsolute(input.cwd)) {
+    process.exit(0);
+  }
+
+  const version = execFileSync('mudflow', ['--version'], {
+    cwd: input.cwd,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    timeout: 3000,
+    killSignal: 'SIGKILL',
+    maxBuffer: 64 * 1024,
+    windowsHide: true,
+  }).trim();
+  const minimum = require('../skills/mudflow/compatibility.json').minimum_mudflow_version;
+  const match = /^mudflow (0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.exec(version);
+  if (!match) {
+    process.stderr.write(`Mudflow session context skipped: cannot verify CLI version; requires >= ${minimum}.\n`);
+    process.exit(0);
+  }
+  const installed = match.slice(1, 4).map(BigInt);
+  const required = minimum.split('.').map(BigInt);
+  const difference = installed.findIndex((part, index) => part !== required[index]);
+  if (difference === -1 ? Boolean(match[4]) : installed[difference] < required[difference]) {
+    process.stderr.write(`Mudflow session context skipped: ${version}; requires >= ${minimum}.\n`);
+    process.exit(0);
+  }
+
+  // The CLI requires a task/execution ID for resume and exposes no active-task
+  // selector. SessionStart supplies neither. Per pilot contract, inject nothing.
+  // Task selection belongs in core; do not infer it from Git, findings or files.
+} catch {
+  // Missing CLI, malformed input and command failures must not break the session.
+}

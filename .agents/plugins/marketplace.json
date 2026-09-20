@@ -1,0 +1,12 @@
+{
+  "name": "mudflow",
+  "interface": { "displayName": "Mudflow" },
+  "plugins": [
+    {
+      "name": "mudflow-agent",
+      "source": { "source": "local", "path": "./plugins/mudflow-agent" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Productivity"
+    }
+  ]
+}
