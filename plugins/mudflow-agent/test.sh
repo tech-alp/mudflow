@@ -37,7 +37,9 @@ check('single SessionStart hook and manifest contracts', () => {
   assert.deepEqual(Object.keys(claude).sort(), ['author', 'description', 'name', 'version']);
   assert.equal(claude.name, 'mudflow-agent');
   assert.equal(codex.name, claude.name);
-  assert.equal(codex.hooks, './hooks/hooks.json');
+  // Codex'te alan var olmali ama BOS: bos nesne hooks/hooks.json'i kesfettirir.
+  // Dosya yolu yazmak plugin dogrulamasini dusurur.
+  assert.deepEqual(codex.hooks, {});
   for (const field of ['displayName', 'shortDescription', 'longDescription', 'developerName', 'category']) {
     assert.equal(typeof codex.interface[field], 'string');
     assert(codex.interface[field].trim());

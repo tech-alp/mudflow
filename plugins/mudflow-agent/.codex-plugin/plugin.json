@@ -1,18 +1,18 @@
 {
   "name": "mudflow-agent",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Mudflow SessionStart pilot with CLI-only context and evidence guidance.",
   "author": {
     "name": "Mudflow"
   },
-  "hooks": "./hooks/hooks.json",
+  "hooks": {},
   "interface": {
     "displayName": "Mudflow Agent",
     "shortDescription": "SessionStart pilot and evidence guidance.",
-    "longDescription": "Checks CLI compatibility on SessionStart and guides evidence recording. Automatic context awaits a CLI active-task selector; this pilot exits silently when no task can be resolved.",
+    "longDescription": "Injects the previous execution's verified context at session start and guides evidence recording. Context comes only from the mudflow CLI; the hook reads no state files.",
     "developerName": "Mudflow",
     "category": "Productivity",
-    "capabilities": ["Read", "Write"],
+    "capabilities": ["Instructions", "Lifecycle hooks"],
     "defaultPrompt": ["Resume a known Mudflow task and review its evidence."]
   }
 }
