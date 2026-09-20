@@ -11,9 +11,9 @@ ucuz olanlar tartışılmaz.
 ## TC-001 — Tek C++ core, iki ince frontend
 
 ```text
-mudflow-core/      tüm mantık, Qt Core, GUI yok
-mudflow-cli/       main() + argüman dispatch        ~200 satır
-mudflow-desktop/   QML                              (Phase 3)
+core/             tüm mantık, Qt Core, GUI yok
+cli/              main() + argüman dispatch        ~200 satır
+ui/               QML                              (Phase 3, henüz yok)
 ```
 
 Nihai hedef Qt/QML desktop olduğu için core zaten C++ olmak zorunda.
@@ -94,7 +94,7 @@ validator, daha iyi help çıktısı).
 ROADMAP Phase 1'de bunlar var; geldiklerinde manuel dispatch çirkinleşir.
 v0.1'in üç komutu (`start` / `finish` / `status`) için gerek yok.
 
-Geri dönüş maliyeti: **çok düşük.** Mantığın tamamı `mudflow-core`'da;
+Geri dönüş maliyeti: **çok düşük.** Mantığın tamamı `core/` altında;
 parser değişimi tek dosyaya dokunur. Bu yüzden karar üzerinde durulmaz.
 
 ---
@@ -205,6 +205,38 @@ Bu sözleşme, desktop'ın core'u link mi edeceği yoksa CLI'ı spawn mı edece�
 kararını açık tutar. Sözleşme olmazsa spawn seçeneği sessizce ölür.
 
 Geri dönüş maliyeti: **düşük.** Tek fonksiyon (`emitError`).
+
+---
+
+## TC-008 — Bileşen dizinleri ve CMake bağımlılıkları
+
+Dizin adları proje öneki taşımaz: `core/`, `cli/`, `docs/`, `cmake/`.
+Core testleri `core/tests/`, CLI sözleşme testi `cli/tests/` altında tutulur.
+Henüz uygulanmayan `ui/` ve `agent/` dizinleri oluşturulmaz.
+
+Header'lar `core/include/mudflow/` altında kalır; include yolu
+`<mudflow/...>` olarak korunur. Statik core hedefi `mudflow_core`, alias'ı
+`mudflow::core` olur.
+
+Her bileşen doğrudan kullandığı dış bağımlılığı kendi `find_package` çağrısıyla
+bulur. Core, `Qt6::Core` bağımlılığını `PUBLIC` aktarır; CLI yalnız
+`mudflow::core` linkler. Core'u linklemeyen CLI sözleşme testi Qt'yi kendi bulur.
+Kök CMake Qt aramaz ve hedef ya da install kuralı tanımlamaz; proje sürümünü,
+seçenekleri, CTest, alt dizinler ve CPack'i yönetir.
+
+C++20 gereksinimi `target_compile_features(mudflow_core PUBLIC cxx_std_20)`
+ile tüketicilere aktarılır; global `CMAKE_CXX_STANDARD` kullanılmaz.
+Core'u linklemeyen CLI sözleşme testi C++20 gereksinimini kendi hedefinde belirtir.
+Kurulum `cli/` içinde `GNUInstallDirs` ile yapılır; dış tüketicisi olmayan
+statik core için install kuralı yoktur.
+
+Sürümün tek kaynağı `project(Mudflow VERSION 0.1.0 ...)` olur.
+CLI, `cmake/version.h.in` şablonundan `configure_file` ile üretilen başlığı
+kullanır. `MUDFLOW_BUILD_CLI` varsayılan olarak açık, gelecekteki UI için
+`MUDFLOW_BUILD_UI` kapalıdır; testler `BUILD_TESTING` ile yönetilir.
+
+Geri dönüş maliyeti: **düşük.** Dizin yolları ve CMake bağlantıları değişir;
+çalışma zamanı mantığı değişmez.
 
 ---
 

@@ -10,7 +10,7 @@
     }
   ],
   "plan": {
-    "path": "mudflow-docs/plans/poc.md"
+    "path": "docs/plans/poc.md"
   },
   "task_id_pattern": "MF-\\d+"
 }

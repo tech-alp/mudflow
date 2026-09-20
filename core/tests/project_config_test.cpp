@@ -23,7 +23,7 @@ int main()
         "name": "mudflow",
         "worktree_root": "~/worktrees",
         "repos": [{"name": "mudflow", "path": ".", "base": {"remote": "origin", "branch": "main"}}],
-        "plan": {"path": "mudflow-docs/ROADMAP.md"},
+        "plan": {"path": "docs/ROADMAP.md"},
         "task_id_pattern": "MF-\\d+"
     })");
     file.close();

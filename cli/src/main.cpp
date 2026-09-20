@@ -1,4 +1,5 @@
 #include "mudflow/project_config.h"
+#include "mudflow/version.h"
 #include "mudflow/workflow.h"
 
 #include <QCommandLineOption>
@@ -30,7 +31,7 @@ int main(int argc, char* argv[])
 {
     QCoreApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("mudflow"));
-    app.setApplicationVersion(QStringLiteral("0.1.0"));
+    app.setApplicationVersion(QStringLiteral(MUDFLOW_VERSION));
 
     QCommandLineParser parser;
     parser.setApplicationDescription(QStringLiteral("Local-first execution continuity CLI"));

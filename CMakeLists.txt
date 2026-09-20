@@ -1,15 +1,15 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(mudflow LANGUAGES CXX)
+project(Mudflow VERSION 0.1.0 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+option(MUDFLOW_BUILD_CLI "Build the Mudflow CLI" ON)
+option(MUDFLOW_BUILD_UI "Build the Mudflow UI" OFF)
 
-find_package(Qt6 6.11 REQUIRED COMPONENTS Core)
+include(CTest)
 
-enable_testing()
+add_subdirectory(core)
+if(MUDFLOW_BUILD_CLI)
+    add_subdirectory(cli)
+endif()
 
-add_subdirectory(mudflow-core)
-add_subdirectory(mudflow-cli)
-add_subdirectory(tests)
+include(CPack)

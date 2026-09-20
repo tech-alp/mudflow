@@ -3,7 +3,7 @@
 AI ile geliştirilen projelerde plan, kod, Git state ve agent context'in
 birbirinden kopmasını engelleyen local-first execution control plane.
 
-Doküman: [mudflow-docs/](mudflow-docs/README.md)
+Doküman: [docs/](docs/README.md)
 
 ## Build
 
@@ -31,4 +31,4 @@ mudflow finish <exec> --outcome finished          # ledger + handoff kapat
 ```
 
 Durum `.mudflow/` altında tutulur: `ledger/`, `evidence/`, `handoffs/`.
-Şema: [mudflow-docs/DATA_MODEL.md](mudflow-docs/DATA_MODEL.md)
+Şema: [docs/DATA_MODEL.md](docs/DATA_MODEL.md)

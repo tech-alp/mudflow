@@ -1,0 +1,3 @@
+#pragma once
+
+#define MUDFLOW_VERSION "@PROJECT_VERSION@"
