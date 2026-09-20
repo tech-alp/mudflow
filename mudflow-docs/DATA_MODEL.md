@@ -215,6 +215,13 @@ Karar ve açık maddeler.
 - **Handoff ölçülen gerçekleri agent iddialarından ayrı tutar.** Mudflow'un
   ürettiği bölüm ile `agent_summary` aynı başlıkta birleşmez; aksi halde iddia
   doğrulanmış veri gibi okunur.
+- **Ledger'daki `base` opak bir gösterim alanıdır, ayrıştırılmaz.** Git ref'i
+  her zaman güncel `project.json`'daki `remote` + `branch` alanlarından
+  türetilir. Eski kayıtlar `"origin/main"` biçiminde string, yeniler aynı
+  biçimde yazılmaya devam eder; ikisi de yalnızca mesajda ve handoff
+  frontmatter'ında gösterilir. Aksi halde geçmiş ledger'ı ayrıştırmaya
+  çalışan bir refactor, kaldırdığımız "ilk slash'tan kes" tahminini geri
+  getirir ve eski kayıtları yanlış yorumlar.
 - **Bloklayan ölçümü bozar, uyarı hijyeni bildirir.** ADR-014 uyarınca kanıtı
   güvenilmez yapan durumlar durur, yalnız çalışma hijyenini etkileyenler
   warning olur; aksi halde araç ya kanıtsız devam eder ya da gereksiz engeller.
