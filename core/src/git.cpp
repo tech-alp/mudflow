@@ -5,6 +5,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QRegularExpression>
@@ -141,6 +142,84 @@ QJsonObject toJson(const RepoFacts& facts)
         report.insert(QStringLiteral("error"), facts.measurementError);
     }
     return report;
+}
+
+void observeResumeGit(const ProjectConfig& config, const Paths& paths, ResumeFacts& facts)
+{
+    facts.worktree = observePath(facts.started.value(QStringLiteral("worktree")).toString());
+    const QString baseSha = facts.started.value(QStringLiteral("base_sha")).toString();
+    if (!facts.finished.isEmpty()) {
+        facts.measured = {{QStringLiteral("source"), QStringLiteral("execution.finished")},
+            {QStringLiteral("commits"), facts.finished.value(QStringLiteral("commits"))},
+            {QStringLiteral("files_changed"), facts.finished.value(QStringLiteral("files_changed"))}};
+        if (!facts.measured.value(QStringLiteral("commits")).isArray()) {
+            facts.measured.insert(QStringLiteral("commits"), QJsonValue::Null);
+            facts.measurementError = QStringLiteral("Finish event lacks commit or file measurements");
+        }
+        if (!facts.measured.value(QStringLiteral("files_changed")).isDouble()) {
+            facts.measured.insert(QStringLiteral("files_changed"), QJsonValue::Null);
+            facts.measurementError = QStringLiteral("Finish event lacks commit or file measurements");
+        }
+    } else {
+        try {
+            if (facts.worktree.exists != true) fail(QStringLiteral("Worktree cannot be inspected"));
+            bool sameRepository = false;
+            for (const RepositoryConfig& repository : config.repositories) {
+                if (repository.name == facts.started.value(QStringLiteral("repo")).toString()) {
+                    sameRepository = gitCommonDir(facts.worktree.path) == gitCommonDir(expandPath(repository.path, paths.root));
+                }
+            }
+            if (!sameRepository) fail(QStringLiteral("Worktree does not belong to the recorded repository"));
+            if (baseSha.isEmpty()) fail(QStringLiteral("No base_sha was recorded"));
+            const QString head = gitRequired(facts.worktree.path, {QStringLiteral("rev-parse"), QStringLiteral("HEAD")});
+            const QString range = baseSha + QStringLiteral("..") + head;
+            const QStringList commits = gitRequired(facts.worktree.path,
+                {QStringLiteral("log"), QStringLiteral("--format=%H"), range}).split(QLatin1Char('\n'), Qt::SkipEmptyParts);
+            const QString files = gitRequired(facts.worktree.path,
+                {QStringLiteral("diff"), QStringLiteral("--name-only"), QStringLiteral("-z"), range});
+            facts.measured = {{QStringLiteral("source"), QStringLiteral("git")},
+                {QStringLiteral("head_sha"), head},
+                {QStringLiteral("commits"), QJsonArray::fromStringList(commits)},
+                {QStringLiteral("files_changed"), files.count(QChar('\0'))}};
+        } catch (const std::exception& error) {
+            facts.measurementError = QString::fromUtf8(error.what());
+        }
+    }
+
+    try {
+        const RepositoryConfig* repository = nullptr;
+        for (const RepositoryConfig& candidate : config.repositories) {
+            if (candidate.name == facts.started.value(QStringLiteral("repo")).toString()) repository = &candidate;
+        }
+        if (!repository) fail(QStringLiteral("Recorded repository is absent from project config"));
+        // The recorded display string is never parsed (DATA_MODEL invariant).
+        if (baseRef(*repository) != facts.started.value(QStringLiteral("base")).toString()) {
+            fail(QStringLiteral("Configured base differs from the recorded base"));
+        }
+        QString baseline = facts.started.value(QStringLiteral("remote_base_sha")).toString();
+        if (baseline.isEmpty() && facts.started.value(QStringLiteral("workspace_source")) == QLatin1String("created")) baseline = baseSha;
+        if (baseline.isEmpty()) fail(QStringLiteral("Remote base SHA at start is unknown"));
+        const QString repositoryPath = expandPath(repository->path, paths.root);
+        // Fetch this branch explicitly: a deleted remote branch must not leave
+        // a stale tracking ref looking like a verified, unchanged base.
+        const ProcessResult fetch = git(repositoryPath, {QStringLiteral("fetch"), QStringLiteral("--quiet"),
+            repository->remote, QStringLiteral("refs/heads/") + repository->branch});
+        if (fetch.exitCode != 0) {
+            facts.fetchError = fetch.error.isEmpty() ? QStringLiteral("git fetch failed") : fetch.error;
+            return;
+        }
+        facts.currentBaseSha = gitRequired(repositoryPath, {QStringLiteral("rev-parse"), QStringLiteral("FETCH_HEAD")});
+        if (baseline == facts.currentBaseSha) {
+            facts.baseAdvanced = false;
+        } else {
+            const ProcessResult ancestor = git(repositoryPath,
+                {QStringLiteral("merge-base"), QStringLiteral("--is-ancestor"), baseline, facts.currentBaseSha});
+            if (ancestor.exitCode != 0) fail(QStringLiteral("Base history diverged or ancestry cannot be established: ") + ancestor.error);
+            facts.baseAdvanced = true;
+        }
+    } catch (const std::exception& error) {
+        facts.baseError = QString::fromUtf8(error.what());
+    }
 }
 
 QString preserveWorktree(const QString& worktree, const QString& executionId, const QString& previousRef)

@@ -6,6 +6,7 @@
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonParseError>
 
@@ -60,6 +61,46 @@ QJsonObject startedEvent(const QVector<QJsonObject>& events, const QString& exec
         }
     }
     fail(QStringLiteral("Unknown execution: %1").arg(executionId));
+}
+
+ResumeFacts observeResumeLedger(const Paths& paths, const QString& taskOrExecution)
+{
+    ResumeFacts facts;
+    facts.task = taskOrExecution;
+    QVector<QJsonObject> events;
+    try {
+        const FileFacts ledger = observePath(paths.ledger);
+        if (!ledger.exists.has_value() || (ledger.exists == true
+                && (!QFileInfo(paths.ledger).isDir() || !QFileInfo(paths.ledger).isReadable()
+                    || !QFileInfo(paths.ledger).isExecutable()))) {
+            fail(QStringLiteral("Cannot list ledger directory: ") + paths.ledger);
+        }
+        events = readEvents(paths);
+    } catch (const std::exception& error) {
+        facts.ledgerError = QString::fromUtf8(error.what());
+        return facts;
+    }
+    // IDs carry UTC time; lexical order is the ledger's documented chronology.
+    for (const QJsonObject& event : events) {
+        const QString exec = event.value(QStringLiteral("exec")).toString();
+        if (exec == taskOrExecution) {
+            facts.exec = exec;
+            break;
+        }
+        if (event.value(QStringLiteral("type")) == QLatin1String("execution.started")
+                && event.value(QStringLiteral("task")) == taskOrExecution && exec > facts.exec) {
+            facts.exec = exec;
+        }
+    }
+    if (facts.exec.isEmpty()) return facts;
+    for (const QJsonObject& event : events) {
+        if (event.value(QStringLiteral("exec")) != facts.exec) continue;
+        facts.events.append(event);
+        if (event.value(QStringLiteral("type")) == QLatin1String("execution.started")) facts.started = event;
+        if (event.value(QStringLiteral("type")) == QLatin1String("execution.finished")) facts.finished = event;
+    }
+    if (!facts.started.isEmpty()) facts.task = facts.started.value(QStringLiteral("task")).toString();
+    return facts;
 }
 
 QString writeEvidence(const Paths& paths, const QJsonObject& value)

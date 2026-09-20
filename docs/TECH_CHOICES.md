@@ -187,6 +187,10 @@ stderr    hata JSON'u         (yalnızca başarısızlıkta)
 exit      0 başarı · 1 runtime · 2 kullanım
 ```
 
+`resume --markdown` açıkça istendiğinde stdout Markdown'dur; varsayılan JSON
+ve stderr/exit sözleşmesi değişmez. Paket içindeki eksiklikler runtime hatası
+değil, exit 0 sonucunun `gaps` alanıdır.
+
 Hata gövdesi:
 
 ```json
@@ -248,7 +252,7 @@ GÖZLEM           git'i çalıştır, planı oku, ledger'ı oku, dosya varlığ�
 
 DEĞERLENDİRME    evaluate(config, facts) → Finding[]             (SAF fonksiyon)
 
-ORKESTRASYON     komutlar: inspect · status · start · finish · evidence · note
+ORKESTRASYON     komutlar: inspect · status · start · finish · resume · evidence · note
 ```
 
 Dosya karşılığı:
@@ -258,7 +262,7 @@ core/src/git.cpp       taşıma (run/git/gitRequired) + ölçüm → RepoFacts
 core/src/plan.cpp      ölçüm → PlanFacts
 core/src/ledger.cpp    olay yaz/oku, evidence
 core/src/paths.cpp     .mudflow yerleşimi, expandPath, sha1
-core/src/handoff.cpp   handoff yaz  (resume okuma tarafını buraya ekleyecek)
+core/src/handoff.cpp   handoff oku/yaz, resume JSON/Markdown sunumu
 core/src/rules.cpp     SAF — facts alır, finding döndürür, I/O yok
 core/src/workflow.cpp  yalnız orkestrasyon
 ```

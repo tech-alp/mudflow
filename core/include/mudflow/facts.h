@@ -9,6 +9,7 @@
 #include <QString>
 #include <QStringList>
 #include <QVector>
+#include <optional>
 
 namespace mudflow {
 
@@ -52,6 +53,32 @@ struct StatusFacts {
     QVector<QJsonObject> events;
     QVector<ExecutionFacts> executions;
     PlanFacts plan;
+};
+
+struct FileFacts {
+    QString path;
+    std::optional<bool> exists;
+    QString sha1;
+    QString error;
+};
+
+struct ResumeFacts {
+    QString task;
+    QString exec;
+    QString ledgerError;
+    QJsonObject started;
+    QJsonObject finished;
+    QVector<QJsonObject> events;
+    FileFacts handoff;
+    QString handoffContent;
+    FileFacts worktree;
+    QString planSha1;
+    QString currentBaseSha;
+    std::optional<bool> baseAdvanced;
+    QString baseError;
+    QString fetchError;
+    QJsonObject measured;
+    QString measurementError;
 };
 
 } // namespace mudflow

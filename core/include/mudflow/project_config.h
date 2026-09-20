@@ -2,6 +2,7 @@
 
 #include <QJsonObject>
 #include <QString>
+#include <QStringList>
 #include <QVector>
 
 namespace mudflow {
@@ -20,6 +21,7 @@ struct ProjectConfig {
     QVector<RepositoryConfig> repositories;
     QString planPath;
     QString taskIdPattern;
+    QStringList instructions;
 
     static ProjectConfig load(const QString& path);
     QJsonObject toJson() const;

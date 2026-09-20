@@ -50,8 +50,10 @@ int main(int argc, char* argv[])
     const QCommandLineOption summaryOption(QStringLiteral("summary"), QStringLiteral("Evidence summary."), QStringLiteral("text"));
     const QCommandLineOption textOption(QStringLiteral("text"), QStringLiteral("Note text."), QStringLiteral("text"));
     const QCommandLineOption referenceOption(QStringLiteral("ref"), QStringLiteral("Durable source reference."), QStringLiteral("reference"));
-    parser.addOptions({agentOption, repositoryOption, outcomeOption, kindOption, summaryOption, textOption, referenceOption});
-    parser.addPositionalArgument(QStringLiteral("command"), QStringLiteral("inspect, status, start, finish, evidence, or note."));
+    const QCommandLineOption instructionOption(QStringLiteral("instruction"), QStringLiteral("Instruction path, added to project instructions; repeatable."), QStringLiteral("path"));
+    const QCommandLineOption markdownOption(QStringLiteral("markdown"), QStringLiteral("Render resume as Markdown."));
+    parser.addOptions({agentOption, repositoryOption, outcomeOption, kindOption, summaryOption, textOption, referenceOption, instructionOption, markdownOption});
+    parser.addPositionalArgument(QStringLiteral("command"), QStringLiteral("inspect, status, start, finish, resume, evidence, or note."));
     parser.addPositionalArgument(QStringLiteral("argument"), QStringLiteral("Task or execution ID, depending on command."), QStringLiteral("[argument]"));
     parser.process(app);
 
@@ -64,7 +66,13 @@ int main(int argc, char* argv[])
         } else if (arguments == QStringList{QStringLiteral("status")}) {
             result = mudflow::projectStatus(configPath);
         } else if (arguments.size() == 2 && arguments.constFirst() == QLatin1String("start")) {
-            result = mudflow::startExecution(configPath, arguments.constLast(), parser.value(agentOption), parser.value(repositoryOption));
+            result = mudflow::startExecution(configPath, arguments.constLast(), parser.value(agentOption), parser.value(repositoryOption), parser.values(instructionOption));
+        } else if (arguments.size() == 2 && arguments.constFirst() == QLatin1String("resume")) {
+            result = mudflow::resumeExecution(configPath, arguments.constLast());
+            if (parser.isSet(markdownOption)) {
+                QTextStream(stdout) << mudflow::resumeMarkdown(result);
+                return 0;
+            }
         } else if (arguments.size() == 2 && arguments.constFirst() == QLatin1String("finish")) {
             result = mudflow::finishExecution(configPath, arguments.constLast(), parser.value(outcomeOption));
         } else if (arguments.size() == 2 && arguments.constFirst() == QLatin1String("evidence") && parser.isSet(kindOption) && parser.isSet(summaryOption)) {
@@ -75,7 +83,7 @@ int main(int argc, char* argv[])
             result = {{QStringLiteral("recorded"), QStringLiteral("note")}};
         } else {
             return emitError(QStringLiteral("usage"),
-                QStringLiteral("Usage: mudflow <inspect|status|start|finish|evidence|note> [argument] [options]"), 2);
+                QStringLiteral("Usage: mudflow <inspect|status|start|finish|resume|evidence|note> [argument] [options]"), 2);
         }
         QTextStream(stdout) << QJsonDocument(result).toJson(QJsonDocument::Indented);
         return 0;

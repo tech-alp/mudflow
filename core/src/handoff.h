@@ -29,5 +29,7 @@ struct HandoffInput {
 
 // Üç başlık ADR-002'yi formatın içine gömer: ölçülen, iddia edilen, açık kalan.
 void writeHandoff(const Paths& paths, const HandoffInput& input, const QVector<QJsonObject>& events);
+void readHandoff(const Paths& paths, ResumeFacts& facts);
+QJsonObject resumePackage(const ResumeFacts& facts, const QJsonArray& gaps);
 
 } // namespace mudflow

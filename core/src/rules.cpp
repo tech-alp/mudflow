@@ -32,6 +32,85 @@ QJsonObject finding(const QString& id, const QString& severity, const QString& d
     return value;
 }
 
+QJsonArray evaluateResume(const ResumeFacts& facts)
+{
+    QJsonArray gaps;
+    const auto gap = [&gaps](const QString& id, const QString& domain, const QString& title, const QString& explanation) {
+        gaps.append(finding(id, QStringLiteral("warning"), domain, title, explanation));
+    };
+    if (!facts.ledgerError.isEmpty()) {
+        gap(QStringLiteral("context.ledger_unreadable"), QStringLiteral("context"), QStringLiteral("Execution history is unknown"), facts.ledgerError);
+        return gaps;
+    }
+    if (facts.exec.isEmpty()) {
+        gap(QStringLiteral("context.no_execution"), QStringLiteral("context"), QStringLiteral("Task has no execution"), facts.task);
+        return gaps;
+    }
+    if (facts.started.isEmpty()) {
+        gap(QStringLiteral("context.missing_start"), QStringLiteral("context"), QStringLiteral("Execution has no start event"), facts.exec);
+        return gaps;
+    }
+    if (!QDateTime::fromString(facts.started.value(QStringLiteral("ts")).toString(), Qt::ISODate).isValid()) {
+        gap(QStringLiteral("context.invalid_ledger_timestamp"), QStringLiteral("context"), QStringLiteral("Invalid start timestamp"), facts.exec);
+    }
+    if (facts.handoff.exists == false) {
+        gap(QStringLiteral("context.no_handoff"), QStringLiteral("context"), QStringLiteral("Handoff file is missing"), facts.handoff.path);
+    } else if (facts.handoff.sha1.isEmpty()) {
+        gap(QStringLiteral("context.handoff_unreadable"), QStringLiteral("context"), QStringLiteral("Handoff cannot be read"), facts.handoff.path + QStringLiteral(": ") + facts.handoff.error);
+    } else {
+        const QString recorded = facts.finished.value(QStringLiteral("handoff_sha1")).toString();
+        if (recorded.isEmpty()) {
+            gap(QStringLiteral("context.handoff_unverified"), QStringLiteral("context"), QStringLiteral("Original handoff hash is unknown"), facts.exec);
+        } else if (recorded != facts.handoff.sha1) {
+            gap(QStringLiteral("context.handoff_changed"), QStringLiteral("context"), QStringLiteral("Handoff changed after finish"), facts.handoff.path);
+        }
+    }
+    if (!facts.worktree.exists.has_value()) {
+        gap(QStringLiteral("git.worktree_unknown"), QStringLiteral("git"), QStringLiteral("Worktree existence is unknown"), facts.worktree.error);
+    } else if (!*facts.worktree.exists) {
+        gap(QStringLiteral("git.worktree_missing"), QStringLiteral("git"), QStringLiteral("Worktree is missing"), facts.worktree.path);
+    }
+    if (!facts.fetchError.isEmpty()) {
+        gap(QStringLiteral("git.fetch_failed"), QStringLiteral("git"), QStringLiteral("Cannot fetch remote base"), facts.fetchError);
+    }
+    if (!facts.baseAdvanced.has_value()) {
+        gap(QStringLiteral("git.base_unknown"), QStringLiteral("git"), QStringLiteral("Base advancement is unknown"),
+            facts.baseError.isEmpty() ? QStringLiteral("No verified current base comparison is available") : facts.baseError);
+    } else if (*facts.baseAdvanced) {
+        gap(QStringLiteral("git.base_advanced"), QStringLiteral("git"), QStringLiteral("Base advanced since execution start"), facts.currentBaseSha);
+    }
+    const QString recordedPlan = facts.started.value(QStringLiteral("plan_sha1")).toString();
+    if (recordedPlan.isEmpty() || facts.planSha1.isEmpty()) {
+        gap(QStringLiteral("plan.comparison_unknown"), QStringLiteral("plan"), QStringLiteral("Plan change is unknown"), QStringLiteral("Recorded or current plan SHA1 is unavailable"));
+    } else if (recordedPlan != facts.planSha1) {
+        gap(QStringLiteral("plan.changed_during_execution"), QStringLiteral("plan"), QStringLiteral("Plan changed since execution start"), facts.task);
+    }
+    if (facts.started.value(QStringLiteral("plan_ref")).toString().isEmpty()) {
+        gap(QStringLiteral("plan.execution_without_plan_link"), QStringLiteral("plan"), QStringLiteral("Execution has no plan link"), facts.exec);
+    }
+    if (!facts.measurementError.isEmpty()) {
+        gap(QStringLiteral("git.measurement_unavailable"), QStringLiteral("git"), QStringLiteral("Commit or file measurement is unavailable"), facts.measurementError);
+    }
+    const QJsonValue instructions = facts.started.value(QStringLiteral("instructions"));
+    if (!instructions.isArray()) {
+        gap(QStringLiteral("context.instructions_unknown"), QStringLiteral("context"), QStringLiteral("Instruction provenance was not recorded"), facts.exec);
+    } else {
+        for (const QJsonValue& instruction : instructions.toArray()) {
+            if (instruction.toObject().value(QStringLiteral("sha1")).toString().isEmpty()) {
+                gap(QStringLiteral("context.instruction_unreadable"), QStringLiteral("context"), QStringLiteral("Instruction hash was not recorded"), instruction.toObject().value(QStringLiteral("path")).toString());
+            }
+        }
+    }
+    for (const QJsonObject& event : facts.events) {
+        if (event.value(QStringLiteral("type")) == QLatin1String("note") && event.value(QStringLiteral("kind")) == QLatin1String("unresolved")
+                && event.value(QStringLiteral("ref")).toString().isEmpty()) {
+            gaps.append(finding(QStringLiteral("context.unresolved_without_ref"), QStringLiteral("info"), QStringLiteral("context"),
+                QStringLiteral("Unresolved note has no reference"), event.value(QStringLiteral("text")).toString()));
+        }
+    }
+    return gaps;
+}
+
 QJsonArray evaluate(const ProjectConfig& config, const StatusFacts& facts)
 {
     QJsonArray findings;

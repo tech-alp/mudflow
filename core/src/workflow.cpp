@@ -95,7 +95,20 @@ QJsonObject projectStatus(const QString& configPath)
             {QStringLiteral("findings"), evaluate(config, facts)}};
 }
 
-QJsonObject startExecution(const QString& configPath, const QString& task, const QString& agent, const QString& repositoryName)
+QJsonObject resumeExecution(const QString& configPath, const QString& taskOrExecution)
+{
+    const ProjectConfig config = ProjectConfig::load(configPath);
+    const Paths paths = pathsFor(configPath);
+    ResumeFacts facts = observeResumeLedger(paths, taskOrExecution);
+    if (!facts.started.isEmpty()) {
+        facts.planSha1 = observePlan(config, paths.root).sha1;
+        readHandoff(paths, facts);
+        observeResumeGit(config, paths, facts);
+    }
+    return resumePackage(facts, evaluateResume(facts));
+}
+
+QJsonObject startExecution(const QString& configPath, const QString& task, const QString& agent, const QString& repositoryName, const QStringList& instructions)
 {
     const ProjectConfig config = ProjectConfig::load(configPath);
     const Paths paths = pathsFor(configPath);
@@ -164,6 +177,14 @@ QJsonObject startExecution(const QString& configPath, const QString& task, const
         workspaceSource = QStringLiteral("created");
     }
 
+    const QJsonArray recordedInstructions = observeInstructions(config.instructions + instructions, paths.root);
+    for (const QJsonValue& instruction : recordedInstructions) {
+        if (instruction.toObject().value(QStringLiteral("sha1")).isNull()) {
+            warnings.append(finding(QStringLiteral("context.instruction_unreadable"), QStringLiteral("warning"), QStringLiteral("context"),
+                QStringLiteral("Instruction file cannot be read"), instruction.toObject().value(QStringLiteral("path")).toString()));
+        }
+    }
+
     appendEvent(paths, executionId, {
         {QStringLiteral("ts"), nowUtc()}, {QStringLiteral("type"), QStringLiteral("execution.started")}, {QStringLiteral("exec"), executionId},
         {QStringLiteral("task"), task}, {QStringLiteral("agent"), agent}, {QStringLiteral("repo"), repository.name},
@@ -171,6 +192,8 @@ QJsonObject startExecution(const QString& configPath, const QString& task, const
         {QStringLiteral("workspace_source"), workspaceSource}, {QStringLiteral("repo_dirty"), repositoryDirty},
         {QStringLiteral("preserved_ref"), orNull(preservedRef)},
         {QStringLiteral("base_sha"), baseSha}, {QStringLiteral("head_sha"), headSha},
+        {QStringLiteral("remote_base_sha"), remoteBaseSha},
+        {QStringLiteral("instructions"), recordedInstructions},
         {QStringLiteral("plan_ref"), planReference(config, paths.root, task)},
         {QStringLiteral("plan_sha1"), sha1File(expandPath(config.planPath, paths.root))},
     });
@@ -231,12 +254,17 @@ QJsonObject finishExecution(const QString& configPath, const QString& executionI
     input.filesRef = writeEvidence(paths, {{QStringLiteral("files"), fileJson}});
 
     writeHandoff(paths, input, events);
+    ResumeFacts handoffFacts;
+    handoffFacts.exec = executionId;
+    readHandoff(paths, handoffFacts);
+    if (handoffFacts.handoff.sha1.isEmpty()) fail(QStringLiteral("Cannot hash generated handoff: ") + handoffFacts.handoff.error);
 
     appendEvent(paths, executionId, {{QStringLiteral("ts"), nowUtc()}, {QStringLiteral("type"), QStringLiteral("execution.finished")},
         {QStringLiteral("exec"), executionId}, {QStringLiteral("outcome"), outcome}, {QStringLiteral("head_sha"), input.headSha},
         {QStringLiteral("commits"), commitJson}, {QStringLiteral("files_changed"), input.filesChanged},
         {QStringLiteral("insertions"), input.insertions}, {QStringLiteral("deletions"), input.deletions},
-        {QStringLiteral("files_ref"), input.filesRef}, {QStringLiteral("preserved_ref"), orNull(input.preservedRef)}});
+        {QStringLiteral("files_ref"), input.filesRef}, {QStringLiteral("preserved_ref"), orNull(input.preservedRef)},
+        {QStringLiteral("handoff_sha1"), handoffFacts.handoff.sha1}});
     return {{QStringLiteral("exec"), executionId}, {QStringLiteral("outcome"), outcome}, {QStringLiteral("head_sha"), input.headSha},
         {QStringLiteral("preserved_ref"), orNull(input.preservedRef)},
         {QStringLiteral("handoff"), QStringLiteral("handoffs/") + executionId + QStringLiteral(".md")}};

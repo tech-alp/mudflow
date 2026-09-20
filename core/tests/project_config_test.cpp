@@ -2,6 +2,7 @@
 
 #include <QFile>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QTemporaryDir>
 
 #include <exception>
@@ -32,12 +33,29 @@ int main()
         const mudflow::ProjectConfig config = mudflow::ProjectConfig::load(path);
         if (config.name != QLatin1String("mudflow")
                 || config.repositories.size() != 1
+                || !config.instructions.isEmpty()
                 || config.toJson().value(QStringLiteral("repos")).toArray().at(0).toObject().value(QStringLiteral("base")).toObject().value(QStringLiteral("remote")).toString() != QLatin1String("origin")
                 || config.toJson().value(QStringLiteral("version")).toInt() != 1) {
             return 1;
         }
     } catch (const std::exception&) {
         return 1;
+    }
+
+    // Optional instructions must be a list of non-empty paths.
+    const QJsonObject valid = mudflow::ProjectConfig::load(path).toJson();
+    for (const QJsonValue& instructions : {QJsonValue("AGENTS.md"), QJsonValue(QJsonValue::Null),
+            QJsonValue(QJsonArray{42}), QJsonValue(QJsonArray{""})}) {
+        QJsonObject invalid = valid;
+        invalid.insert(QStringLiteral("instructions"), instructions);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) return 1;
+        file.write(QJsonDocument(invalid).toJson());
+        file.close();
+        try {
+            mudflow::ProjectConfig::load(path);
+            return 1;
+        } catch (const std::exception&) {
+        }
     }
 
     file.setFileName(directory.filePath(QStringLiteral("invalid.json")));

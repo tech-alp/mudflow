@@ -6,6 +6,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
 
 namespace mudflow {
 
@@ -45,8 +46,45 @@ QString sha1File(const QString& path)
         return {};
     }
     QCryptographicHash hash(QCryptographicHash::Sha1);
-    hash.addData(&file);
+    if (!hash.addData(&file) || file.error() != QFileDevice::NoError) return {};
     return QString::fromLatin1(hash.result().toHex());
+}
+
+FileFacts observePath(const QString& path)
+{
+    FileFacts facts;
+    facts.path = path;
+    if (path.isEmpty()) {
+        facts.error = QStringLiteral("No path was recorded");
+        return facts;
+    }
+    const QFileInfo info(path);
+    if (info.exists()) {
+        facts.exists = true;
+    } else {
+        // An inaccessible parent is not proof that its child is absent.
+        QDir parent = info.absoluteDir();
+        while (!parent.exists() && parent.cdUp()) {}
+        if (QFileInfo(parent.absolutePath()).isReadable() && QFileInfo(parent.absolutePath()).isExecutable()) {
+            facts.exists = false;
+        } else {
+            facts.error = QStringLiteral("Cannot inspect parent directory: ") + parent.absolutePath();
+        }
+    }
+    return facts;
+}
+
+QJsonArray observeInstructions(const QStringList& instructions, const QString& root)
+{
+    QJsonArray result;
+    for (const QString& instruction : instructions) {
+        const QString path = expandPath(instruction, root);
+        const QString sha1 = sha1File(path);
+        result.append(QJsonObject{{QStringLiteral("name"), QFileInfo(path).fileName()},
+            {QStringLiteral("path"), path},
+            {QStringLiteral("sha1"), sha1.isEmpty() ? QJsonValue::Null : QJsonValue(sha1)}});
+    }
+    return result;
 }
 
 } // namespace mudflow

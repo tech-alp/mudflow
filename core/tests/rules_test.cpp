@@ -130,5 +130,65 @@ int main()
         if (!has(mudflow::evaluate(config(), f), QStringLiteral("plan.done_without_evidence"))) return 1;
     }
 
+    // Resume: deterministic facts, no git/filesystem/clock access.
+    {
+        mudflow::ResumeFacts f;
+        f.task = QStringLiteral("MF-1");
+        if (!has(mudflow::evaluateResume(f), QStringLiteral("context.no_execution"))) return 1;
+        f.ledgerError = QStringLiteral("permission denied");
+        if (!has(mudflow::evaluateResume(f), QStringLiteral("context.ledger_unreadable"))
+                || has(mudflow::evaluateResume(f), QStringLiteral("context.no_execution"))) return 1;
+        f.ledgerError.clear();
+        f.exec = QStringLiteral("E1");
+        f.started = startedEvent(f.exec, f.task, QStringLiteral("2026-09-20T11:00:00Z"));
+        f.started.insert(QStringLiteral("plan_sha1"), QStringLiteral("plan"));
+        f.started.insert(QStringLiteral("instructions"), QJsonArray{});
+        f.planSha1 = QStringLiteral("plan");
+        f.finished.insert(QStringLiteral("handoff_sha1"), QStringLiteral("handoff"));
+        f.handoff.sha1 = QStringLiteral("handoff");
+        f.handoff.exists = true;
+        f.worktree.exists = true;
+        f.baseAdvanced = false;
+        if (!mudflow::evaluateResume(f).isEmpty()) return 1;
+
+        f.handoff.exists = false;
+        f.handoff.sha1.clear();
+        f.worktree.exists = false;
+        f.baseAdvanced = true;
+        f.planSha1 = QStringLiteral("changed");
+        const QJsonArray missing = mudflow::evaluateResume(f);
+        for (const QString& id : {QStringLiteral("context.no_handoff"), QStringLiteral("git.worktree_missing"),
+                QStringLiteral("git.base_advanced"), QStringLiteral("plan.changed_during_execution")}) {
+            if (!has(missing, id)) return 1;
+        }
+        for (const QJsonValue& value : missing) {
+            for (const QString& key : {QStringLiteral("id"), QStringLiteral("severity"), QStringLiteral("domain"), QStringLiteral("title"), QStringLiteral("explanation")}) {
+                if (!value.toObject().value(key).isString()) return 1;
+            }
+        }
+
+        f.handoff.exists.reset();
+        f.worktree.exists.reset();
+        f.baseAdvanced.reset();
+        f.planSha1.clear();
+        f.fetchError = QStringLiteral("offline");
+        f.measurementError = QStringLiteral("missing git objects");
+        f.started.remove(QStringLiteral("instructions"));
+        const QJsonArray unknown = mudflow::evaluateResume(f);
+        for (const QString& id : {QStringLiteral("context.handoff_unreadable"), QStringLiteral("git.worktree_unknown"),
+                QStringLiteral("git.base_unknown"), QStringLiteral("git.fetch_failed"), QStringLiteral("plan.comparison_unknown"),
+                QStringLiteral("git.measurement_unavailable"), QStringLiteral("context.instructions_unknown")}) {
+            if (!has(unknown, id)) return 1;
+        }
+        if (has(unknown, QStringLiteral("git.worktree_missing")) || has(unknown, QStringLiteral("context.no_handoff"))
+                || has(unknown, QStringLiteral("plan.changed_during_execution")) || has(unknown, QStringLiteral("git.base_advanced"))) return 1;
+        f.handoff.exists = true;
+        f.handoff.sha1 = QStringLiteral("edited");
+        if (!has(mudflow::evaluateResume(f), QStringLiteral("context.handoff_changed"))) return 1;
+        f.finished.remove(QStringLiteral("handoff_sha1"));
+        if (!has(mudflow::evaluateResume(f), QStringLiteral("context.handoff_unverified"))) return 1;
+        f.started.insert(QStringLiteral("instructions"), QJsonArray{QJsonObject{{QStringLiteral("path"), QStringLiteral("missing.md")}, {QStringLiteral("sha1"), QJsonValue::Null}}});
+        if (!has(mudflow::evaluateResume(f), QStringLiteral("context.instruction_unreadable"))) return 1;
+    }
     return 0;
 }

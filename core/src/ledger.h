@@ -15,6 +15,7 @@ QString nowUtc();
 void appendEvent(const Paths& paths, const QString& executionId, const QJsonObject& event);
 QVector<QJsonObject> readEvents(const Paths& paths);
 QJsonObject startedEvent(const QVector<QJsonObject>& events, const QString& executionId);
+ResumeFacts observeResumeLedger(const Paths& paths, const QString& taskOrExecution);
 
 // İçerik adresli: aynı payload aynı dosyaya düşer.
 QString writeEvidence(const Paths& paths, const QJsonObject& value);

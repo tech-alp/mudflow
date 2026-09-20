@@ -61,6 +61,17 @@ ProjectConfig ProjectConfig::load(const QString& path)
     }
     config.planPath = requiredString(plan.toObject(), "path", QStringLiteral("project.plan"));
 
+    const QJsonValue instructions = root.value(QStringLiteral("instructions"));
+    if (!instructions.isUndefined()) {
+        if (!instructions.isArray()) fail(QStringLiteral("project.instructions must be an array of paths"));
+        for (const QJsonValue& instruction : instructions.toArray()) {
+            if (!instruction.isString() || instruction.toString().trimmed().isEmpty()) {
+                fail(QStringLiteral("project.instructions items must be non-empty paths"));
+            }
+            config.instructions.append(instruction.toString());
+        }
+    }
+
     const QJsonValue repositories = root.value(QStringLiteral("repos"));
     if (!repositories.isArray() || repositories.toArray().isEmpty()) {
         fail(QStringLiteral("project.repos must be a non-empty array"));
@@ -104,6 +115,7 @@ QJsonObject ProjectConfig::toJson() const
         {QStringLiteral("repos"), repositoriesJson},
         {QStringLiteral("plan"), QJsonObject{{QStringLiteral("path"), planPath}}},
         {QStringLiteral("task_id_pattern"), taskIdPattern},
+        {QStringLiteral("instructions"), QJsonArray::fromStringList(instructions)},
     };
 }
 
