@@ -1,6 +1,6 @@
 {
   "name": "mudflow-agent",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Mudflow SessionStart pilot with CLI-only context and evidence guidance.",
   "author": {
     "name": "Mudflow"

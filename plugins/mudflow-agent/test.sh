@@ -56,14 +56,18 @@ check('single SessionStart hook and manifest contracts', () => {
   assert.equal(session.hooks.length, 1);
   assert.equal(session.hooks[0].type, 'command');
   assert.equal(session.hooks[0].timeout, 10);
-  // Codex komutu shell gibi bolmuyor: `node "<yol>"` string'i exit 127 verdi.
-  // Dogrudan calistirilabilir yol iki runtime'da da calisir — ama o zaman
-  // shebang ve +x biti sozlesmenin parcasi, ikisi de burada denetlenir.
-  assert.equal(session.hooks[0].command, '${CLAUDE_PLUGIN_ROOT}/hooks/mudflow-session-start.js');
+  // Hook'lar dar PATH ile calisabiliyor (Codex'te node bulunamayip exit 127).
+  // Giris noktasi bu yuzden PATH'i genisleten bir sh sarmalayici; shebang,
+  // +x biti ve kurulum dizinleri sozlesmenin parcasi.
+  assert.equal(session.hooks[0].command, '${CLAUDE_PLUGIN_ROOT}/hooks/mudflow-session-start.sh');
   assert.equal(session.hooks[0].commandWindows, 'node "${CLAUDE_PLUGIN_ROOT}/hooks/mudflow-session-start.js"');
-  const entry = path.join(plugin, 'hooks/mudflow-session-start.js');
-  assert(fs.readFileSync(entry, 'utf8').startsWith('#!/usr/bin/env node\n'), 'shebang');
-  assert(fs.statSync(entry).mode & 0o111, 'hook must be executable');
+  const entry = path.join(plugin, 'hooks/mudflow-session-start.sh');
+  const wrapper = fs.readFileSync(entry, 'utf8');
+  assert(wrapper.startsWith('#!/bin/sh\n'), 'shebang');
+  assert(fs.statSync(entry).mode & 0o111, 'wrapper must be executable');
+  for (const dir of ['/opt/homebrew/bin', '/usr/local/bin', '$HOME/.local/bin']) {
+    assert(wrapper.includes(dir), dir);
+  }
 });
 for (const runtime of ['claude', 'codex']) {
   check(`${runtime} marketplace JSON and source directory`, () => {
@@ -110,9 +114,9 @@ else process.stdout.write(process.env.FAKE_RESUME || '');
   const valid = JSON.stringify({ cwd: repo, session_id: 'x' });
   function run(input = valid, env = {}) {
     fs.writeFileSync(log, '');
-    const result = spawnSync(process.execPath, [path.join(plugin, 'hooks/mudflow-session-start.js')], {
+    const result = spawnSync(path.join(plugin, 'hooks/mudflow-session-start.sh'), [], {
       input, encoding: 'utf8', timeout: 6000,
-      env: { ...process.env, PATH: bin, CALL_LOG: log, FAKE_VERSION: 'mudflow 0.2.0', FAKE_MODE: '', ...env },
+      env: { ...process.env, PATH: bin, HOME: temporary, CALL_LOG: log, FAKE_VERSION: 'mudflow 0.2.0', FAKE_MODE: '', ...env },
     });
     assert.ifError(result.error);
     assert.equal(result.status, 0);
