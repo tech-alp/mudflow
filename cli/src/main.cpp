@@ -67,8 +67,10 @@ int main(int argc, char* argv[])
             result = mudflow::projectStatus(configPath);
         } else if (arguments.size() == 2 && arguments.constFirst() == QLatin1String("start")) {
             result = mudflow::startExecution(configPath, arguments.constLast(), parser.value(agentOption), parser.value(repositoryOption), parser.values(instructionOption));
-        } else if (arguments.size() == 2 && arguments.constFirst() == QLatin1String("resume")) {
-            result = mudflow::resumeExecution(configPath, arguments.constLast());
+        } else if ((arguments.size() == 1 || arguments.size() == 2) && arguments.constFirst() == QLatin1String("resume")) {
+            // Argumansiz resume = en son execution. SessionStart hook'u hangi
+            // task'ta oldugunu bilmez; secici vermeden cagirabilmeli.
+            result = mudflow::resumeExecution(configPath, arguments.size() == 2 ? arguments.constLast() : QString());
             if (parser.isSet(markdownOption)) {
                 QTextStream(stdout) << mudflow::resumeMarkdown(result);
                 return 0;

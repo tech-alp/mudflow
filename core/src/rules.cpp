@@ -43,7 +43,9 @@ QJsonArray evaluateResume(const ResumeFacts& facts)
         return gaps;
     }
     if (facts.exec.isEmpty()) {
-        gap(QStringLiteral("context.no_execution"), QStringLiteral("context"), QStringLiteral("Task has no execution"), facts.task);
+        gap(QStringLiteral("context.no_execution"), QStringLiteral("context"),
+            facts.task.isEmpty() ? QStringLiteral("Ledger has no execution") : QStringLiteral("Task has no execution"),
+            facts.task.isEmpty() ? QStringLiteral("no execution recorded in this project") : facts.task);
         return gaps;
     }
     if (facts.started.isEmpty()) {

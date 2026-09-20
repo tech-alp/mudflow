@@ -97,7 +97,8 @@ const fs = require('node:fs');
 fs.appendFileSync(process.env.CALL_LOG, JSON.stringify(process.argv.slice(2)) + '\\n');
 if (process.env.FAKE_MODE === 'timeout') setTimeout(() => {}, 10000);
 else if (process.env.FAKE_MODE === 'failure') { console.error('CLI failed'); process.exit(1); }
-else console.log(process.env.FAKE_VERSION);
+else if (process.argv.includes('--version')) console.log(process.env.FAKE_VERSION);
+else process.stdout.write(process.env.FAKE_RESUME || '');
 `, { mode: 0o755 });
   const valid = JSON.stringify({ cwd: repo, session_id: 'x' });
   function run(input = valid, env = {}) {
@@ -108,7 +109,6 @@ else console.log(process.env.FAKE_VERSION);
     });
     assert.ifError(result.error);
     assert.equal(result.status, 0);
-    assert.equal(result.stdout, '');
     result.calls = fs.readFileSync(log, 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse);
     return result;
   }
@@ -117,6 +117,7 @@ else console.log(process.env.FAKE_VERSION);
       const result = run(input);
       assert.equal(result.stderr, '');
       assert.deepEqual(result.calls, []);
+      assert.equal(result.stdout, '');
     }
   });
   check('missing CLI: silent exit 0', () => {
@@ -124,18 +125,28 @@ else console.log(process.env.FAKE_VERSION);
     assert.equal(result.stderr, '');
     assert.deepEqual(result.calls, []);
   });
-  check('TC-006: compatible CLI, no selector: only --version, no injection or writes', () => {
+  check('TC-006: compatible CLI injects selector-less resume, writes nothing', () => {
     for (const version of ['0.1.0', '0.1.0+build.1', '0.10.0', '1.0.0', '0.2.0-rc.1']) {
-      const result = run(valid, { FAKE_VERSION: `mudflow ${version}` });
+      const result = run(valid, { FAKE_VERSION: `mudflow ${version}`, FAKE_RESUME: '# Mudflow resume: MF-1\n' });
       assert.equal(result.stderr, '');
-      assert.deepEqual(result.calls, [['--version']]);
+      // Hook yalnizca cagirir; secici vermez, karar vermez (TC-006).
+      assert.deepEqual(result.calls, [['--version'], ['resume', '--markdown']]);
+      assert.deepEqual(JSON.parse(result.stdout), {
+        hookSpecificOutput: { additionalContext: '# Mudflow resume: MF-1\n' } });
     }
+  });
+  check('empty resume output: no injection', () => {
+    const result = run(valid, { FAKE_RESUME: '   \n' });
+    assert.equal(result.stderr, '');
+    assert.equal(result.stdout, '');
+    assert.deepEqual(result.calls, [['--version'], ['resume', '--markdown']]);
   });
   check('incompatible or unknown version: explicit minimum on stderr, exit 0', () => {
     for (const version of ['mudflow 0.0.9', 'mudflow 0.1.0-rc.1', 'unknown']) {
       const result = run(valid, { FAKE_VERSION: version });
       assert.match(result.stderr, /requires >= 0\.1\.0/);
       assert.deepEqual(result.calls, [['--version']]);
+      assert.equal(result.stdout, '');
     }
   });
   check('CLI failure and timeout: silent exit 0', () => {
@@ -143,6 +154,7 @@ else console.log(process.env.FAKE_VERSION);
       const result = run(valid, { FAKE_MODE: mode });
       assert.equal(result.stderr, '');
       assert.deepEqual(result.calls, [['--version']]);
+      assert.equal(result.stdout, '');
     }
   });
 } finally {

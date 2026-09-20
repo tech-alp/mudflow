@@ -105,11 +105,16 @@ QString resumeMarkdown(const QJsonObject& package)
         return value.isBool() ? (value.toBool() ? yes : no) : QStringLiteral("bilinmiyor");
     };
 
-    out << "# Mudflow resume: " << str(package.value(QStringLiteral("task"))) << "\n\n";
+    const QJsonValue task = package.value(QStringLiteral("task"));
+    out << "# Mudflow resume";
+    if (task.isString() && !task.toString().isEmpty()) out << ": " << task.toString();
+    out << "\n\n";
 
     const QJsonValue exec = package.value(QStringLiteral("exec"));
     if (!exec.isString()) {
-        out << "Bu task için kayıtlı execution yok.\n\n";
+        out << (task.isString() && !task.toString().isEmpty()
+                ? "Bu task için kayıtlı execution yok.\n\n"
+                : "Bu projede kayıtlı execution yok.\n\n");
     } else {
         const QJsonObject workspace = package.value(QStringLiteral("workspace")).toObject();
         out << "exec: " << exec.toString() << '\n'

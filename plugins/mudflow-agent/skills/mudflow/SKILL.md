@@ -11,12 +11,16 @@ Check `mudflow --version`; minimum supported version is in `compatibility.json`.
 If the CLI is missing, continue the agent session without Mudflow. If its version
 is incompatible, explain the required minimum and skip Mudflow commands.
 
-For a known task or execution, run `mudflow resume "$TASK_OR_EXEC" --markdown`
-before continuing work. For recording, use the exact execution ID returned by
-Mudflow (`resume` JSON exposes `exec`); never substitute a task ID or session ID.
-If no task is known, ask for it. The current CLI cannot select an active task
-globally. The SessionStart pilot therefore exits silently without injecting
-context; absence of context does not mean there is no previous execution.
+Run `mudflow resume "$TASK_OR_EXEC" --markdown` for a known task or execution,
+or `mudflow resume --markdown` with no selector for the most recent execution in
+the project. For recording, use the exact execution ID returned by Mudflow
+(`resume` JSON exposes `exec`); never substitute a task ID or session ID.
+
+The SessionStart hook runs the selector-less form, so a session usually opens
+with the latest execution already in context. Absence of that context does not
+mean there is no previous execution: the hook stays silent whenever the CLI is
+missing, incompatible or fails. Check `resume` yourself before assuming a clean
+slate. Read the `gaps` array: it reports what could not be established.
 
 After observing a test, command result, commit or diff, record the actual result:
 

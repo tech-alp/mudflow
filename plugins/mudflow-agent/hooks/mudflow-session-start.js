@@ -33,9 +33,20 @@ try {
     process.exit(0);
   }
 
-  // The CLI requires a task/execution ID for resume and exposes no active-task
-  // selector. SessionStart supplies neither. Per pilot contract, inject nothing.
-  // Task selection belongs in core; do not infer it from Git, findings or files.
+  // Argument-less resume means "latest execution": selection lives in core, and
+  // the hook must not infer it from Git, findings or files (TC-006).
+  const context = execFileSync('mudflow', ['resume', '--markdown'], {
+    cwd: input.cwd,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    timeout: 10000,
+    killSignal: 'SIGKILL',
+    maxBuffer: 1024 * 1024,
+    windowsHide: true,
+  });
+  if (context.trim()) {
+    process.stdout.write(JSON.stringify({ hookSpecificOutput: { additionalContext: context } }));
+  }
 } catch {
   // Missing CLI, malformed input and command failures must not break the session.
 }

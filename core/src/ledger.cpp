@@ -81,14 +81,18 @@ ResumeFacts observeResumeLedger(const Paths& paths, const QString& taskOrExecuti
         return facts;
     }
     // IDs carry UTC time; lexical order is the ledger's documented chronology.
+    // Bos secici "en son execution" demektir: oturum baslangicinda hangi task'ta
+    // oldugunu bilmeyen bir cagiran icin tek anlamli varsayilan bu.
     for (const QJsonObject& event : events) {
         const QString exec = event.value(QStringLiteral("exec")).toString();
-        if (exec == taskOrExecution) {
+        if (!taskOrExecution.isEmpty() && exec == taskOrExecution) {
             facts.exec = exec;
             break;
         }
-        if (event.value(QStringLiteral("type")) == QLatin1String("execution.started")
-                && event.value(QStringLiteral("task")) == taskOrExecution && exec > facts.exec) {
+        if (event.value(QStringLiteral("type")) != QLatin1String("execution.started")) continue;
+        const bool matches = taskOrExecution.isEmpty()
+            || event.value(QStringLiteral("task")) == taskOrExecution;
+        if (matches && exec > facts.exec) {
             facts.exec = exec;
         }
     }

@@ -384,12 +384,23 @@ birlikte sağlanır ve handoff hiçbir zaman saf agent çıktısı olmaz.
 
 ## 8. Resume paketi
 
-`mudflow resume <task|exec>` stdout'a JSON; `--markdown` aynı alanları ayrı
-başlıklarda JSON bloklarıyla sunar. Kayıtlı exec ID'ye tam eşleşme önceliklidir;
-aksi halde task'ın en büyük execution ID'si seçilir (ID içindeki UTC zamanına
-göre leksikografik sıralama). Execution yoksa exit 0 ve `context.no_execution`
-gap'i döner. Ledger okunamıyorsa yok sayılmaz: `context.ledger_unreadable`.
-Geçersiz config ve komut kullanımı TC-007 hata sözleşmesini izler.
+`mudflow resume [<task|exec>]` stdout'a JSON; `--markdown` aynı alanları
+handoff.md ile aynı dilde liste ve başlıklarla sunar. Kayıtlı exec ID'ye tam
+eşleşme önceliklidir; aksi halde task'ın en büyük execution ID'si seçilir
+(ID içindeki UTC zamanına göre leksikografik sıralama). Execution yoksa exit 0
+ve `context.no_execution` gap'i döner. Ledger okunamıyorsa yok sayılmaz:
+`context.ledger_unreadable`. Geçersiz config ve komut kullanımı TC-007 hata
+sözleşmesini izler.
+
+**Seçici verilmezse projedeki en son execution seçilir.** Ledger dosya adları
+UTC zaman damgasıyla başladığı için sözlük sırası kronolojidir (§1); seçim bu
+sıranın en büyüğüdür.
+
+Gerekçe: SessionStart hook'u oturum açılırken hangi task'ta olunduğunu bilmez.
+Seçim mantığı çekirdekte durur — hook'un Git'ten, finding'lerden veya dosya
+adlarından task çıkarması TC-006'yı bozardı. Hiç execution yoksa yine paket
+döner, `context.no_execution` gap'iyle: sessiz boş çıktı ile "kayıt yok" aynı
+şeye benzememeli.
 
 ```json
 {
