@@ -1,262 +1,29 @@
 #include "mudflow/workflow.h"
 
 #include "mudflow/project_config.h"
+#include "mudflow/rules.h"
+#include "error.h"
+#include "git.h"
+#include "handoff.h"
+#include "ledger.h"
+#include "paths.h"
+#include "plan.h"
 
-#include <QCryptographicHash>
 #include <QDateTime>
 #include <QDir>
-#include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonParseError>
-#include <QProcess>
-#include <QProcessEnvironment>
 #include <QRegularExpression>
-#include <QSet>
-#include <QTemporaryFile>
-#include <QTextStream>
-
-#include <stdexcept>
 
 namespace mudflow {
 namespace {
 
-struct Paths {
-    QString root;
-    QString state;
-    QString ledger;
-    QString evidence;
-    QString handoffs;
-};
-
-struct ProcessResult {
-    int exitCode;
-    QString output;
-    QString error;
-};
-
-[[noreturn]] void fail(const QString& message)
+// Orkestrasyon: iki ayrı sorumluluğu birleştirir. Dizin açmak paths'in,
+// exclude yazmak git'in işi; ikisini birlikte çağırmak komutun işi.
+void prepareState(const Paths& paths)
 {
-    throw std::runtime_error(message.toStdString());
-}
-
-QString expandPath(const QString& value, const QString& root)
-{
-    if (value == QLatin1String("~")) {
-        return QDir::homePath();
-    }
-    if (value.startsWith(QLatin1String("~/"))) {
-        return QDir::home().filePath(value.mid(2));
-    }
-    return QFileInfo(value).isAbsolute() ? QDir::cleanPath(value) : QDir(root).absoluteFilePath(value);
-}
-
-Paths pathsFor(const QString& configPath)
-{
-    QDir configDirectory = QFileInfo(configPath).absoluteDir();
-    if (!configDirectory.cdUp()) {
-        fail(QStringLiteral("Project config must be inside .mudflow"));
-    }
-    const QString root = configDirectory.absolutePath();
-    const QString state = QDir(root).filePath(QStringLiteral(".mudflow"));
-    return {root, state, QDir(state).filePath(QStringLiteral("ledger")), QDir(state).filePath(QStringLiteral("evidence")), QDir(state).filePath(QStringLiteral("handoffs"))};
-}
-
-ProcessResult run(const QString& program, const QStringList& arguments, const QProcessEnvironment& environment = QProcessEnvironment::systemEnvironment())
-{
-    QProcess process;
-    process.setProgram(program);
-    process.setArguments(arguments);
-    process.setProcessEnvironment(environment);
-    process.start();
-    if (!process.waitForStarted(5000)) {
-        fail(QStringLiteral("Cannot start %1: %2").arg(program, process.errorString()));
-    }
-    if (!process.waitForFinished(60000)) {
-        process.kill();
-        fail(QStringLiteral("Timed out: %1 %2").arg(program, arguments.join(QLatin1Char(' '))));
-    }
-    return {process.exitCode(), QString::fromUtf8(process.readAllStandardOutput()).trimmed(), QString::fromUtf8(process.readAllStandardError()).trimmed()};
-}
-
-ProcessResult git(const QString& repository, const QStringList& arguments)
-{
-    QStringList gitArguments{QStringLiteral("-C"), repository};
-    gitArguments.append(arguments);
-    return run(QStringLiteral("git"), gitArguments);
-}
-
-QString gitRequired(const QString& repository, const QStringList& arguments)
-{
-    const ProcessResult result = git(repository, arguments);
-    if (result.exitCode != 0) {
-        fail(QStringLiteral("git -C %1 %2: %3").arg(repository, arguments.join(QLatin1Char(' ')), result.error));
-    }
-    return result.output;
-}
-
-QString gitWithIndexRequired(const QString& repository, const QStringList& arguments, const QString& indexPath)
-{
-    QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
-    environment.insert(QStringLiteral("GIT_INDEX_FILE"), indexPath);
-    QStringList gitArguments{QStringLiteral("-C"), repository};
-    gitArguments.append(arguments);
-    const ProcessResult result = run(QStringLiteral("git"), gitArguments, environment);
-    if (result.exitCode != 0) {
-        fail(QStringLiteral("git -C %1 %2: %3").arg(repository, arguments.join(QLatin1Char(' ')), result.error));
-    }
-    return result.output;
-}
-
-QString preserveWorktree(const QString& worktree, const QString& executionId, const QString& previousRef = {})
-{
-    if (gitRequired(worktree, {QStringLiteral("status"), QStringLiteral("--porcelain")}).isEmpty()) return {};
-
-    QTemporaryFile temporaryIndex;
-    if (!temporaryIndex.open()) fail(QStringLiteral("Cannot create temporary Git index"));
-    const QString indexPath = temporaryIndex.fileName();
-    temporaryIndex.close();
-    if (!QFile::remove(indexPath)) fail(QStringLiteral("Cannot prepare temporary Git index"));
-
-    gitWithIndexRequired(worktree, {QStringLiteral("read-tree"), QStringLiteral("HEAD")}, indexPath);
-    gitWithIndexRequired(worktree, {QStringLiteral("add"), QStringLiteral("-A")}, indexPath);
-    const QString tree = gitWithIndexRequired(worktree, {QStringLiteral("write-tree")}, indexPath);
-    QStringList commitArguments{QStringLiteral("commit-tree"), tree, QStringLiteral("-p"), QStringLiteral("HEAD")};
-    if (!previousRef.isEmpty()) {
-        const ProcessResult previous = git(worktree, {QStringLiteral("rev-parse"), QStringLiteral("--verify"), previousRef});
-        if (previous.exitCode == 0) {
-            commitArguments.append({QStringLiteral("-p"), previous.output});
-        }
-    }
-    commitArguments.append({QStringLiteral("-m"), QStringLiteral("mudflow: preserve uncommitted work for ") + executionId});
-    const QString preservedObject = gitRequired(worktree, commitArguments);
-    const QString preservedRef = QStringLiteral("refs/mudflow/preserved/") + executionId;
-    gitRequired(worktree, {QStringLiteral("update-ref"), preservedRef, preservedObject});
-    return preservedRef;
-}
-
-QString gitCommonDir(const QString& repository)
-{
-    const QString commonDir = gitRequired(repository, {QStringLiteral("rev-parse"), QStringLiteral("--git-common-dir")});
-    const QString absolutePath = QDir::isAbsolutePath(commonDir) ? QDir::cleanPath(commonDir) : QDir::cleanPath(QDir(repository).absoluteFilePath(commonDir));
-    const QString canonicalPath = QFileInfo(absolutePath).canonicalFilePath();
-    return canonicalPath.isEmpty() ? absolutePath : canonicalPath;
-}
-
-void ensureGitExcludes(const Paths& paths)
-{
-    const ProcessResult insideWorktree = git(paths.root, {QStringLiteral("rev-parse"), QStringLiteral("--is-inside-work-tree")});
-    if (insideWorktree.exitCode != 0 || insideWorktree.output != QLatin1String("true")) {
-        return;
-    }
-    const QString repositoryRoot = QDir::cleanPath(QDir(paths.root).absoluteFilePath(
-        gitRequired(paths.root, {QStringLiteral("rev-parse"), QStringLiteral("--show-cdup")})));
-    const QString commonDir = gitCommonDir(paths.root);
-    const QString statePath = QDir::cleanPath(QDir(repositoryRoot).relativeFilePath(paths.state));
-    const QStringList patterns{
-        QLatin1Char('/') + statePath + QStringLiteral("/ledger/"),
-        QLatin1Char('/') + statePath + QStringLiteral("/evidence/"),
-        QLatin1Char('/') + statePath + QStringLiteral("/handoffs/"),
-    };
-
-    QFile exclude(QDir(commonDir).filePath(QStringLiteral("info/exclude")));
-    QByteArray contents;
-    if (exclude.exists()) {
-        if (!exclude.open(QIODevice::ReadOnly)) {
-            fail(QStringLiteral("Cannot read Git exclude file: %1").arg(exclude.fileName()));
-        }
-        contents = exclude.readAll();
-        exclude.close();
-    }
-    QSet<QString> existing;
-    for (const QByteArray& line : contents.split('\n')) {
-        existing.insert(QString::fromUtf8(line).trimmed());
-    }
-    QStringList missing;
-    for (const QString& pattern : patterns) {
-        if (!existing.contains(pattern)) missing.append(pattern);
-    }
-    if (missing.isEmpty()) return;
-
-    if (!exclude.open(QIODevice::WriteOnly | QIODevice::Append)) {
-        fail(QStringLiteral("Cannot write Git exclude file: %1").arg(exclude.fileName()));
-    }
-    if (!contents.isEmpty() && !contents.endsWith('\n')) exclude.write("\n");
-    for (const QString& pattern : missing) {
-        exclude.write(pattern.toUtf8());
-        exclude.write("\n");
-    }
-}
-
-void ensureDirectories(const Paths& paths)
-{
-    if (!QDir().mkpath(paths.ledger) || !QDir().mkpath(paths.evidence) || !QDir().mkpath(paths.handoffs)) {
-        fail(QStringLiteral("Cannot create .mudflow state directories"));
-    }
+    ensureDirectories(paths);
     ensureGitExcludes(paths);
-}
-
-QString nowUtc()
-{
-    return QDateTime::currentDateTimeUtc().toString(Qt::ISODate);
-}
-
-QString sha1File(const QString& path)
-{
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly)) {
-        return {};
-    }
-    QCryptographicHash hash(QCryptographicHash::Sha1);
-    hash.addData(&file);
-    return QString::fromLatin1(hash.result().toHex());
-}
-
-void appendEvent(const Paths& paths, const QString& executionId, const QJsonObject& event)
-{
-    QFile file(QDir(paths.ledger).filePath(executionId + QStringLiteral(".jsonl")));
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Append)) {
-        fail(QStringLiteral("Cannot append ledger %1: %2").arg(file.fileName(), file.errorString()));
-    }
-    file.write(QJsonDocument(event).toJson(QJsonDocument::Compact));
-    file.write("\n");
-}
-
-QVector<QJsonObject> readEvents(const Paths& paths)
-{
-    QVector<QJsonObject> events;
-    const QStringList files = QDir(paths.ledger).entryList({QStringLiteral("*.jsonl")}, QDir::Files, QDir::Name);
-    for (const QString& name : files) {
-        QFile file(QDir(paths.ledger).filePath(name));
-        if (!file.open(QIODevice::ReadOnly)) {
-            fail(QStringLiteral("Cannot read ledger %1").arg(file.fileName()));
-        }
-        while (!file.atEnd()) {
-            const QByteArray line = file.readLine().trimmed();
-            if (line.isEmpty()) {
-                continue;
-            }
-            QJsonParseError error;
-            const QJsonDocument document = QJsonDocument::fromJson(line, &error);
-            if (error.error != QJsonParseError::NoError || !document.isObject()) {
-                fail(QStringLiteral("Invalid ledger event in %1").arg(file.fileName()));
-            }
-            events.append(document.object());
-        }
-    }
-    return events;
-}
-
-QJsonObject startedEvent(const QVector<QJsonObject>& events, const QString& executionId)
-{
-    for (const QJsonObject& event : events) {
-        if (event.value(QStringLiteral("type")) == QLatin1String("execution.started")
-                && event.value(QStringLiteral("exec")) == executionId) {
-            return event;
-        }
-    }
-    fail(QStringLiteral("Unknown execution: %1").arg(executionId));
 }
 
 const RepositoryConfig& repositoryFor(const ProjectConfig& config, const QString& name)
@@ -272,53 +39,36 @@ const RepositoryConfig& repositoryFor(const ProjectConfig& config, const QString
     fail(QStringLiteral("Unknown repository: %1").arg(name.isEmpty() ? QStringLiteral("(select --repo)") : name));
 }
 
-QString baseRef(const RepositoryConfig& repository)
+QJsonValue orNull(const QString& value)
 {
-    return repository.remote + QLatin1Char('/') + repository.branch;
+    return value.isEmpty() ? QJsonValue::Null : QJsonValue(value);
 }
 
-QJsonObject finding(const QString& id, const QString& severity, const QString& domain, const QString& title, const QString& explanation, const QString& action = {})
+// GÖZLEM: git'i çalıştır, planı oku, ledger'ı oku, dosya varlığını ölç.
+// Değerlendirme buraya karışmaz.
+StatusFacts observe(const ProjectConfig& config, const Paths& paths)
 {
-    QJsonObject value{
-        {QStringLiteral("id"), id},
-        {QStringLiteral("severity"), severity},
-        {QStringLiteral("domain"), domain},
-        {QStringLiteral("title"), title},
-        {QStringLiteral("explanation"), explanation},
-    };
-    if (!action.isEmpty()) {
-        value.insert(QStringLiteral("suggested_action"), action);
-    }
-    return value;
-}
+    StatusFacts facts;
+    facts.now = QDateTime::currentDateTimeUtc();
+    facts.events = readEvents(paths);
+    facts.plan = observePlan(config, paths.root);
 
-QString planReference(const ProjectConfig& config, const Paths& paths, const QString& task)
-{
-    const QString path = expandPath(config.planPath, paths.root);
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly)) {
-        return {};
+    for (const RepositoryConfig& repository : config.repositories) {
+        facts.repos.append(observeRepo(repository, expandPath(repository.path, paths.root)));
     }
-    int lineNumber = 0;
-    while (!file.atEnd()) {
-        ++lineNumber;
-        if (QString::fromUtf8(file.readLine()).contains(task)) {
-            return config.planPath + QStringLiteral("#L") + QString::number(lineNumber);
+
+    for (const QJsonObject& event : facts.events) {
+        if (event.value(QStringLiteral("type")).toString() != QLatin1String("execution.started")) {
+            continue;
         }
+        ExecutionFacts execution;
+        execution.exec = event.value(QStringLiteral("exec")).toString();
+        execution.hasHandoff = QFileInfo::exists(QDir(paths.handoffs).filePath(execution.exec + QStringLiteral(".md")));
+        const QString worktree = event.value(QStringLiteral("worktree")).toString();
+        execution.worktreeExists = !worktree.isEmpty() && QFileInfo::exists(worktree);
+        facts.executions.append(execution);
     }
-    return {};
-}
-
-QString writeEvidence(const Paths& paths, const QJsonObject& value)
-{
-    const QByteArray data = QJsonDocument(value).toJson(QJsonDocument::Compact);
-    const QString name = QString::fromLatin1(QCryptographicHash::hash(data, QCryptographicHash::Sha1).toHex()) + QStringLiteral(".json");
-    QFile file(QDir(paths.evidence).filePath(name));
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        fail(QStringLiteral("Cannot write evidence %1").arg(file.fileName()));
-    }
-    file.write(data);
-    return QStringLiteral("evidence/") + name;
+    return facts;
 }
 
 } // namespace
@@ -332,168 +82,25 @@ QJsonObject projectStatus(const QString& configPath)
 {
     const ProjectConfig config = ProjectConfig::load(configPath);
     const Paths paths = pathsFor(configPath);
-    ensureDirectories(paths);
-    const QVector<QJsonObject> events = readEvents(paths);
+    prepareState(paths);
+
+    const StatusFacts facts = observe(config, paths);
+
     QJsonArray repositories;
-    QJsonArray findings;
-    QHash<QString, QString> remoteBaseShas;
-
-    for (const RepositoryConfig& repository : config.repositories) {
-        const QString repositoryPath = expandPath(repository.path, paths.root);
-        const QString remoteBase = baseRef(repository);
-        QJsonObject report{{QStringLiteral("name"), repository.name}, {QStringLiteral("path"), repositoryPath}, {QStringLiteral("base"), remoteBase}};
-        const ProcessResult fetchResult = git(repositoryPath, {QStringLiteral("fetch"), QStringLiteral("--quiet"), repository.remote});
-        if (fetchResult.exitCode != 0) {
-            report.insert(QStringLiteral("fetch_error"), fetchResult.error);
-            findings.append(finding(QStringLiteral("git.fetch_failed"), QStringLiteral("warning"), QStringLiteral("git"), QStringLiteral("Cannot fetch remote"), repository.name + QStringLiteral(": ") + fetchResult.error, QStringLiteral("Restore remote access, then run status again.")));
-        }
-        try {
-            const QString dirty = gitRequired(repositoryPath, {QStringLiteral("status"), QStringLiteral("--porcelain")});
-            const QString head = gitRequired(repositoryPath, {QStringLiteral("rev-parse"), QStringLiteral("HEAD")});
-            const QString branch = gitRequired(repositoryPath, {QStringLiteral("branch"), QStringLiteral("--show-current")});
-            const QString remoteBaseSha = gitRequired(repositoryPath, {QStringLiteral("rev-parse"), remoteBase});
-            const QString counts = gitRequired(repositoryPath, {QStringLiteral("rev-list"), QStringLiteral("--left-right"), QStringLiteral("--count"), remoteBase + QStringLiteral("...HEAD")});
-            const QStringList countParts = counts.split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
-            const int behind = countParts.value(0).toInt();
-            const int ahead = countParts.value(1).toInt();
-            report.insert(QStringLiteral("branch"), branch);
-            report.insert(QStringLiteral("head"), head);
-            report.insert(QStringLiteral("base_sha"), remoteBaseSha);
-            report.insert(QStringLiteral("behind_base"), behind);
-            report.insert(QStringLiteral("ahead_of_base"), ahead);
-            report.insert(QStringLiteral("dirty"), !dirty.isEmpty());
-            if (!dirty.isEmpty()) {
-                findings.append(finding(QStringLiteral("git.dirty_workspace"), QStringLiteral("warning"), QStringLiteral("git"), QStringLiteral("Workspace has uncommitted changes"), repository.name + QStringLiteral(" is dirty")));
-            }
-            if (behind > 0) {
-                findings.append(finding(QStringLiteral("git.remote_ahead"), QStringLiteral("warning"), QStringLiteral("git"), QStringLiteral("Branch is behind remote base"), repository.name + QStringLiteral(" is ") + QString::number(behind) + QStringLiteral(" commits behind ") + remoteBase));
-            }
-            const QString localBase = repository.branch;
-            const ProcessResult localBaseExists = git(repositoryPath, {QStringLiteral("rev-parse"), QStringLiteral("--verify"), localBase});
-            if (localBaseExists.exitCode == 0) {
-                const QString localCounts = gitRequired(repositoryPath, {QStringLiteral("rev-list"), QStringLiteral("--left-right"), QStringLiteral("--count"), remoteBase + QStringLiteral("...") + localBase});
-                const int localBehind = localCounts.split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts).value(0).toInt();
-                if (localBehind > 0) {
-                    findings.append(finding(QStringLiteral("git.stale_local_base"), QStringLiteral("warning"), QStringLiteral("git"), QStringLiteral("Local base is behind remote"), localBase + QStringLiteral(" is ") + QString::number(localBehind) + QStringLiteral(" commits behind ") + remoteBase));
-                }
-            }
-            remoteBaseShas.insert(repository.name, remoteBaseSha);
-        } catch (const std::exception& error) {
-            report.insert(QStringLiteral("error"), QString::fromUtf8(error.what()));
-        }
-        repositories.append(report);
+    for (const RepoFacts& repository : facts.repos) {
+        repositories.append(toJson(repository));
     }
-
-    QSet<QString> evidencedTasks;
-    QSet<QString> completedExecutions;
-    QSet<QString> executionsWithCommits;
-    for (const QJsonObject& event : events) {
-        const QString type = event.value(QStringLiteral("type")).toString();
-        if (type == QLatin1String("execution.finished")) {
-            completedExecutions.insert(event.value(QStringLiteral("exec")).toString());
-            if (!event.value(QStringLiteral("commits")).toArray().isEmpty()) {
-                executionsWithCommits.insert(event.value(QStringLiteral("exec")).toString());
-            }
-        }
-        if (type == QLatin1String("evidence.recorded") && event.value(QStringLiteral("kind")).toString() != QLatin1String("manual_note")) {
-            evidencedTasks.insert(event.value(QStringLiteral("task")).toString());
-        }
-        if (type == QLatin1String("note") && event.value(QStringLiteral("kind")).toString() == QLatin1String("unresolved") && event.value(QStringLiteral("ref")).isNull()) {
-            findings.append(finding(QStringLiteral("context.unresolved_without_ref"), QStringLiteral("info"), QStringLiteral("context"), QStringLiteral("Unresolved note has no reference"), event.value(QStringLiteral("text")).toString()));
-        }
-    }
-    for (const QJsonObject& event : events) {
-        if (event.value(QStringLiteral("type")).toString() != QLatin1String("execution.started")) {
-            continue;
-        }
-        const QString executionId = event.value(QStringLiteral("exec")).toString();
-        const QString task = event.value(QStringLiteral("task")).toString();
-        const bool completed = completedExecutions.contains(executionId);
-        const bool hasHandoff = QFileInfo::exists(QDir(paths.handoffs).filePath(executionId + QStringLiteral(".md")));
-        if (executionsWithCommits.contains(executionId)) {
-            evidencedTasks.insert(task);
-        }
-        if (event.value(QStringLiteral("plan_ref")).toString().isEmpty()) {
-            findings.append(finding(QStringLiteral("plan.execution_without_plan_link"), QStringLiteral("info"), QStringLiteral("plan"), QStringLiteral("Execution has no plan link"), executionId + QStringLiteral(" has no matching task in plan")));
-        }
-        if (completed && !hasHandoff) {
-            findings.append(finding(QStringLiteral("context.no_handoff"), QStringLiteral("warning"), QStringLiteral("context"), QStringLiteral("Completed execution has no handoff"), executionId));
-        }
-        const QString executionWorktree = event.value(QStringLiteral("worktree")).toString();
-        // Bitmis execution'in worktree'si diskte kalirsa aktif is sanilabilir.
-        // Silme otomatik degil (ARCHITECTURE.md "Guvenlik"); yalnizca gorunur yapilir.
-        if (completed && !executionWorktree.isEmpty() && QFileInfo::exists(executionWorktree)) {
-            findings.append(finding(QStringLiteral("git.orphaned_worktree"), QStringLiteral("info"), QStringLiteral("git"),
-                QStringLiteral("Completed execution still has a worktree"),
-                executionWorktree + QStringLiteral(" remains on disk after ") + executionId + QStringLiteral(" (")
-                    + event.value(QStringLiteral("workspace_source")).toString() + QStringLiteral(")"),
-                QStringLiteral("git worktree remove ") + executionWorktree));
-        }
-        if (!completed && !hasHandoff) {
-            const QDateTime startedAt = QDateTime::fromString(event.value(QStringLiteral("ts")).toString(), Qt::ISODate);
-            if (!startedAt.isValid()) {
-                findings.append(finding(QStringLiteral("context.invalid_ledger_timestamp"), QStringLiteral("warning"), QStringLiteral("context"), QStringLiteral("Execution has an invalid ledger timestamp"), executionId + QStringLiteral(" has invalid ts: ") + event.value(QStringLiteral("ts")).toString()));
-            } else if (startedAt.secsTo(QDateTime::currentDateTimeUtc()) >= 24 * 60 * 60) {
-                const qint64 ageSeconds = startedAt.secsTo(QDateTime::currentDateTimeUtc());
-                findings.append(finding(QStringLiteral("context.orphaned_execution"), QStringLiteral("warning"), QStringLiteral("context"), QStringLiteral("Execution appears abandoned"), executionId + QStringLiteral(" started ") + QString::number(ageSeconds / 3600) + QStringLiteral(" hours ago without finish or handoff")));
-            } else {
-                findings.append(finding(QStringLiteral("context.active_execution"), QStringLiteral("info"), QStringLiteral("context"), QStringLiteral("Execution is still active"), executionId + QStringLiteral(" has no finish event or handoff yet")));
-            }
-        }
-        const QString recordedPlanSha = event.value(QStringLiteral("plan_sha1")).toString();
-        if (!completed && !recordedPlanSha.isEmpty() && recordedPlanSha != sha1File(expandPath(config.planPath, paths.root))) {
-            findings.append(finding(QStringLiteral("plan.changed_during_execution"), QStringLiteral("warning"), QStringLiteral("plan"), QStringLiteral("Plan changed during execution"), task));
-        }
-        const QString currentBaseSha = remoteBaseShas.value(event.value(QStringLiteral("repo")).toString());
-        if (!completed && !currentBaseSha.isEmpty() && currentBaseSha != event.value(QStringLiteral("base_sha")).toString()) {
-            findings.append(finding(QStringLiteral("git.stale_worktree_base"), QStringLiteral("warning"), QStringLiteral("git"), QStringLiteral("Worktree base is stale"), executionId + QStringLiteral(" was recorded from an older ") + event.value(QStringLiteral("base")).toString()));
-        }
-    }
-
-    QFile plan(expandPath(config.planPath, paths.root));
-    if (!plan.open(QIODevice::ReadOnly)) {
-        findings.append(finding(QStringLiteral("plan.unreadable"), QStringLiteral("warning"), QStringLiteral("plan"),
-            QStringLiteral("Plan file cannot be read"),
-            config.planPath + QStringLiteral(" could not be opened; no plan rule was evaluated"),
-            QStringLiteral("Fix project.plan.path in project.json.")));
-    } else {
-        const QRegularExpression checklistItem(QStringLiteral("^\\s*-\\s*\\[[ xX]\\]"));
-        const QRegularExpression anyTask(QStringLiteral("^\\s*-\\s*\\[[ xX]\\].*(") + config.taskIdPattern + QStringLiteral(")"), QRegularExpression::CaseInsensitiveOption);
-        const QRegularExpression doneTask(QStringLiteral("^\\s*-\\s*\\[x\\].*(") + config.taskIdPattern + QStringLiteral(")"), QRegularExpression::CaseInsensitiveOption);
-        int checklistCount = 0;
-        int taskCount = 0;
-        while (!plan.atEnd()) {
-            const QString line = QString::fromUtf8(plan.readLine());
-            if (checklistItem.match(line).hasMatch()) {
-                ++checklistCount;
-            }
-            if (anyTask.match(line).hasMatch()) {
-                ++taskCount;
-            }
-            const QRegularExpressionMatch match = doneTask.match(line);
-            if (match.hasMatch() && !evidencedTasks.contains(match.captured(1))) {
-                findings.append(finding(QStringLiteral("plan.done_without_evidence"), QStringLiteral("warning"), QStringLiteral("plan"), QStringLiteral("Done plan task has no evidence"), match.captured(1)));
-            }
-        }
-        // Sessizce hicbir sey olcmemek, temiz cikmakla ayni seye benzer. Ayirt et.
-        if (taskCount == 0) {
-            findings.append(finding(QStringLiteral("plan.no_parsable_tasks"), QStringLiteral("warning"), QStringLiteral("plan"),
-                QStringLiteral("Plan yields no task candidates"),
-                checklistCount == 0
-                    ? config.planPath + QStringLiteral(" has no \"- [ ]\" / \"- [x]\" checklist item; plan rules evaluated nothing")
-                    : QString::number(checklistCount) + QStringLiteral(" checklist items found in ") + config.planPath + QStringLiteral(" but none matched task_id_pattern ") + config.taskIdPattern,
-                QStringLiteral("Write tasks as \"- [x] <TASK-ID> ...\" items, or fix project.task_id_pattern.")));
-        }
-    }
-
-    return {{QStringLiteral("project"), config.name}, {QStringLiteral("repositories"), repositories}, {QStringLiteral("findings"), findings}};
+    return {{QStringLiteral("project"), config.name},
+            {QStringLiteral("repositories"), repositories},
+            {QStringLiteral("findings"), evaluate(config, facts)}};
 }
 
 QJsonObject startExecution(const QString& configPath, const QString& task, const QString& agent, const QString& repositoryName)
 {
     const ProjectConfig config = ProjectConfig::load(configPath);
     const Paths paths = pathsFor(configPath);
-    ensureDirectories(paths);
+    prepareState(paths);
+
     const QRegularExpression taskPattern(config.taskIdPattern);
     const QRegularExpressionMatch taskMatch = taskPattern.match(task);
     if (!taskMatch.hasMatch() || taskMatch.capturedLength() != task.size() || task.contains(QLatin1Char('/')) || task.contains(QStringLiteral(".."))) {
@@ -532,9 +139,9 @@ QJsonObject startExecution(const QString& configPath, const QString& task, const
     QString workspaceSource;
     QString preservedRef;
     if (QFileInfo::exists(worktree)) {
-        const QString worktreeCommonDir = gitCommonDir(worktree);
-        const QString repositoryCommonDir = gitCommonDir(repositoryPath);
-        if (worktreeCommonDir != repositoryCommonDir) fail(QStringLiteral("Refusing start: existing worktree belongs to another repository"));
+        if (gitCommonDir(worktree) != gitCommonDir(repositoryPath)) {
+            fail(QStringLiteral("Refusing start: existing worktree belongs to another repository"));
+        }
         for (const QJsonObject& event : readEvents(paths)) {
             if (event.value(QStringLiteral("type")).toString() == QLatin1String("execution.started")
                     && event.value(QStringLiteral("worktree")).toString() == worktree) {
@@ -562,13 +169,14 @@ QJsonObject startExecution(const QString& configPath, const QString& task, const
         {QStringLiteral("task"), task}, {QStringLiteral("agent"), agent}, {QStringLiteral("repo"), repository.name},
         {QStringLiteral("worktree"), worktree}, {QStringLiteral("branch"), branch}, {QStringLiteral("base"), remoteBase},
         {QStringLiteral("workspace_source"), workspaceSource}, {QStringLiteral("repo_dirty"), repositoryDirty},
-        {QStringLiteral("preserved_ref"), preservedRef.isEmpty() ? QJsonValue::Null : QJsonValue(preservedRef)},
-        {QStringLiteral("base_sha"), baseSha}, {QStringLiteral("head_sha"), headSha}, {QStringLiteral("plan_ref"), planReference(config, paths, task)},
+        {QStringLiteral("preserved_ref"), orNull(preservedRef)},
+        {QStringLiteral("base_sha"), baseSha}, {QStringLiteral("head_sha"), headSha},
+        {QStringLiteral("plan_ref"), planReference(config, paths.root, task)},
         {QStringLiteral("plan_sha1"), sha1File(expandPath(config.planPath, paths.root))},
     });
     return {{QStringLiteral("exec"), executionId}, {QStringLiteral("worktree"), worktree}, {QStringLiteral("branch"), branch},
         {QStringLiteral("workspace_source"), workspaceSource}, {QStringLiteral("base_sha"), baseSha},
-        {QStringLiteral("preserved_ref"), preservedRef.isEmpty() ? QJsonValue::Null : QJsonValue(preservedRef)}, {QStringLiteral("warnings"), warnings}};
+        {QStringLiteral("preserved_ref"), orNull(preservedRef)}, {QStringLiteral("warnings"), warnings}};
 }
 
 QJsonObject finishExecution(const QString& configPath, const QString& executionId, const QString& outcome)
@@ -576,9 +184,9 @@ QJsonObject finishExecution(const QString& configPath, const QString& executionI
     if (outcome != QLatin1String("finished") && outcome != QLatin1String("interrupted") && outcome != QLatin1String("abandoned")) {
         fail(QStringLiteral("Outcome must be finished, interrupted, or abandoned"));
     }
-    const ProjectConfig config = ProjectConfig::load(configPath);
     const Paths paths = pathsFor(configPath);
-    ensureDirectories(paths);
+    ProjectConfig::load(configPath);
+    prepareState(paths);
     const QVector<QJsonObject> events = readEvents(paths);
     const QJsonObject started = startedEvent(events, executionId);
     for (const QJsonObject& event : events) {
@@ -587,77 +195,50 @@ QJsonObject finishExecution(const QString& configPath, const QString& executionI
             fail(QStringLiteral("Execution already finished: %1").arg(executionId));
         }
     }
-    const QString worktree = started.value(QStringLiteral("worktree")).toString();
-    QString preservedRef = started.value(QStringLiteral("preserved_ref")).toString();
-    const QString finishPreservedRef = preserveWorktree(worktree, executionId, preservedRef);
-    if (!finishPreservedRef.isEmpty()) preservedRef = finishPreservedRef;
-    const QString baseSha = started.value(QStringLiteral("base_sha")).toString();
-    const QString headSha = gitRequired(worktree, {QStringLiteral("rev-parse"), QStringLiteral("HEAD")});
-    const QStringList commitLines = gitRequired(worktree, {QStringLiteral("log"), QStringLiteral("--format=%h%x09%s"), baseSha + QStringLiteral("..HEAD")}).split(QLatin1Char('\n'), Qt::SkipEmptyParts);
-    const QStringList files = gitRequired(worktree, {QStringLiteral("diff"), QStringLiteral("--name-only"), baseSha + QStringLiteral("..HEAD")}).split(QLatin1Char('\n'), Qt::SkipEmptyParts);
-    const QString shortstat = gitRequired(worktree, {QStringLiteral("diff"), QStringLiteral("--shortstat"), baseSha + QStringLiteral("..HEAD")});
-    int filesChanged = 0;
-    int insertions = 0;
-    int deletions = 0;
+
+    HandoffInput input;
+    input.executionId = executionId;
+    input.outcome = outcome;
+    input.started = started;
+    input.worktree = started.value(QStringLiteral("worktree")).toString();
+    input.baseSha = started.value(QStringLiteral("base_sha")).toString();
+    input.preservedRef = started.value(QStringLiteral("preserved_ref")).toString();
+
+    const QString finishPreservedRef = preserveWorktree(input.worktree, executionId, input.preservedRef);
+    if (!finishPreservedRef.isEmpty()) input.preservedRef = finishPreservedRef;
+
+    input.headSha = gitRequired(input.worktree, {QStringLiteral("rev-parse"), QStringLiteral("HEAD")});
+    const QString range = input.baseSha + QStringLiteral("..HEAD");
+    input.commitLines = gitRequired(input.worktree, {QStringLiteral("log"), QStringLiteral("--format=%h%x09%s"), range}).split(QLatin1Char('\n'), Qt::SkipEmptyParts);
+    input.files = gitRequired(input.worktree, {QStringLiteral("diff"), QStringLiteral("--name-only"), range}).split(QLatin1Char('\n'), Qt::SkipEmptyParts);
+
+    const QString shortstat = gitRequired(input.worktree, {QStringLiteral("diff"), QStringLiteral("--shortstat"), range});
     const QRegularExpression shortstatPattern(QStringLiteral("^(\\d+) files? changed(?:, (\\d+) insertions?\\(\\+\\))?(?:, (\\d+) deletions?\\(-\\))?$"));
     const QRegularExpressionMatch shortstatMatch = shortstatPattern.match(shortstat);
     if (!shortstat.isEmpty() && !shortstatMatch.hasMatch()) {
         fail(QStringLiteral("Unexpected git diff --shortstat output: %1").arg(shortstat));
     }
     if (shortstatMatch.hasMatch()) {
-        filesChanged = shortstatMatch.captured(1).toInt();
-        insertions = shortstatMatch.captured(2).toInt();
-        deletions = shortstatMatch.captured(3).toInt();
+        input.filesChanged = shortstatMatch.captured(1).toInt();
+        input.insertions = shortstatMatch.captured(2).toInt();
+        input.deletions = shortstatMatch.captured(3).toInt();
     }
+
     QJsonArray commitJson;
     QJsonArray fileJson;
-    for (const QString& commit : commitLines) commitJson.append(commit.section(QLatin1Char('\t'), 0, 0));
-    for (const QString& file : files) fileJson.append(file);
-    const QString filesRef = writeEvidence(paths, {{QStringLiteral("files"), fileJson}});
+    for (const QString& commit : input.commitLines) commitJson.append(commit.section(QLatin1Char('\t'), 0, 0));
+    for (const QString& file : input.files) fileJson.append(file);
+    input.filesRef = writeEvidence(paths, {{QStringLiteral("files"), fileJson}});
 
-    QFile handoff(QDir(paths.handoffs).filePath(executionId + QStringLiteral(".md")));
-    if (!handoff.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        fail(QStringLiteral("Cannot write handoff: %1").arg(handoff.fileName()));
-    }
-    QTextStream output(&handoff);
-    output << "---\nexec: " << executionId << "\ntask: " << started.value(QStringLiteral("task")).toString() << "\nagent: " << started.value(QStringLiteral("agent")).toString() << "\noutcome: " << outcome << "\nrepo: " << started.value(QStringLiteral("repo")).toString() << "\nworktree: " << worktree << "\nbranch: " << started.value(QStringLiteral("branch")).toString() << "\nbase: " << started.value(QStringLiteral("base")).toString() << "@" << baseSha << "\nrange: " << baseSha << ".." << headSha << "\n---\n\n## Doğrulanmış (Mudflow üretti)\n\nCommits:\n";
-    for (const QString& commit : commitLines) output << "- " << commit << '\n';
-    output << "\nDeğişen dosyalar: " << filesChanged << " (+" << insertions << " / -" << deletions << ")\n";
-    for (const QString& file : files) output << "- " << file << '\n';
-    output << "\nEvidence: " << filesRef << '\n';
-    if (!preservedRef.isEmpty()) output << "\nPreserved uncommitted snapshot: " << preservedRef << '\n';
-    output << "\n## Agent notu (zayıf evidence — doğrulanmadı)\n\n";
-    bool hasAgentSummary = false;
-    for (const QJsonObject& event : events) {
-        if (event.value(QStringLiteral("type")).toString() == QLatin1String("evidence.recorded")
-                && event.value(QStringLiteral("exec")).toString() == executionId
-                && event.value(QStringLiteral("kind")).toString() == QLatin1String("agent_summary")) {
-            output << "- " << event.value(QStringLiteral("summary")).toString() << '\n';
-            hasAgentSummary = true;
-        }
-    }
-    if (!hasAgentSummary) output << "Yok.\n";
-    output << "\n## Açık kalanlar\n\n";
-    bool hasUnresolved = false;
-    for (const QJsonObject& event : events) {
-        if (event.value(QStringLiteral("type")).toString() == QLatin1String("note")
-                && event.value(QStringLiteral("exec")).toString() == executionId
-                && event.value(QStringLiteral("kind")).toString() == QLatin1String("unresolved")) {
-            output << "- [ ] " << event.value(QStringLiteral("text")).toString();
-            const QJsonValue reference = event.value(QStringLiteral("ref"));
-            output << (reference.isNull() ? "  (ref yok)" : "  (ref: " + reference.toString() + ")") << '\n';
-            hasUnresolved = true;
-        }
-    }
-    if (!hasUnresolved) output << "Yok.\n";
-    output.flush();
-    if (output.status() != QTextStream::Ok) {
-        fail(QStringLiteral("Cannot write handoff: %1").arg(handoff.fileName()));
-    }
-    handoff.close();
-    appendEvent(paths, executionId, {{QStringLiteral("ts"), nowUtc()}, {QStringLiteral("type"), QStringLiteral("execution.finished")}, {QStringLiteral("exec"), executionId}, {QStringLiteral("outcome"), outcome}, {QStringLiteral("head_sha"), headSha}, {QStringLiteral("commits"), commitJson}, {QStringLiteral("files_changed"), filesChanged}, {QStringLiteral("insertions"), insertions}, {QStringLiteral("deletions"), deletions}, {QStringLiteral("files_ref"), filesRef}, {QStringLiteral("preserved_ref"), preservedRef.isEmpty() ? QJsonValue::Null : QJsonValue(preservedRef)}});
-    return {{QStringLiteral("exec"), executionId}, {QStringLiteral("outcome"), outcome}, {QStringLiteral("head_sha"), headSha},
-        {QStringLiteral("preserved_ref"), preservedRef.isEmpty() ? QJsonValue::Null : QJsonValue(preservedRef)},
+    writeHandoff(paths, input, events);
+
+    appendEvent(paths, executionId, {{QStringLiteral("ts"), nowUtc()}, {QStringLiteral("type"), QStringLiteral("execution.finished")},
+        {QStringLiteral("exec"), executionId}, {QStringLiteral("outcome"), outcome}, {QStringLiteral("head_sha"), input.headSha},
+        {QStringLiteral("commits"), commitJson}, {QStringLiteral("files_changed"), input.filesChanged},
+        {QStringLiteral("insertions"), input.insertions}, {QStringLiteral("deletions"), input.deletions},
+        {QStringLiteral("files_ref"), input.filesRef}, {QStringLiteral("preserved_ref"), orNull(input.preservedRef)}});
+    return {{QStringLiteral("exec"), executionId}, {QStringLiteral("outcome"), outcome}, {QStringLiteral("head_sha"), input.headSha},
+        {QStringLiteral("preserved_ref"), orNull(input.preservedRef)},
         {QStringLiteral("handoff"), QStringLiteral("handoffs/") + executionId + QStringLiteral(".md")}};
 }
 
@@ -666,9 +247,11 @@ void recordEvidence(const QString& configPath, const QString& executionId, const
     const QStringList kinds{QStringLiteral("commit"), QStringLiteral("diff"), QStringLiteral("test"), QStringLiteral("files"), QStringLiteral("command"), QStringLiteral("agent_summary"), QStringLiteral("manual_note")};
     if (!kinds.contains(kind) || summary.trimmed().isEmpty()) fail(QStringLiteral("Invalid evidence kind or empty summary"));
     const Paths paths = pathsFor(configPath);
-    ensureDirectories(paths);
+    prepareState(paths);
     const QJsonObject started = startedEvent(readEvents(paths), executionId);
-    appendEvent(paths, executionId, {{QStringLiteral("ts"), nowUtc()}, {QStringLiteral("type"), QStringLiteral("evidence.recorded")}, {QStringLiteral("exec"), executionId}, {QStringLiteral("task"), started.value(QStringLiteral("task")).toString()}, {QStringLiteral("kind"), kind}, {QStringLiteral("ref"), reference.isEmpty() ? QJsonValue::Null : QJsonValue(reference)}, {QStringLiteral("summary"), summary}});
+    appendEvent(paths, executionId, {{QStringLiteral("ts"), nowUtc()}, {QStringLiteral("type"), QStringLiteral("evidence.recorded")},
+        {QStringLiteral("exec"), executionId}, {QStringLiteral("task"), started.value(QStringLiteral("task")).toString()},
+        {QStringLiteral("kind"), kind}, {QStringLiteral("ref"), orNull(reference)}, {QStringLiteral("summary"), summary}});
 }
 
 void recordNote(const QString& configPath, const QString& executionId, const QString& kind, const QString& text, const QString& reference)
@@ -676,9 +259,11 @@ void recordNote(const QString& configPath, const QString& executionId, const QSt
     const QStringList kinds{QStringLiteral("decision"), QStringLiteral("unresolved"), QStringLiteral("blocker")};
     if (!kinds.contains(kind) || text.trimmed().isEmpty()) fail(QStringLiteral("Invalid note kind or empty text"));
     const Paths paths = pathsFor(configPath);
-    ensureDirectories(paths);
+    prepareState(paths);
     startedEvent(readEvents(paths), executionId);
-    appendEvent(paths, executionId, {{QStringLiteral("ts"), nowUtc()}, {QStringLiteral("type"), QStringLiteral("note")}, {QStringLiteral("exec"), executionId}, {QStringLiteral("kind"), kind}, {QStringLiteral("text"), text}, {QStringLiteral("source"), QStringLiteral("human")}, {QStringLiteral("ref"), reference.isEmpty() ? QJsonValue::Null : QJsonValue(reference)}});
+    appendEvent(paths, executionId, {{QStringLiteral("ts"), nowUtc()}, {QStringLiteral("type"), QStringLiteral("note")},
+        {QStringLiteral("exec"), executionId}, {QStringLiteral("kind"), kind}, {QStringLiteral("text"), text},
+        {QStringLiteral("source"), QStringLiteral("human")}, {QStringLiteral("ref"), orNull(reference)}});
 }
 
 } // namespace mudflow

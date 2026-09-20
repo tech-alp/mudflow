@@ -3,7 +3,13 @@ find_package(Qt6 6.11 REQUIRED COMPONENTS Core)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(mudflow_core STATIC
+    src/git.cpp
+    src/handoff.cpp
+    src/ledger.cpp
+    src/paths.cpp
+    src/plan.cpp
     src/project_config.cpp
+    src/rules.cpp
     src/workflow.cpp
 )
 

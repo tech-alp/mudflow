@@ -240,6 +240,59 @@ Geri dönüş maliyeti: **düşük.** Dizin yolları ve CMake bağlantıları de
 
 ---
 
+## TC-009 — Çekirdek katmanları: gözlem, değerlendirme, orkestrasyon
+
+```text
+GÖZLEM           git'i çalıştır, planı oku, ledger'ı oku, dosya varlığını ölç
+                 → RepoFacts · PlanFacts · ExecutionFacts        (saf veri)
+
+DEĞERLENDİRME    evaluate(config, facts) → Finding[]             (SAF fonksiyon)
+
+ORKESTRASYON     komutlar: inspect · status · start · finish · evidence · note
+```
+
+Dosya karşılığı:
+
+```text
+core/src/git.cpp       taşıma (run/git/gitRequired) + ölçüm → RepoFacts
+core/src/plan.cpp      ölçüm → PlanFacts
+core/src/ledger.cpp    olay yaz/oku, evidence
+core/src/paths.cpp     .mudflow yerleşimi, expandPath, sha1
+core/src/handoff.cpp   handoff yaz  (resume okuma tarafını buraya ekleyecek)
+core/src/rules.cpp     SAF — facts alır, finding döndürür, I/O yok
+core/src/workflow.cpp  yalnız orkestrasyon
+```
+
+`facts.h` ve `rules.h` public (`core/include/mudflow/`); geri kalan başlıklar
+`core/src/` altında çekirdeğe özeldir.
+
+### Neden
+
+Kural değerlendirmesi ölçümden ayrılmadığı sürece saf mantığı test etmenin tek
+yolu tüm boru hattını çalıştırmaktı: plan regex'lerini sınamak için sahte bir
+git reposu kurmak gerekiyordu. Ayrıldıktan sonra `core/tests/rules_test.cpp`
+git, dosya sistemi ve saat olmadan çalışır.
+
+Aynı ayrımı `DATA_MODEL.md` invariant'ı zaten söylüyordu: *finding'ler
+türetilir, saklanmaz.* Kod artık o cümleye uyuyor.
+
+### "Şimdi" de bir gözlemdir
+
+`StatusFacts::now` taşınır, `rules.cpp` saat okumaz. Bu olmadan fonksiyon saf
+olmazdı; olduğu için 24 saatlik terk-edilmişlik sınırı ledger tarihini geri
+almadan test edilebiliyor.
+
+### Sınır
+
+`rules.cpp` içine `QFile`, `QProcess` veya `QDateTime::current*` girerse ayrım
+bozulmuştur. Bir kuralın yeni bir gerçeğe ihtiyacı varsa o gerçek `facts.h`'ye
+eklenir ve gözlem aşamasında doldurulur.
+
+Geri dönüş maliyeti: **orta.** Davranış birebir korundu (bölme öncesi binary
+ile çıktı karşılaştırması yapıldı), ama geri birleştirmek testleri kaybettirir.
+
+---
+
 ## Özet: neyi ne zaman değiştiririz
 
 | Karar | Şimdi | Tetikleyici |
@@ -253,3 +306,4 @@ Geri dönüş maliyeti: **düşük.** Dizin yolları ve CMake bağlantıları de
 | Qt dışı bağımlılık | Sıfır | Her biri ayrı karar |
 | Provider katmanlaması | Kural, kod değil | Phase 6 → JSON-RPC 2.0 over stdio |
 | Hata `code` alanı | `usage` / `runtime` | Tüketici koda göre dallanmak isteyince |
+| `rules.cpp` saflığı | I/O yok, `now` fact | Bozulursa ayrım kaybolur — yeni gerçek `facts.h`'ye eklenir |

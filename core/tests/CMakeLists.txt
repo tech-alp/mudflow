@@ -21,3 +21,7 @@ add_test(NAME preserved_worktree COMMAND preserved_worktree_test)
 add_executable(plan_rules_test plan_rules_test.cpp)
 target_link_libraries(plan_rules_test PRIVATE mudflow::core Qt6::Core)
 add_test(NAME plan_rules COMMAND plan_rules_test)
+
+add_executable(rules_test rules_test.cpp)
+target_link_libraries(rules_test PRIVATE mudflow::core Qt6::Core)
+add_test(NAME rules COMMAND rules_test)
