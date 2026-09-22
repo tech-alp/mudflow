@@ -13,6 +13,11 @@ Format `project.json` içindeki `task_id_pattern` ile eşleşmezse `rmk status`
   `libs/infrastructure`. CLI JSON/exit sözleşmesini ve mevcut veri
   sözleşmesini regression testleriyle koru.
 
+- [ ] RM-4 — Application tipli sonuç döndürsün
+
+  `projectStatus` ve kardeşleri `QJsonObject` yerine struct döndürsün; JSON
+  serileştirme `apps/cli`'ye insin. CLI sözleşmesi değişmez (TC-012).
+
 - [ ] RM-2 — Named module doğrulaması
 
   Küçük bir named module ve QObject/QML köprüsünü macOS/Linux/Windows'ta

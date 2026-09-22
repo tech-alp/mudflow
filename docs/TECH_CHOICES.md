@@ -466,10 +466,61 @@ ezmesinin ana projeye sızmasını engelliyor, seçenekler `add_subdirectory`'de
 **önce** FORCE ile yazılıyor — sonra yazılırsa Merce kendi varsayılanını
 kilitlemiş olur.
 
-**Runmark için:** desktop geldiğinde aynı yol seçilir. Gerekçe mimari değil
-dağıtım: QML modülleri uygulamanın yanında ayrı plugin olarak değil, ikilinin
-içinde taşınır. `find_package(Merce CONFIG)` de çalışır ve Merce onu
-destekliyor; ama o yol Merce'nin ayrıca kurulmasını gerektirir.
+**Runmark için: FetchContent.** Submodule değil, çünkü Runmark'ın Merce'yi
+yerel olarak düzenleme ihtiyacı yok ve temiz klon + configure tek adımda
+çalışmalı — unutulmuş bir `git submodule update --init` sessizce eksik
+bağımlılık demektir.
+
+```cmake
+include(FetchContent)
+
+block(SCOPE_FOR VARIABLES)
+    # Merce modülleri qt_add_qml_module ile STATIC/SHARED yazmadan tanımlı,
+    # yani BUILD_SHARED_LIBS'i izliyorlar. Statik = QML modülleri ikilinin
+    # içinde; çalışma anında import path veya plugin dizini yok.
+    set(BUILD_SHARED_LIBS OFF)
+    set(MERCE_BUILD_NOTIFICATIONS OFF)
+    set(MERCE_ENABLE_FONTAWESOME OFF)
+
+    FetchContent_Declare(Merce
+        GIT_REPOSITORY https://github.com/tech-alp/Merce.git
+        GIT_TAG 9f01139534273a9f67a49dce372d24dc79c4971a   # v1.1.0
+        GIT_SHALLOW TRUE
+        EXCLUDE_FROM_ALL
+    )
+    FetchContent_MakeAvailable(Merce)
+endblock()
+
+target_link_libraries(runmark_ui_shell PUBLIC
+    Merce::Theme Merce::Foundation Merce::Style Merce::Controls)
+```
+
+Neden bu biçim:
+
+- **`GIT_TAG` bir SHA, tag değil.** Tag taşınabilir; SHA taşınmaz. Yorumda
+  hangi sürüm olduğu yazılır. `GIT_SHALLOW TRUE` ile birlikte çalıştığı
+  ölçüldü — GitHub bu depoda SHA ile shallow fetch'e izin veriyor.
+- **`EXCLUDE_FROM_ALL`** (CMake 3.28+): Merce hedefleri `all`'a girmez,
+  yalnız link edilenler derlenir.
+- **Seçenekler düz `set()`, `CACHE ... FORCE` değil.** Merce
+  `cmake_minimum_required(VERSION 3.30)` diyor, yani CMP0077 NEW: `option()`
+  normal değişkeni onurlandırır. Cache kirlenmez, ikinci bir projede aynı
+  cache farklı değer beklemez.
+- **`block(SCOPE_FOR VARIABLES)`** bu ezmelerin bizim ağacımıza sızmasını
+  engeller — özellikle `BUILD_SHARED_LIBS`.
+- `MERCE_BUILD_TESTS` ve `BUILD_MERCE_PLAYGROUND` yazılmaz; ikisi de
+  `PROJECT_IS_TOP_LEVEL`'a bağlı ve gömülüyken zaten kapalı.
+
+Bedeli **configure anında ağ**. Çevrimdışı veya Merce'yi yanında geliştirirken
+kaçış yolu CMake'in kendi mekanizması:
+
+```sh
+cmake -B build -DFETCHCONTENT_SOURCE_DIR_MERCE=/yol/Merce   # yerel kopyayi kullan
+cmake -B build -DFETCHCONTENT_FULLY_DISCONNECTED=ON         # hic ag yok
+```
+
+`find_package(Merce CONFIG)` de çalışır ve Merce onu destekler; ama Merce'nin
+ayrıca kurulmuş olmasını gerektirir ve statik gömme avantajını verir.
 
 Desktop yazılana kadar bağımlılık eklenmez.
 
@@ -479,3 +530,104 @@ Bir bağımlılığı yanlış almak, onu hiç almamaktan pahalıdır: `add_subd
 ile gelen global ayar sessizce bizim derleme bayraklarımızı değiştirir ve
 sorun aylar sonra başka bir hedefte ortaya çıkar. Sızıntı olmayan tek yol
 import edilmiş hedeflerdir.
+
+---
+
+## TC-012 — DDD ve Qt/QML entegrasyonu
+
+Durum: hedef karar; desktop henüz yazılmadı. Tarih: 2026-09-22.
+
+### Sorun
+
+QML `QObject`, `Q_PROPERTY` ve sinyal ister. Domain bunların hiçbirini
+bilmemelidir. Kolay yol — domain struct'larına `Q_GADGET` serpmek — derlenir
+ama domain'i moc'a ve arayüzün veri şekline bağlar; TC-009'un ayırdığı şeyi
+geri birleştirir.
+
+### Önce: application tipli dönmeli
+
+Bugün application JSON döndürüyor:
+
+```cpp
+QJsonObject projectStatus(const QString& configPath);
+```
+
+JSON, CLI'nin **sunum biçimidir** (TC-007). Application'a gömülü kalırsa
+desktop de CLI'nin çıktı şekline mahkûm olur: QML her açılışta JSON parse
+eder ve domain'de tipli olan şey string'e düşer.
+
+Hedef:
+
+```cpp
+// libs/application
+struct StatusResult {
+    QString project;
+    QVector<RepoFacts> repositories;
+    QVector<Finding> findings;
+};
+StatusResult projectStatus(const QString& configPath);
+```
+
+`apps/cli` bunu JSON'a çevirir, `libs/ui-shell` tipleri doğrudan kullanır.
+ARCHITECTURE'ın "CLI ve desktop aynı application katmanını kullanır" cümlesi
+ancak böyle doğru olur. `Finding` de `QJsonObject` olmaktan çıkıp struct olur;
+`finding()` fabrikası tek yerde olduğu için dönüşüm dardır.
+
+### Katmanlar
+
+```text
+libs/domain          Facts, Finding, rules       QObject yok, moc yok
+libs/infrastructure  git, fs, ledger             → domain
+libs/application     use case'ler, tipli sonuç   → infrastructure
+libs/ui-shell        ViewModel + Model + QML     → application + Merce
+apps/cli             JSON serileştirme           → application
+apps/desktop         QGuiApplication             → ui-shell
+```
+
+`apps/cli` Quick, QML veya Merce'yi **hiç görmez**; bunu TC-011'in
+"desktop bağımlılığı CLI'ye sızamaz" kuralı ve bileşen sınırları tutar.
+
+### QML köprüsü yalnız ui-shell'de
+
+```cpp
+class StatusViewModel : public QObject {
+    Q_OBJECT
+    QML_ELEMENT
+    Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
+    Q_PROPERTY(FindingModel* findings READ findings CONSTANT)
+public slots:
+    void refresh();     // application use case'ini cagirir, kural icermez
+};
+```
+
+```cmake
+qt_add_qml_module(runmark_ui_shell
+    URI Runmark.Shell
+    VERSION 1.0
+    SOURCES StatusViewModel.cpp FindingModel.cpp
+    QML_FILES Shell.qml StatusPage.qml)
+target_link_libraries(runmark_ui_shell PUBLIC runmark::application Merce::Controls)
+```
+
+ViewModel iş kuralı taşımaz: use case'i çağırır, sonucu modele döker. Bir kural
+ViewModel'e sızarsa CLI ile desktop ayrışır ve bunu ancak aynı sorunun iki
+yüzeyde farklı cevaplanması ortaya çıkarır — yani geç.
+
+### İki somut kısıt
+
+**`status` bloklar.** `git fetch` saniyeler sürer; QML thread'inde çağrılırsa
+arayüz donar. ViewModel işi worker'a atar (`QtConcurrent::run` +
+`QFutureWatcher`) ve `busy` / `error` state'ini yayınlar. Bu, CLI'de hiç var
+olmayan tek gereksinimdir; application API'si senkron kalır, eşzamansızlık
+ui-shell'in işidir.
+
+**Domain'de `Q_OBJECT` / `Q_GADGET` yok.** Bugün `libs/domain`'i koruyan
+mekanik kontrol (`QFile|QProcess|QDir|QDateTime::current|QTextStream` grep'i)
+bu iki makroyu da kapsar. Çeviri ViewModel'in işidir.
+
+### Neden
+
+Domain'i QML'e açmak ilk gün en kısa yoldur ve ikinci gün geri alınamaz:
+arayüzün istediği her alan domain tipine bir `Q_PROPERTY` ekler, domain
+arayüzün şekline göre büyümeye başlar. Çeviri katmanı bu baskıyı ui-shell'de
+tutar; domain neyi ölçtüğüne göre şekillenmeye devam eder.

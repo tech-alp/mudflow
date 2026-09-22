@@ -38,11 +38,13 @@ Amaç: modeli gerçek bir SCMS/TVM benzeri akışta doğrulamak.
 1. ~~`rmk` executable, `runmark` namespace ve paket/hook adlarını birlikte taşı.~~
    Yapıldı (2026-09-22). PoC olduğu için eski ad, dizin ve ref'ler korunmadı;
    migration kodu yazılmadı, kurulu eski binary ve pluginler söküldü.
-2. `apps/cli` ile `libs/domain`, `libs/application`, `libs/infrastructure`
-   sınırlarını kur; CLI JSON/exit ve mevcut veri sözleşmelerini regression testleriyle koru.
-3. Küçük bir named module + QObject/QML köprüsünü macOS/Linux/Windows'ta
+2. ~~`apps/cli` ile `libs/domain`, `libs/application`, `libs/infrastructure`
+   sınırlarını kur.~~ Yapıldı (RM-1, 2026-09-22).
+3. Application katmanı JSON yerine tipli sonuç döndürsün; JSON serileştirme
+   `apps/cli`'ye insin (TC-012). CLI sözleşmesi değişmez, cli_contract tutar.
+4. Küçük bir named module + QObject/QML köprüsünü macOS/Linux/Windows'ta
    clean/incremental build ile doğrula; compiler/CMake/Ninja baseline'ını sabitle.
-4. Domain'den başlayarak modules geçişini yap. Henüz kullanılmayan host/SDK
+5. Domain'den başlayarak modules geçişini yap. Henüz kullanılmayan host/SDK
    dizinlerini veya genel amaçlı framework soyutlamalarını oluşturma.
 
 ## Phase 3 — Qt/QML Desktop MVP
