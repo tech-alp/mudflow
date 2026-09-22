@@ -44,6 +44,11 @@ Format `project.json` içindeki `task_id_pattern` ile eşleşmezse `rmk status`
   uyuyorsa satır hiçbir task'a bağlanmaz. Tahmini eşleme kanıtı yanlış task'a
   bağlıyordu.
 
+- [x] RM-6 — Plan task kimliği tam token olmalı (kayıt)
+
+  `plan.ambiguous_task_id`. Plana sonradan eklendi; kanıtlar
+  `20260922T123129Z-RM-6` ledger'ında.
+
 - [x] RM-7 — Desktop iskeleti: ui-shell ve salt okunur Findings
 
   `libs/ui-shell` (FindingModel + StatusViewModel, `Runmark.Shell` QML modülü)
@@ -71,6 +76,18 @@ Format `project.json` içindeki `task_id_pattern` ile eşleşmezse `rmk status`
   tamamen geçti. Release environment yalnız main, onaylayıcı tech-alp;
   self-review açık, admin bypass varsayılanı açık. Yayın hazırlığı RM-9'a taşındı.
   Ayrıntılar: [release rehberi](../RELEASING.md).
+
+- [x] RM-10 — finish worktree durumunu bildirsin
+
+  `finish` stdout'una `worktree` alanı: path, exists, clean, merged.
+  `suggested_action` yalnız ikisi birden doğruyken çıkar; bilinmeyen durum
+  `error` ile ayrılır. Runmark yine kendi silmez.
+
+- [ ] RM-11 — cforgo entegrasyonu
+
+  `find_package(Cforgo CONFIG)`; uyarı seti, out-of-source koruması ve statik
+  analiz hedefleri. Bedeli: `cforgo-install.sh` ön koşul olur ve CI'a bir adım
+  ekler; temiz klon + configure artık tek adım değildir.
 
 - [ ] RM-9 — İlk yayın hazırlığı ve release doğrulaması
 
