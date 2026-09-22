@@ -93,6 +93,14 @@ checklist yaklaşımı hedeflenir. Bu prototip public dosya şeması oluşturmaz
 aşağıda tanımlanan sınırlı fixture üzerinde çalışır. Mevcut regex tabanlı
 `observePlan`/`planReference` kodu tam Markdown parser veya güvenli yazıcı değildir.
 
+2026-09-22 düzeltmesi (RM-6): bu belgenin "tahmini eşleme yapılmaz" kuralı koda
+da girdi. Task kimliği artık tam token olarak aranır; pattern yalnız daha uzun
+bir kimliğin parçasına uyuyorsa satır `plan.ambiguous_task_id` üretir ve hiçbir
+task'a bağlanmaz. Önceki davranış ölçüldü: `SCMS-\d+` pattern'iyle aşağıdaki
+fixture'ın beş iş paketi tek `SCMS-42` kimliğine çöküyor ve aynı ID iki kez
+raporlanıyordu. Alt kimlikli fixture için `task_id_pattern`, `SCMS-\d+(-W\d+)?`
+gibi tüm kimliği kapsamalıdır.
+
 ### Düzenleme, sürükleme ve eşzamanlı değişiklik
 
 - Liste/Kanban/Belge seçimi kaynağı değiştirmez; seçim ve kimlik korunur.

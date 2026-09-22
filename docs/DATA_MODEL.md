@@ -323,6 +323,7 @@ MVP.md §8'in birebir karşılığı. Dokuz kural, fazlası yok.
 | `git.dirty_workspace` | warning |
 | `git.stale_worktree_base` | warning |
 | `plan.done_without_evidence` | warning |
+| `plan.ambiguous_task_id` | warning |
 | `plan.execution_without_plan_link` | info |
 | `plan.changed_during_execution` | warning |
 | `context.no_handoff` | warning |
@@ -331,6 +332,12 @@ MVP.md §8'in birebir karşılığı. Dokuz kural, fazlası yok.
 | `context.invalid_ledger_timestamp` | warning |
 | `context.unresolved_without_ref` | info |
 | `context.hooks_not_observed` | warning |
+
+Task kimliği plan satırında **tam token** olarak aranır: pattern yalnız daha
+uzun bir kimliğin parçasına uyuyorsa (`SCMS-\d+` ile `SCMS-42-W1`) satır
+`plan.ambiguous_task_id` üretir ve hiçbir task'a bağlanmaz. Tahmini eşleme
+kanıtı yanlış task'a bağlar; yanlış bağ, eksik bağdan kötüdür. Aynı sınır
+`planReference` için de geçerlidir.
 
 `blocking` v0.1'de kullanılmıyor. Severity alanı yine de üç değerli —
 ilk blocking kural geldiğinde şema değişmesin.

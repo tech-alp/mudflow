@@ -109,6 +109,27 @@ int main()
         if (!has(runmark::evaluate(config(), f), QStringLiteral("plan.unreadable"))) return 1;
     }
 
+    // 5b. An ambiguous ID is reported per line and never guessed into a task.
+    {
+        runmark::StatusFacts f;
+        f.now = now;
+        f.plan.readable = true;
+        f.plan.checklistCount = 2;
+        f.plan.taskCount = 0;
+        f.plan.ambiguousTasks = {QStringLiteral("- [x] MF-1-W1 first"), QStringLiteral("- [x] MF-1-W2 second")};
+        const QVector<runmark::Finding> findings = runmark::evaluate(config(), f);
+        int count = 0;
+        for (const runmark::Finding& finding : findings) {
+            if (finding.id != QLatin1String("plan.ambiguous_task_id")) continue;
+            ++count;
+            if (!finding.explanation.contains(QStringLiteral("MF-\\d+"))
+                    || finding.suggestedAction.isEmpty()) return 1;
+        }
+        if (count != 2 || has(findings, QStringLiteral("plan.done_without_evidence"))) return 1;
+        // The blindness rule still speaks: nothing parsed is not a clean plan.
+        if (!has(findings, QStringLiteral("plan.no_parsable_tasks"))) return 1;
+    }
+
     // 5. done_without_evidence stays quiet when evidence exists.
     {
         runmark::StatusFacts f;

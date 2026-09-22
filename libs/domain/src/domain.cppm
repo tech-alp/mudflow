@@ -71,6 +71,10 @@ struct PlanFacts {
     int checklistCount = 0;    // number of "- [ ]" / "- [x]" lines
     int taskCount = 0;         // of those, the ones matching task_id_pattern
     QStringList doneTasks;     // task IDs marked "- [x]", in file order
+    // Checklist lines where the pattern matched only part of a longer
+    // identifier, e.g. "SCMS-42" inside "SCMS-42-W1". Guessing which task
+    // they mean would silently bind evidence to the wrong one.
+    QStringList ambiguousTasks;
     QString sha1;
 };
 

@@ -69,6 +69,24 @@ int main()
         if (!hasFinding(done, QStringLiteral("plan.done_without_evidence"))
                 || hasFinding(done, QStringLiteral("plan.no_parsable_tasks"))) return 1;
 
+        // 6. An ID that is only part of a longer one: name it, never guess.
+        //    Before the boundary rule this silently reported MF-1 twice.
+        if (!writeFile(plan, "- [x] MF-1-W1 first\n- [x] MF-1-W2 second\n")) return 1;
+        const QVector<runmark::Finding> ambiguous = findingsFor(config);
+        if (!hasFinding(ambiguous, QStringLiteral("plan.ambiguous_task_id"))
+                || hasFinding(ambiguous, QStringLiteral("plan.done_without_evidence"))) return 1;
+        int ambiguousCount = 0;
+        for (const runmark::Finding& f : ambiguous) {
+            if (f.id == QLatin1String("plan.ambiguous_task_id")) ++ambiguousCount;
+        }
+        if (ambiguousCount != 2) return 1;
+
+        // 7. A whole-token ID on the same shape still resolves.
+        if (!writeFile(plan, "- [x] MF-1 done\n- [x] MF-2 done\n")) return 1;
+        const QVector<runmark::Finding> clean = findingsFor(config);
+        if (hasFinding(clean, QStringLiteral("plan.ambiguous_task_id"))
+                || !hasFinding(clean, QStringLiteral("plan.done_without_evidence"))) return 1;
+
         // 5. A missing plan file must not be silent.
         if (!QFile::remove(plan)) return 1;
         if (!hasFinding(findingsFor(config), QStringLiteral("plan.unreadable"))) return 1;

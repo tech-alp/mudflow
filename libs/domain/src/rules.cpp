@@ -234,6 +234,16 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
                     QStringLiteral("Done plan task has no evidence"), task));
             }
         }
+        // An identifier we could only guess at binds evidence to the wrong
+        // task, and a wrong link is worse than a missing one.
+        for (const QString& line : facts.plan.ambiguousTasks) {
+            findings.append(finding(QStringLiteral("plan.ambiguous_task_id"), QStringLiteral("warning"), QStringLiteral("plan"),
+                QStringLiteral("Plan line carries an ambiguous task ID"),
+                line + QStringLiteral(" matches ") + config.taskIdPattern
+                    + QStringLiteral(" only as part of a longer identifier"),
+                QStringLiteral("Widen project.task_id_pattern to cover the whole ID, or write the plain task ID on the line.")));
+        }
+
         // Measuring nothing silently looks exactly like measuring a clean
         // result. Tell the two apart.
         if (facts.plan.taskCount == 0) {
