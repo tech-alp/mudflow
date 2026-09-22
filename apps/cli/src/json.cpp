@@ -135,7 +135,7 @@ static QJsonObject resumePackage(const ResumeFacts& facts, const QJsonArray& gap
             {QStringLiteral("worktree_exists"), boolean(facts.worktree.exists)},
             {QStringLiteral("base_advanced"), boolean(facts.baseAdvanced)}}},
         {QStringLiteral("measured"), measured},
-        {QStringLiteral("agent_claims"), QJsonObject{{QStringLiteral("verification"), QStringLiteral("doğrulanmadı")},
+        {QStringLiteral("agent_claims"), QJsonObject{{QStringLiteral("verification"), QStringLiteral("unverified")},
             {QStringLiteral("evidence"), claims}}},
         {QStringLiteral("unresolved"), QJsonObject{{QStringLiteral("with_ref"), withRef}, {QStringLiteral("without_ref"), withoutRef}}},
         {QStringLiteral("instructions"), facts.started.contains(QStringLiteral("instructions"))
@@ -152,8 +152,8 @@ static QJsonObject resumePackage(const ResumeFacts& facts, const QJsonArray& gap
 QString resumeMarkdown(const QJsonObject& package)
 {
     // This output is meant to be handed to an agent. Whoever wants JSON uses
-    // the default; here we speak the same language as handoff.md, otherwise
-    // the two formats drift apart.
+    // the default; here we use the same headings as handoff.md, otherwise the
+    // two formats drift apart.
     QString text;
     QTextStream out(&text);
 
@@ -162,7 +162,7 @@ QString resumeMarkdown(const QJsonObject& package)
     };
     // Unknown and no are different: null stays "—", false is stated outright.
     const auto tri = [](const QJsonValue& value, const QString& yes, const QString& no) {
-        return value.isBool() ? (value.toBool() ? yes : no) : QStringLiteral("bilinmiyor");
+        return value.isBool() ? (value.toBool() ? yes : no) : QStringLiteral("unknown");
     };
 
     const QJsonValue task = package.value(QStringLiteral("task"));
@@ -173,42 +173,42 @@ QString resumeMarkdown(const QJsonObject& package)
     const QJsonValue exec = package.value(QStringLiteral("exec"));
     if (!exec.isString()) {
         out << (task.isString() && !task.toString().isEmpty()
-                ? "Bu task için kayıtlı execution yok.\n\n"
-                : "Bu projede kayıtlı execution yok.\n\n");
+                ? "No execution recorded for this task.\n\n"
+                : "No execution recorded in this project.\n\n");
     } else {
         const QJsonObject workspace = package.value(QStringLiteral("workspace")).toObject();
         out << "exec: " << exec.toString() << '\n'
             << "plan: " << str(package.value(QStringLiteral("plan_ref")))
             << "  (" << tri(package.value(QStringLiteral("plan_changed")),
-                            QStringLiteral("execution'dan beri DEĞİŞTİ"), QStringLiteral("değişmedi")) << ")\n"
+                            QStringLiteral("CHANGED since the execution"), QStringLiteral("unchanged")) << ")\n"
             << "worktree: " << str(workspace.value(QStringLiteral("worktree")))
             << "  (" << tri(workspace.value(QStringLiteral("worktree_exists")),
-                            QStringLiteral("var"), QStringLiteral("DİSKTE YOK")) << ")\n"
+                            QStringLiteral("present"), QStringLiteral("MISSING ON DISK")) << ")\n"
             << "branch: " << str(workspace.value(QStringLiteral("branch"))) << '\n'
             << "base: " << str(workspace.value(QStringLiteral("base"))) << '@'
             << str(workspace.value(QStringLiteral("base_sha")))
             << "  (" << tri(workspace.value(QStringLiteral("base_advanced")),
-                            QStringLiteral("o zamandan beri İLERLEDİ"), QStringLiteral("güncel")) << ")\n";
+                            QStringLiteral("MOVED since then"), QStringLiteral("up to date")) << ")\n";
         const QJsonValue preserved = package.value(QStringLiteral("preserved_ref"));
-        if (preserved.isString()) out << "saklanan iş: " << preserved.toString() << '\n';
+        if (preserved.isString()) out << "preserved work: " << preserved.toString() << '\n';
         out << '\n';
     }
 
-    out << "## Doğrulanmış (Runmark üretti)\n\n";
+    out << "## Verified (produced by Runmark)\n\n";
     const QJsonObject measured = package.value(QStringLiteral("measured")).toObject();
     const QJsonArray commits = measured.value(QStringLiteral("commits")).toArray();
     if (commits.isEmpty()) {
-        out << "Commit yok.\n";
+        out << "No commits.\n";
     } else {
         out << "Commits:\n";
         for (const QJsonValue& commit : commits) out << "- " << commit.toString() << '\n';
     }
     const QJsonValue filesChanged = measured.value(QStringLiteral("files_changed"));
-    if (filesChanged.isDouble()) out << "\nDeğişen dosya: " << filesChanged.toInt() << '\n';
+    if (filesChanged.isDouble()) out << "\nFiles changed: " << filesChanged.toInt() << '\n';
     const QJsonArray evidence = measured.value(QStringLiteral("evidence")).toArray();
-    out << "\nKanıt:\n";
+    out << "\nEvidence:\n";
     if (evidence.isEmpty()) {
-        out << "Yok.\n";
+        out << "None.\n";
     } else {
         for (const QJsonValue& value : evidence) {
             const QJsonObject item = value.toObject();
@@ -217,16 +217,16 @@ QString resumeMarkdown(const QJsonObject& package)
         }
     }
 
-    out << "\n## Agent notu (zayıf evidence — doğrulanmadı)\n\n";
+    out << "\n## Agent note (weak evidence \u2014 unverified)\n\n";
     const QJsonArray claims = package.value(QStringLiteral("agent_claims")).toObject()
         .value(QStringLiteral("evidence")).toArray();
     if (claims.isEmpty()) {
-        out << "Yok.\n";
+        out << "None.\n";
     } else {
         for (const QJsonValue& value : claims) out << "- " << str(value.toObject().value(QStringLiteral("summary"))) << '\n';
     }
 
-    out << "\n## Açık kalanlar\n\n";
+    out << "\n## Open items\n\n";
     const QJsonObject unresolved = package.value(QStringLiteral("unresolved")).toObject();
     bool anyUnresolved = false;
     for (const QString& key : {QStringLiteral("with_ref"), QStringLiteral("without_ref")}) {
@@ -235,24 +235,24 @@ QString resumeMarkdown(const QJsonObject& package)
             const QJsonValue reference = note.value(QStringLiteral("ref"));
             out << "- [ ] " << str(note.value(QStringLiteral("text")))
                 << (reference.isString() ? QStringLiteral("  (ref: ") + reference.toString() + QLatin1Char(')')
-                                         : QStringLiteral("  (ref yok)")) << '\n';
+                                         : QStringLiteral("  (no ref)")) << '\n';
             anyUnresolved = true;
         }
     }
-    if (!anyUnresolved) out << "Yok.\n";
+    if (!anyUnresolved) out << "None.\n";
 
-    out << "\n## Talimatlar\n\n";
+    out << "\n## Instructions\n\n";
     const QJsonValue instructions = package.value(QStringLiteral("instructions"));
     const QJsonArray instructionList = instructions.toArray();
     if (instructionList.isEmpty()) {
-        out << (instructions.isNull() ? "Kaydedilmemiş.\n" : "Yok.\n");
+        out << (instructions.isNull() ? "Not recorded.\n" : "None.\n");
     } else {
         for (const QJsonValue& value : instructionList) {
             const QJsonObject item = value.toObject();
             const QJsonValue sha1 = item.value(QStringLiteral("sha1"));
             out << "- " << str(item.value(QStringLiteral("name"))) << "  "
                 << (sha1.isString() ? QStringLiteral("sha1 ") + sha1.toString().left(12)
-                                    : QStringLiteral("OKUNAMADI")) << '\n';
+                                    : QStringLiteral("UNREADABLE")) << '\n';
         }
     }
 
@@ -260,26 +260,26 @@ QString resumeMarkdown(const QJsonObject& package)
     const QJsonObject handoff = package.value(QStringLiteral("handoff")).toObject();
     const QJsonValue verified = handoff.value(QStringLiteral("verified"));
     if (!handoff.value(QStringLiteral("path")).isString()) {
-        out << "Yok.\n";
+        out << "None.\n";
     } else {
-        out << "yol: " << str(handoff.value(QStringLiteral("path"))) << '\n'
+        out << "path: " << str(handoff.value(QStringLiteral("path"))) << '\n'
             << "sha1: " << str(handoff.value(QStringLiteral("sha1"))) << '\n';
         if (!handoff.value(QStringLiteral("sha1")).isString()) {
-            out << "durum: dosya okunamadı\n";
+            out << "status: file could not be read\n";
         } else if (!verified.isBool()) {
-            out << "durum: doğrulanamadı (ledger'da kayıtlı sha1 yok)\n";
+            out << "status: unverifiable (no sha1 recorded in the ledger)\n";
         } else if (verified.toBool()) {
-            out << "durum: kayıtlı sha1 ile eşleşiyor\n";
+            out << "status: matches the recorded sha1\n";
         } else {
-            out << "durum: DEĞİŞMİŞ — kayıtlı sha1 "
+            out << "status: CHANGED \u2014 recorded sha1 "
                 << str(handoff.value(QStringLiteral("recorded_sha1"))) << '\n';
         }
     }
 
-    out << "\n## Eksiklikler\n\n";
+    out << "\n## Gaps\n\n";
     const QJsonArray gaps = package.value(QStringLiteral("gaps")).toArray();
     if (gaps.isEmpty()) {
-        out << "Yok.\n";
+        out << "None.\n";
     } else {
         for (const QJsonValue& value : gaps) {
             const QJsonObject gap = value.toObject();

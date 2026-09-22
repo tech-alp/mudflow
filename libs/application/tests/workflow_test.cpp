@@ -143,10 +143,10 @@ int main()
         const runmark::RepoFacts repositoryStatus = repositories.at(0);
         if (finished.outcome != QLatin1String("finished")
                 || repositoryStatus.ahead != 1
-                || !handoffText.contains(QStringLiteral("## Doğrulanmış (Runmark üretti)"))
-                || !handoffText.contains(QStringLiteral("## Agent notu (zayıf evidence — doğrulanmadı)"))
+                || !handoffText.contains(QStringLiteral("## Verified (produced by Runmark)"))
+                || !handoffText.contains(QStringLiteral("## Agent note (weak evidence \u2014 unverified)"))
                 || !handoffText.contains(QStringLiteral("Removed obsolete file"))
-                || !handoffText.contains(QStringLiteral("## Açık kalanlar"))
+                || !handoffText.contains(QStringLiteral("## Open items"))
                 || !handoffText.contains(QStringLiteral("Needs follow-up"))
                 || !hasFinding(findings, QStringLiteral("context.unresolved_without_ref"))
                 || !hasFinding(findings, QStringLiteral("git.orphaned_worktree"))

@@ -357,13 +357,13 @@ base: origin/development@a1b2c3d4
 range: a1b2c3d4..f9e8d7c6
 ---
 
-## Doğrulanmış (Runmark üretti)
+## Verified (produced by Runmark)
 
 Commits:
 - b2c3d4e  config: introduce ConfigV2 reader
 - f9e8d7c  config: migrate settings loader
 
-Değişen dosyalar: 12 (+340 / -58)
+Files changed: 12 (+340 / -58)
 - src/config/config_v2.cpp
 - src/config/loader.cpp
 - ...
@@ -372,18 +372,21 @@ Test: ctest 148 passed, 0 failed  (15:40)
 
 Preserved uncommitted snapshot: refs/runmark/preserved/20260918T142231Z-SCMS-042
 
-## Agent notu (zayıf evidence — doğrulanmadı)
+## Agent note (weak evidence — unverified)
 
 Eski format okuma yolu loader.cpp'de duruyor, henüz silinmedi.
 
-## Açık kalanlar
+## Open items
 
-- [ ] Eski format desteği kalacak mı?  (ref yok)
+- [ ] Eski format desteği kalacak mı?  (no ref)
 - [ ] Migration testi eksik  (ref: docs/plans/config-migration.md#t9)
 ```
 
 Üç başlık tesadüf değil, ADR-002'yi formatın içine gömer:
 Runmark'un git'ten ölçtüğü ile agent'ın iddia ettiği aynı bölümde durmaz.
+
+Başlıklar ve `resume --markdown` çıktısının tamamı İngilizcedir; okuyucu bir
+ajan ve aynı metin iki farklı runtime'a gidiyor. Dokümanlar Türkçe kalır.
 
 ---
 
@@ -394,7 +397,7 @@ Runmark'un git'ten ölçtüğü ile agent'ın iddia ettiği aynı bölümde durm
 - Runmark mekanik bölümü üretir: SHA aralığı, commit'ler, değişen dosyalar,
   kaydedilmiş test sonuçları. Ölçüm, iddia değil.
 - Agent'ın özeti ayrı başlıkta, `agent_summary` kind'ıyla ve
-  "doğrulanmadı" etiketiyle durur.
+  `"unverified"` etiketiyle durur.
 - Açık maddeler `note` olaylarından gelir; `ref`'i olmayan işaretlenir.
 
 Böylece ADR-002 (evidence > agent claim) ile ADR-010 (durable source referansı)
@@ -452,7 +455,7 @@ yan ürün. Başarısızlık "görülmedi" tarafına düşer, güvenli yön budu
     "evidence": ["<test ve command türündeki tam evidence.recorded olayları>"]
   },
   "agent_claims": {
-    "verification": "doğrulanmadı",
+    "verification": "unverified",
     "evidence": ["<agent_summary türündeki tam evidence.recorded olayları>"]
   },
   "unresolved": {

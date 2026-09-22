@@ -49,14 +49,14 @@ void writeHandoff(const Paths& paths, const HandoffInput& input, const QVector<Q
            << "\nbranch: " << input.started.value(QStringLiteral("branch")).toString()
            << "\nbase: " << input.started.value(QStringLiteral("base")).toString() << "@" << input.baseSha
            << "\nrange: " << input.baseSha << ".." << input.headSha
-           << "\n---\n\n## Doğrulanmış (Runmark üretti)\n\nCommits:\n";
+           << "\n---\n\n## Verified (produced by Runmark)\n\nCommits:\n";
     for (const QString& commit : input.commitLines) output << "- " << commit << '\n';
-    output << "\nDeğişen dosyalar: " << input.filesChanged << " (+" << input.insertions << " / -" << input.deletions << ")\n";
+    output << "\nFiles changed: " << input.filesChanged << " (+" << input.insertions << " / -" << input.deletions << ")\n";
     for (const QString& file : input.files) output << "- " << file << '\n';
     output << "\nEvidence: " << input.filesRef << '\n';
     if (!input.preservedRef.isEmpty()) output << "\nPreserved uncommitted snapshot: " << input.preservedRef << '\n';
 
-    output << "\n## Agent notu (zayıf evidence — doğrulanmadı)\n\n";
+    output << "\n## Agent note (weak evidence \u2014 unverified)\n\n";
     bool hasAgentSummary = false;
     for (const QJsonObject& event : events) {
         if (event.value(QStringLiteral("type")).toString() == QLatin1String("evidence.recorded")
@@ -66,9 +66,9 @@ void writeHandoff(const Paths& paths, const HandoffInput& input, const QVector<Q
             hasAgentSummary = true;
         }
     }
-    if (!hasAgentSummary) output << "Yok.\n";
+    if (!hasAgentSummary) output << "None.\n";
 
-    output << "\n## Açık kalanlar\n\n";
+    output << "\n## Open items\n\n";
     bool hasUnresolved = false;
     for (const QJsonObject& event : events) {
         if (event.value(QStringLiteral("type")).toString() == QLatin1String("note")
@@ -76,11 +76,11 @@ void writeHandoff(const Paths& paths, const HandoffInput& input, const QVector<Q
                 && event.value(QStringLiteral("kind")).toString() == QLatin1String("unresolved")) {
             output << "- [ ] " << event.value(QStringLiteral("text")).toString();
             const QJsonValue reference = event.value(QStringLiteral("ref"));
-            output << (reference.isNull() ? "  (ref yok)" : "  (ref: " + reference.toString() + ")") << '\n';
+            output << (reference.isNull() ? "  (no ref)" : "  (ref: " + reference.toString() + ")") << '\n';
             hasUnresolved = true;
         }
     }
-    if (!hasUnresolved) output << "Yok.\n";
+    if (!hasUnresolved) output << "None.\n";
 
     output.flush();
     if (output.status() != QTextStream::Ok) {

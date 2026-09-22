@@ -145,7 +145,7 @@ void resumeContract(const QString& executable)
     check(measured.value("source") == "execution.finished" && measured.value("commits").toArray().size() == 1
         && measured.value("files_changed").toInt() == 1 && measured.value("evidence").toArray().size() == 2, "finished measurements");
     check(!QJsonDocument(measured).toJson().contains("CLAIM ONLY"), "claims never measured");
-    check(package.value("agent_claims").toObject().value("verification") == QStringLiteral("doğrulanmadı")
+    check(package.value("agent_claims").toObject().value("verification") == QStringLiteral("unverified")
         && package.value("agent_claims").toObject().value("evidence").toArray().size() == 1, "claims explicitly unverified");
     check(package.value("unresolved").toObject().value("with_ref").toArray().size() == 1
         && package.value("unresolved").toObject().value("without_ref").toArray().size() == 1, "unresolved refs separated");
@@ -159,7 +159,7 @@ void resumeContract(const QString& executable)
     QByteArray markdown, stderrOutput;
     check(run(executable, {"--project", configPath, "resume", exec, "--markdown"}, 0, &markdown, &stderrOutput)
         && stderrOutput.isEmpty() && markdown.startsWith("# Runmark resume:")
-        && markdown.contains(QStringLiteral("Agent notu (zayıf evidence — doğrulanmadı)").toUtf8()) && markdown.contains(handoff.value("sha1").toString().toUtf8()), "markdown contract");
+        && markdown.contains(QStringLiteral("Agent note (weak evidence \u2014 unverified)").toUtf8()) && markdown.contains(handoff.value("sha1").toString().toUtf8()), "markdown contract");
     check(readFile(ledger) == before, "resume never appends delivery event");
 
     // --hook: that the hook ran is written to a separate file, not the ledger.
