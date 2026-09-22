@@ -336,8 +336,7 @@ Durum: hedef karar; implementation bekliyor.
   integration pluginleri ayrı tutulur. İç bağımlılıklar açıkça verilir.
 - Named modules dahili API sınırıdır; public plugin ABI'si değildir.
   QObject/QML köprüleri başlangıçta `.h/.cpp`; module import `.cpp` içindedir.
-- C++20 korunur; CMake tabanı 4.4'tür (`FILE_SET CXX_MODULES` 3.28+, Merce
-  3.30+). C++23 / Ninja / LLVM Clang ve Windows MSVC hattı modules
+- C++20 korunur; CMake tabanı 4.4'tür (`FILE_SET CXX_MODULES` 3.28+). C++23 / Ninja / LLVM Clang ve Windows MSVC hattı modules
   doğrulamasında değerlendirilir. Üç OS sonucu olmadan yeni baseline ilan edilmez.
 - Merce yalnız desktop katmanında eklenir; Qt/Merce sürümleri sabitlenir.
   CLI için Qt Core bağımlılık sınırı korunur. TC-002'nin yeni bağımlılığı
@@ -374,5 +373,78 @@ Geçiş [ROADMAP](ROADMAP.md) sırasıyla, mevcut CLI regression testleri koruna
 | Hata `code` alanı | `usage` / `runtime` | Tüketici koda göre dallanmak isteyince |
 | `rules.cpp` saflığı | I/O yok, `now` fact | Bozulursa ayrım kaybolur — yeni gerçek `facts.h`'ye eklenir |
 | Ürün / CLI | Kodda Runmark / `rmk` | ADR-016 → Runmark / `rmk` |
-| Katmanlar | `core/`, `cli/` | TC-010 → `apps/`, `libs/`, plugin sınırları |
+| Katmanlar | `apps/`, `libs/` (RM-1) | Plugin sınırları bekliyor |
 | Named modules | Yok | Üç OS toolchain doğrulaması ardından aşamalı geçiş |
+
+---
+
+## TC-011 — Üçüncü parti bağımlılıkları
+
+Durum: karar. Tarih: 2026-09-22.
+
+TC-002 "Qt Core standart kütüphanedir" diyor; bu madde yeni bir bağımlılık
+gerçekten gerektiğinde **nasıl** alınacağını tanımlar.
+
+### Karar merdiveni
+
+İlk tutan basamakta dur:
+
+```text
+1. Qt Core yetiyor mu?                    → yeni bağımlılık yok (TC-002)
+2. Hedef platformlarda zaten var mı?      → find_package(X REQUIRED)
+3. Kaynağı bizim mi?                      → export set ekle, find_package(X CONFIG)
+4. Tek dosya, stabil, küçük mü?           → vendor et, sürümü yaz
+5. Hiçbiri değil                          → FetchContent, sabitlenmiş tag
+```
+
+`FetchContent` son çaredir çünkü bağımlılığın CMake'i bizim ağacımızda
+çalışır: global değişkenleri, `add_subdirectory` çağrıları ve hedef adları
+bizim projemize sızar. `find_package(CONFIG)` bu sızıntıyı kapatır —
+tükettiğimiz tek şey import edilmiş hedeflerdir.
+
+### Kurallar
+
+- **Her bileşen kendi `find_package`'ını çağırır** (TC-008). Kök CMake
+  bağımlılık dağıtmaz.
+- **Bağımlılık hedefe bağlanır, dizine değil.** `target_link_libraries` ve
+  `target_compile_features`; `set(CMAKE_CXX_STANDARD ...)` veya
+  `include_directories()` gibi global çağrı kullanılmaz.
+- **Namespace'li hedef zorunludur.** `Foo::Bar` yazım hatasında CMake hata
+  verir; `FooBar` sessizce düz bir isim sayılır ve link satırına öylece geçer.
+- **Desktop bağımlılığı CLI'ye sızamaz.** `apps/cli` yalnız Qt Core görür;
+  bunu bileşen sınırları tutar (TC-008).
+- **Sürüm sabitlenir.** Tag veya sürüm aralığı; `main` takip edilmez.
+- **Sistem paket yöneticisi zorunlu kılınmaz.** Conan/vcpkg tek bir
+  bağımlılık için eklenmez; gerekirse ayrı bir kararla gelir.
+
+### Merce'nin durumu
+
+Merce (ADR-017) 3. basamaktadır — kaynağı bizim, ama bugün tüketilemez:
+
+```text
+export set yok            find_package(Merce) çalışmaz
+Merce::Core ALIAS yok     namespace'li hedef yok
+CMAKE_CXX_STANDARD global bizim hedef bazlı ayarımızı ezer
+AUTOMOC/AUTORCC global    aynı sızıntı
+add_subdirectory(example) koşulsuz; kütüphaneyle birlikte örnek uygulama derlenir
+scs-labs/workspace alt dizini  submodule tüm monorepo'yu getirir
+```
+
+Import koşulları — hepsi Merce tarafında ve küçük:
+
+1. `Merce::Core` / `Merce::Tokens` ALIAS hedefleri.
+2. `install(TARGETS ... EXPORT MerceTargets)` + `MerceConfig.cmake`
+   (içinde Qt6 Core/Qml/Quick için `find_dependency`).
+3. Global `CMAKE_CXX_STANDARD` → `target_compile_features(... PUBLIC cxx_std_20)`.
+4. `example` yalnız `PROJECT_IS_TOP_LEVEL` iken eklensin.
+
+Bunlar karşılanana kadar Runmark Merce'yi import etmez. Desktop henüz
+yazılmadığı için bu bir engel değil; erken import etmek Merce'nin CMake
+hatalarını bizim ağacımıza taşırdı.
+
+### Neden
+
+Bir bağımlılığı yanlış almak, onu hiç almamaktan pahalıdır: `add_subdirectory`
+ile gelen global ayar sessizce bizim derleme bayraklarımızı değiştirir ve
+sorun aylar sonra başka bir hedefte ortaya çıkar. Sızıntı olmayan tek yol
+import edilmiş hedeflerdir.

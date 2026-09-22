@@ -165,8 +165,8 @@ libs/domain/
   tarafında yapılır. MOC header'ı module içindeki tiplere bağımlı olmaz.
 - `import std`, header units ve özel MOC/module helper'ı başlangıç kapsamı dışıdır.
 - Baseline C++20 / Qt 6.11+ / CMake 4.4+'dır. `FILE_SET CXX_MODULES` CMake
-  3.28'de geldi, Merce 3.30+ ister; 4.4 tabanı ikisini de karşılar ve yerel
-  derlemede doğrulanan sürümdür. C++23 / Ninja / LLVM Clang 19.1+ ve Windows
+  3.28'de geldi; 4.4 bunu karşılar ve yerel derlemede doğrulanan sürümdür.
+  (Merce'nin 3.30 istediği iddiası yanlıştı: `CMakeLists.txt` 3.24 diyor.) C++23 / Ninja / LLVM Clang 19.1+ ve Windows
   MSVC hattı teknik doğrulama adaylarıdır; henüz build gereksinimi değildir.
 - Conan 2 bu kararla otomatik eklenmez. Araç zinciri macOS/Linux/Windows'ta
   clean ve incremental build, MOC/QML köprüsü ve testler doğrulanınca sabitlenir.
@@ -202,7 +202,13 @@ silinmez. Git veya harici API işlemleri için cleanup, otomatik rollback değil
 
 Merce ortak tasarım sistemi olarak kullanılır; Runmark için kompakt `desktop`
 profili hazırlanır. Mevcut kiosk profilleri değiştirilmez. Merce ve Qt sürümleri
-sabitlenir; StyleKit Technology Preview riski yükseltme testleriyle yönetilir.
+sabitlenir.
+
+Merce bugün bağımlılık olarak tüketilemez: export set'i, namespace'li hedefi
+yok; global `CMAKE_CXX_STANDARD` ve `AUTOMOC` ayarlıyor; `example` alt dizinini
+koşulsuz ekliyor; ve `scs-labs/workspace` monorepo'sunun alt dizini.
+Tüketilebilir hale gelene kadar import edilmez — koşullar ve gerekçe
+[TC-011](TECH_CHOICES.md)'de.
 
 Shell navigation, route/tab host, context inspector, activity alanı ve temel
 rescue görünümünü sağlar. Feature pluginleri bu bölgelere katkı verir;
