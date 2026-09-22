@@ -90,6 +90,12 @@ Format `project.json` içindeki `task_id_pattern` ile eşleşmezse `rmk status`
   GitLab deposunda olduğu için public repoya bağımlılık olarak alınamadı
   (TC-011). cforgo yayımlanırsa dosya tek çağrıya döner.
 
+- [x] RM-12 — Execution canlılığı: ikinci sinyal
+
+  "Finish olayı yok" bir durum değeri; tek başına çalışan oturumla durmuş
+  olanı ayıramıyor. Son kaydedilen olayın yaşı artık status bulgularında,
+  resume paketinde ve markdown çıktısında. Ayrı heartbeat ve PID yok.
+
 - [ ] RM-9 — İlk yayın hazırlığı ve release doğrulaması
 
   Main branch protection ve zorunlu macOS CI kontrolünü yapılandır.
