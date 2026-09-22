@@ -64,6 +64,13 @@ struct ExecutionFacts {
     QString exec;
     bool hasHandoff = false;
     bool worktreeExists = false;
+    QString agent;
+    // Timestamp of the newest event recorded for this execution. An execution
+    // with no finish event is a status value; this is the second signal. A
+    // session that has been silent for hours is not the same as one that wrote
+    // a minute ago, and only the second one is worth staying away from.
+    // Invalid when the ledger carried no usable timestamp.
+    QDateTime lastActivity;
 };
 
 // Measured state of a finished execution's worktree. Runmark never removes a
@@ -114,6 +121,9 @@ struct FileFacts {
 struct ResumeFacts {
     QString task;
     QString exec;
+    // Newest event timestamp for this execution; the second signal a reader
+    // needs before assuming an unfinished execution is nobody's.
+    QDateTime lastActivity;
     QString ledgerError;
     QJsonObject started;
     QJsonObject finished;

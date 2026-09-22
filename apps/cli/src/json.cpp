@@ -3,6 +3,7 @@
 // handoff stays in infrastructure (handoff.cpp), because that one writes.
 #include "json.h"
 
+#include <QDateTime>
 #include <QJsonArray>
 #include <QTextStream>
 
@@ -144,6 +145,8 @@ static QJsonObject resumePackage(const ResumeFacts& facts, const QJsonArray& gap
     }
     measured.insert(QStringLiteral("evidence"), evidence);
     return {{QStringLiteral("task"), facts.task}, {QStringLiteral("exec"), nullable(facts.exec)},
+        {QStringLiteral("last_activity"), facts.lastActivity.isValid()
+            ? QJsonValue(facts.lastActivity.toString(Qt::ISODate)) : QJsonValue::Null},
         {QStringLiteral("plan_ref"), nullable(facts.started.value(QStringLiteral("plan_ref")).toString())},
         {QStringLiteral("plan_sha1"), nullable(recordedPlan)},
         {QStringLiteral("current_plan_sha1"), nullable(facts.planSha1)},
@@ -213,6 +216,18 @@ QString resumeMarkdown(const QJsonObject& package)
             << str(workspace.value(QStringLiteral("base_sha")))
             << "  (" << tri(workspace.value(QStringLiteral("base_advanced")),
                             QStringLiteral("MOVED since then"), QStringLiteral("up to date")) << ")\n";
+        // Whether anyone is still on this execution is not answerable from the
+        // absence of a finish event alone; the age of the last write is what a
+        // reader can act on.
+        const QJsonValue activity = package.value(QStringLiteral("last_activity"));
+        if (activity.isString()) {
+            const QDateTime stamp = QDateTime::fromString(activity.toString(), Qt::ISODate);
+            const qint64 seconds = stamp.secsTo(QDateTime::currentDateTimeUtc());
+            out << "last activity: " << activity.toString()
+                << (seconds < 120 ? QStringLiteral("  (just now)")
+                    : seconds < 7200 ? QStringLiteral("  (%1 minutes ago)").arg(seconds / 60)
+                    : QStringLiteral("  (%1 hours ago)").arg(seconds / 3600)) << '\n';
+        }
         const QJsonValue preserved = package.value(QStringLiteral("preserved_ref"));
         if (preserved.isString()) out << "preserved work: " << preserved.toString() << '\n';
         out << '\n';

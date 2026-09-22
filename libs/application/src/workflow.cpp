@@ -69,6 +69,17 @@ StatusFacts observe(const ProjectConfig& config, const Paths& paths)
         execution.hasHandoff = QFileInfo::exists(QDir(paths.handoffs).filePath(execution.exec + QStringLiteral(".md")));
         const QString worktree = event.value(QStringLiteral("worktree")).toString();
         execution.worktreeExists = !worktree.isEmpty() && QFileInfo::exists(worktree);
+        execution.agent = event.value(QStringLiteral("agent")).toString();
+        // The newest timestamp across this execution's events. Scanning is
+        // cheap and honest: no separate heartbeat to fall out of sync with the
+        // record it claims to describe.
+        for (const QJsonObject& own : facts.events) {
+            if (own.value(QStringLiteral("exec")) != execution.exec) continue;
+            const QDateTime stamp = QDateTime::fromString(own.value(QStringLiteral("ts")).toString(), Qt::ISODate);
+            if (stamp.isValid() && (!execution.lastActivity.isValid() || stamp > execution.lastActivity)) {
+                execution.lastActivity = stamp;
+            }
+        }
         facts.executions.append(execution);
     }
     return facts;

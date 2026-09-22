@@ -362,6 +362,29 @@ uzun bir kimliğin parçasına uyuyorsa (`SCMS-\d+` ile `SCMS-42-W1`) satır
 kanıtı yanlış task'a bağlar; yanlış bağ, eksik bağdan kötüdür. Aynı sınır
 `planReference` için de geçerlidir.
 
+### İki sinyal kuralı
+
+"Finish olayı yok" bir **durum değeridir**. Tek başına, şu an çalışan bir
+oturumla saatler önce durmuş olanı ayıramaz — 2026-09-22'de ikisi de aynı
+göründü ve iki ajan birbirinin işini tekrar yaptı.
+
+İkinci sinyal, o execution için kaydedilmiş **en yeni olayın yaşı**dır.
+`context.active_execution` ve `context.orphaned_execution` açıklamalarında,
+`resume` paketinin `last_activity` alanında ve markdown çıktısında yer alır.
+
+```text
+RM-8  başladı 14:02 · son etkinlik 14:50   → biri çalışıyor
+RM-5  başladı 11:18 · son etkinlik 11:34   → 4 saat sessiz
+```
+
+Ayrı bir heartbeat tutulmaz: ledger zaten her yazımı zaman damgalıyor, ve
+ikinci bir kayıt anlattığı şeyle senkrondan çıkabilirdi. Kullanılabilir
+zaman damgası yoksa "last activity unknown" yazılır — taze sayılmaz.
+
+Süreç kimliği (PID) bilerek kaydedilmez: yeniden kullanılan bir PID ölü bir
+execution'ı canlı gösterir ve başka makinedeki bir oturum zaten "bilinmiyor"
+olurdu. Ledger'ın kendi zaman damgası daha dürüst bir sinyaldir.
+
 `blocking` v0.1'de kullanılmıyor. Severity alanı yine de üç değerli —
 ilk blocking kural geldiğinde şema değişmesin.
 

@@ -104,6 +104,12 @@ ResumeFacts observeResumeLedger(const Paths& paths, const QString& taskOrExecuti
         if (event.value(QStringLiteral("type")) == QLatin1String("execution.started")) facts.started = event;
         if (event.value(QStringLiteral("type")) == QLatin1String("execution.finished")) facts.finished = event;
     }
+    for (const QJsonObject& event : facts.events) {
+        const QDateTime stamp = QDateTime::fromString(event.value(QStringLiteral("ts")).toString(), Qt::ISODate);
+        if (stamp.isValid() && (!facts.lastActivity.isValid() || stamp > facts.lastActivity)) {
+            facts.lastActivity = stamp;
+        }
+    }
     if (!facts.started.isEmpty()) facts.task = facts.started.value(QStringLiteral("task")).toString();
     return facts;
 }

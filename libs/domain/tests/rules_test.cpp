@@ -130,6 +130,40 @@ int main()
         if (!has(findings, QStringLiteral("plan.no_parsable_tasks"))) return 1;
     }
 
+    // 4b. Two signals: "no finish event" alone cannot separate a session that is
+    //     working from one that stopped hours ago. The age of the newest event
+    //     decides, and it is reported where a reader will act on it.
+    {
+        runmark::StatusFacts f;
+        f.now = now;
+        f.plan.readable = true;
+        f.plan.taskCount = 1;
+        f.events.append(startedEvent(QStringLiteral("E1"), QStringLiteral("MF-1"), QStringLiteral("2026-09-20T11:00:00Z")));
+        runmark::ExecutionFacts busy{QStringLiteral("E1"), false, false, QStringLiteral("codex"),
+            QDateTime::fromString(QStringLiteral("2026-09-20T11:59:30Z"), Qt::ISODate)};
+        f.executions.append(busy);
+        QString explanation;
+        for (const runmark::Finding& finding : runmark::evaluate(config(), f)) {
+            if (finding.id == QLatin1String("context.active_execution")) explanation = finding.explanation;
+        }
+        if (!explanation.contains(QStringLiteral("(codex)")) || !explanation.contains(QStringLiteral("just now"))) return 1;
+
+        f.executions[0].lastActivity = QDateTime::fromString(QStringLiteral("2026-09-20T07:00:00Z"), Qt::ISODate);
+        explanation.clear();
+        for (const runmark::Finding& finding : runmark::evaluate(config(), f)) {
+            if (finding.id == QLatin1String("context.active_execution")) explanation = finding.explanation;
+        }
+        if (!explanation.contains(QStringLiteral("5 hours ago"))) return 1;
+
+        // No usable timestamp must read as unknown, never as fresh.
+        f.executions[0].lastActivity = {};
+        explanation.clear();
+        for (const runmark::Finding& finding : runmark::evaluate(config(), f)) {
+            if (finding.id == QLatin1String("context.active_execution")) explanation = finding.explanation;
+        }
+        if (!explanation.contains(QStringLiteral("last activity unknown"))) return 1;
+    }
+
     // 5. done_without_evidence stays quiet when evidence exists.
     {
         runmark::StatusFacts f;

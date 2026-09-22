@@ -9,6 +9,23 @@ module runmark.domain;
 namespace runmark {
 namespace {
 
+// "No finish event" is a status value. On its own it cannot tell a session that
+// is working right now from one that stopped hours ago, and today both looked
+// identical while two agents redid each other's work. The age of the newest
+// recorded event is the second signal; when the two disagree, this one decides
+// what a reader should do.
+QString silenceFor(const ExecutionFacts* execution, const QDateTime& now)
+{
+    if (!execution || !execution->lastActivity.isValid()) {
+        return QStringLiteral("last activity unknown");
+    }
+    const qint64 seconds = execution->lastActivity.secsTo(now);
+    if (seconds < 0) return QStringLiteral("last activity is in the future");
+    if (seconds < 120) return QStringLiteral("last activity just now");
+    if (seconds < 7200) return QStringLiteral("last activity ") + QString::number(seconds / 60) + QStringLiteral(" minutes ago");
+    return QStringLiteral("last activity ") + QString::number(seconds / 3600) + QStringLiteral(" hours ago");
+}
+
 const ExecutionFacts* executionFor(const StatusFacts& facts, const QString& executionId)
 {
     for (const ExecutionFacts& execution : facts.executions) {
@@ -202,10 +219,15 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
                 const qint64 ageSeconds = startedAt.secsTo(facts.now);
                 findings.append(finding(QStringLiteral("context.orphaned_execution"), QStringLiteral("warning"), QStringLiteral("context"),
                     QStringLiteral("Execution appears abandoned"),
-                    executionId + QStringLiteral(" started ") + QString::number(ageSeconds / 3600) + QStringLiteral(" hours ago without finish or handoff")));
+                    executionId + QStringLiteral(" started ") + QString::number(ageSeconds / 3600)
+                        + QStringLiteral(" hours ago without finish or handoff; ") + silenceFor(execution, facts.now)));
             } else {
+                const QString agent = execution && !execution->agent.isEmpty()
+                    ? QStringLiteral(" (") + execution->agent + QStringLiteral(")") : QString();
                 findings.append(finding(QStringLiteral("context.active_execution"), QStringLiteral("info"), QStringLiteral("context"),
-                    QStringLiteral("Execution is still active"), executionId + QStringLiteral(" has no finish event or handoff yet")));
+                    QStringLiteral("Execution is still active"),
+                    executionId + agent + QStringLiteral(" has no finish event or handoff yet; ")
+                        + silenceFor(execution, facts.now)));
             }
         }
         const QString recordedPlanSha = event.value(QStringLiteral("plan_sha1")).toString();
