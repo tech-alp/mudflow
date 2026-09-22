@@ -11,7 +11,7 @@
 #include <QJsonDocument>
 #include <QJsonParseError>
 
-namespace mudflow {
+namespace runmark {
 
 QString expandPath(const QString& value, const QString& root)
 {
@@ -28,10 +28,10 @@ Paths pathsFor(const QString& configPath)
 {
     QDir configDirectory = QFileInfo(configPath).absoluteDir();
     if (!configDirectory.cdUp()) {
-        fail(QStringLiteral("Project config must be inside .mudflow"));
+        fail(QStringLiteral("Project config must be inside .runmark"));
     }
     const QString root = configDirectory.absolutePath();
-    const QString state = QDir(root).filePath(QStringLiteral(".mudflow"));
+    const QString state = QDir(root).filePath(QStringLiteral(".runmark"));
     return {root, state, QDir(state).filePath(QStringLiteral("ledger")), QDir(state).filePath(QStringLiteral("evidence")),
             QDir(state).filePath(QStringLiteral("handoffs")), QDir(state).filePath(QStringLiteral("hook-observed.json"))};
 }
@@ -39,7 +39,7 @@ Paths pathsFor(const QString& configPath)
 void ensureDirectories(const Paths& paths)
 {
     if (!QDir().mkpath(paths.ledger) || !QDir().mkpath(paths.evidence) || !QDir().mkpath(paths.handoffs)) {
-        fail(QStringLiteral("Cannot create .mudflow state directories"));
+        fail(QStringLiteral("Cannot create .runmark state directories"));
     }
 }
 
@@ -124,4 +124,4 @@ QJsonArray observeInstructions(const QStringList& instructions, const QString& r
     return result;
 }
 
-} // namespace mudflow
+} // namespace runmark

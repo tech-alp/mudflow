@@ -10,7 +10,7 @@ try {
     process.exit(0);
   }
 
-  const version = execFileSync('mudflow', ['--version'], {
+  const version = execFileSync('rmk', ['--version'], {
     cwd: input.cwd,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -19,17 +19,17 @@ try {
     maxBuffer: 64 * 1024,
     windowsHide: true,
   }).trim();
-  const minimum = require('../skills/mudflow/compatibility.json').minimum_mudflow_version;
-  const match = /^mudflow (0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.exec(version);
+  const minimum = require('../skills/runmark/compatibility.json').minimum_rmk_version;
+  const match = /^rmk (0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.exec(version);
   if (!match) {
-    process.stderr.write(`Mudflow session context skipped: cannot verify CLI version; requires >= ${minimum}.\n`);
+    process.stderr.write(`Runmark session context skipped: cannot verify CLI version; requires >= ${minimum}.\n`);
     process.exit(0);
   }
   const installed = match.slice(1, 4).map(BigInt);
   const required = minimum.split('.').map(BigInt);
   const difference = installed.findIndex((part, index) => part !== required[index]);
   if (difference === -1 ? Boolean(match[4]) : installed[difference] < required[difference]) {
-    process.stderr.write(`Mudflow session context skipped: ${version}; requires >= ${minimum}.\n`);
+    process.stderr.write(`Runmark session context skipped: ${version}; requires >= ${minimum}.\n`);
     process.exit(0);
   }
 
@@ -37,7 +37,7 @@ try {
   // the hook must not infer it from Git, findings or files (TC-006).
   // --hook records that this ran, so a hook that silently stops firing becomes
   // a status finding instead of looking like a clean project.
-  const context = execFileSync('mudflow', ['resume', '--markdown', '--hook'], {
+  const context = execFileSync('rmk', ['resume', '--markdown', '--hook'], {
     cwd: input.cwd,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],

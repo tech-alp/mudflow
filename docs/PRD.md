@@ -8,7 +8,7 @@ Runmark yeni bir planning framework dayatmaz. Mevcut artifact’ları okur, exec
 
 Hedef CLI komutu `rmk`, desktop tasarım sistemi Merce'dir. Değiştirilebilir
 ekranlar ve entegrasyonlar aynı execution/evidence/trust servislerini kullanır.
-Ürün adı geçişi henüz koda uygulanmadı; mevcut kurulum için [README](../README.md).
+Ürün adı ve CLI koda uygulandı; kurulum için [README](../README.md).
 
 ## 2. Ana problemler
 

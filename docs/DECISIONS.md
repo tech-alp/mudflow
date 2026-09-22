@@ -1,13 +1,13 @@
 # Runmark Decisions
 
-ADR-001–015, Mudflow adıyla alınan karar geçmişidir; eski komut ve veri
+ADR-001–015, Runmark adıyla alınan karar geçmişidir; eski komut ve veri
 yolları tarihsel bağlamıyla korunur. 22 Eylül 2026 tarihli ADR-016–019 hedef
 mimariyi tanımlar. Kabul edilmiş hedef, kodun taşındığı anlamına gelmez.
 
 ## ADR-001 — Planning framework değil
 Accepted.
 
-Mudflow Superpowers, planning-with-files vb. araçları entegre eder.
+Runmark Superpowers, planning-with-files vb. araçları entegre eder.
 
 ## ADR-002 — Evidence > agent claim
 Accepted.
@@ -55,12 +55,12 @@ git fetch
 ## ADR-008 — MudIssue bir provider’dır
 Accepted.
 
-Mudflow Mud’a bağımlı olmamalı.
+Runmark Mud’a bağımlı olmamalı.
 
 ## ADR-009 — Agent runtime external kalır
 Accepted.
 
-Claude/Codex auth Mudflow’a taşınmaz.
+Claude/Codex auth Runmark’a taşınmaz.
 
 ## ADR-010 — Handoff durable source referanslamalı
 Accepted.
@@ -85,10 +85,10 @@ Her warning somut evidence göstermeli.
 ## ADR-013 — Workspace core'da kalır, mevcut worktree sahiplenilir
 Accepted.
 
-Mudflow workspace yaratabilir; MudIssue, IDE veya elle oluşturulmuş geçerli
+Runmark workspace yaratabilir; MudIssue, IDE veya elle oluşturulmuş geçerli
 worktree'yi de kullanabilir. Workspace'i kimin yarattığı dış mekanizmadır.
 
-Mudflow her durumda kendi ölçümünü kaydeder:
+Runmark her durumda kendi ölçümünü kaydeder:
 
 ```text
 fetch remote base
@@ -120,9 +120,9 @@ execution zaten var
 task, task_id_pattern'e uymuyor
 ```
 
-Worktree kirliliği artık bloklamaz. Mudflow, working tree veya stash'e
+Worktree kirliliği artık bloklamaz. Runmark, working tree veya stash'e
 dokunmadan geçici index ile snapshot commit'i üretir ve bunu
-`refs/mudflow/preserved/<exec-id>` altında saklar. Bu yakalama başarısızsa
+`refs/runmark/preserved/<exec-id>` altında saklar. Bu yakalama başarısızsa
 `start`/`finish` başarısız olur; aksi halde kanıtsız iş üretirdi.
 
 İlke: **ölçümü bozan şey bloklar, hijyen tercihi uyarır.**
@@ -136,7 +136,7 @@ Kurulu sanılan ama hiç çalışmayan bir SessionStart hook'u, temiz bir projed
 ayırt edilemez: ikisinde de `status` sessizdir. Bu, projenin avladığı sessiz
 körlük sınıfının aynısıdır.
 
-`resume --hook` çağrıldığında `.mudflow/hook-observed.json` yazılır. Üç sonuç:
+`resume --hook` çağrıldığında `.runmark/hook-observed.json` yazılır. Üç sonuç:
 
 ```text
 hooks_expected yok        → kural değerlendirilmez
@@ -158,7 +158,7 @@ Yalnız "hiç görüldü mü" ölçülür. "En son ne zaman" tutulur ama henüz 
 
 ## ADR-016 — Runmark adı, rmk CLI ve sorumluluk bazlı dizinler
 
-Accepted — hedef; kod geçişi bekliyor. Tarih: 2026-09-22.
+Accepted. Adlandırma 2026-09-22'de uygulandı; dizin geçişi bekliyor.
 
 Ürün adı Runmark, CLI executable adı `rmk` olur. Workspace verisi `.runmark/`
 altında tutulur. Uygulamalar `apps/cli` ve `apps/desktop`; kütüphaneler
@@ -167,10 +167,15 @@ altında tutulur. Uygulamalar `apps/cli` ve `apps/desktop`; kütüphaneler
 `Runmark.Shell`, `com.runmark.findings` gibi teknik namespace'lerde kullanılır.
 
 Gerekçe: kısa terminal komutu ve ürün adına bağlı olmayan okunabilir dosya düzeni.
-Bedeli: CLI/hook/marketplace yolları ile veri ve preserved Git ref referansları
-birlikte ele alınmalıdır. Mevcut `mudflow` kurulumu ve `.mudflow/` kayıtları
-doküman güncellemesiyle değişmez. Eski veriyi koruyan migration ve eski/yeni
-dizin çakışma politikası implementation öncesinde netleştirilir.
+
+Bedeli birlikte taşınması gereken sözleşmelerdi ve hepsi aynı anda taşındı:
+binary adı, `--version` çıktısının ilk kelimesi, agent plugin'inin
+`minimum_rmk_version` anahtarı, hook'un çağırdığı komut, marketplace adları,
+veri dizini ve preserved Git ref namespace'i. Biri atlanırsa hook sessizce
+hiçbir bağlam enjekte etmez.
+
+PoC sürecinde geriye uyumluluk aranmadı: eski ad, eski dizin ve eski ref'ler
+korunmaz, migration kodu yazılmaz. Kurulu eski binary ve pluginler söküldü.
 
 ## ADR-017 — Desktop tasarım sistemi Merce
 
@@ -213,7 +218,8 @@ header/source dosyalarında kalır. BMI public plugin ABI'si değildir.
 
 Gerekçe: açık export yüzeyi ve döngüsüz bağımlılıklar. Bedeli: compiler/BMI,
 dependency scanning ve MOC entegrasyonu; build hızlanması garanti değildir.
-C++23, CMake 4.4+, Ninja ve LLVM Clang/MSVC kombinasyonu adaydır; macOS,
-Linux ve Windows clean/incremental build doğrulaması sonrası baseline seçilir.
+CMake tabanı 4.4'e çekildi — `FILE_SET CXX_MODULES` 3.28'de geldi, Merce 3.30+
+ister. C++23, Ninja ve LLVM Clang/MSVC kombinasyonu adaydır; macOS, Linux ve
+Windows clean/incremental build doğrulaması sonrası seçilir.
 Mevcut C++20 build değiştirilmedi. `import std`, header units, Conan ve özel
 MOC helper'ı bu kararla otomatik eklenmez.

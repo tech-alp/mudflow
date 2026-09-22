@@ -1,9 +1,9 @@
-#include "mudflow/rules.h"
+#include "runmark/rules.h"
 
 #include <QHash>
 #include <QSet>
 
-namespace mudflow {
+namespace runmark {
 namespace {
 
 const ExecutionFacts* executionFor(const StatusFacts& facts, const QString& executionId)
@@ -258,12 +258,12 @@ QJsonArray evaluate(const ProjectConfig& config, const StatusFacts& facts)
         findings.append(finding(QStringLiteral("context.hooks_not_observed"), QStringLiteral("warning"), QStringLiteral("context"),
             QStringLiteral("No agent hook has been observed"),
             facts.hookError.isEmpty()
-                ? QStringLiteral("project.hooks_expected is true but no session start hook has run mudflow yet")
+                ? QStringLiteral("project.hooks_expected is true but no session start hook has run rmk yet")
                 : QStringLiteral("Hook observation cannot be read: ") + facts.hookError,
-            QStringLiteral("Install the mudflow-agent plugin, then open a new agent session.")));
+            QStringLiteral("Install the runmark-agent plugin, then open a new agent session.")));
     }
 
     return findings;
 }
 
-} // namespace mudflow
+} // namespace runmark

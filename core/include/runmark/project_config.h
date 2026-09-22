@@ -5,7 +5,7 @@
 #include <QStringList>
 #include <QVector>
 
-namespace mudflow {
+namespace runmark {
 
 struct RepositoryConfig {
     QString name;
@@ -28,4 +28,4 @@ struct ProjectConfig {
     QJsonObject toJson() const;
 };
 
-} // namespace mudflow
+} // namespace runmark

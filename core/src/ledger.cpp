@@ -10,7 +10,7 @@
 #include <QJsonDocument>
 #include <QJsonParseError>
 
-namespace mudflow {
+namespace runmark {
 
 QString nowUtc()
 {
@@ -119,4 +119,4 @@ QString writeEvidence(const Paths& paths, const QJsonObject& value)
     return QStringLiteral("evidence/") + name;
 }
 
-} // namespace mudflow
+} // namespace runmark

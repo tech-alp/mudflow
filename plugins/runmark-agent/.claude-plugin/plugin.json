@@ -1,0 +1,6 @@
+{
+  "name": "runmark-agent",
+  "version": "0.3.0",
+  "description": "Runmark SessionStart pilot with CLI-only context and evidence guidance.",
+  "author": { "name": "Runmark" }
+}

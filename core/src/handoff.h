@@ -7,7 +7,7 @@
 #include <QStringList>
 #include <QVector>
 
-namespace mudflow {
+namespace runmark {
 
 // Handoff'un ölçülen kısmı. Agent iddiası buraya girmez — o, ledger'daki
 // agent_summary olaylarından ayrı başlıkta yazılır (ADR-002 / ADR-013).
@@ -32,4 +32,4 @@ void writeHandoff(const Paths& paths, const HandoffInput& input, const QVector<Q
 void readHandoff(const Paths& paths, ResumeFacts& facts);
 QJsonObject resumePackage(const ResumeFacts& facts, const QJsonArray& gaps);
 
-} // namespace mudflow
+} // namespace runmark

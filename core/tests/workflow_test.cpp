@@ -1,4 +1,4 @@
-#include "mudflow/workflow.h"
+#include "runmark/workflow.h"
 
 #include <QFile>
 #include <QJsonArray>
@@ -55,56 +55,56 @@ int main()
     const QString root = project.path();
     const QString repository = root + QStringLiteral("/repo");
     const QString remote = root + QStringLiteral("/remote.git");
-    const QString config = root + QStringLiteral("/.mudflow/project.json");
+    const QString config = root + QStringLiteral("/.runmark/project.json");
 
     if (!git({QStringLiteral("init"), QStringLiteral("--bare"), remote})
             || !git({QStringLiteral("init"), QStringLiteral("-b"), QStringLiteral("main"), repository})
             || !git({QStringLiteral("-C"), repository, QStringLiteral("config"), QStringLiteral("user.email"), QStringLiteral("test@example.invalid")})
-            || !git({QStringLiteral("-C"), repository, QStringLiteral("config"), QStringLiteral("user.name"), QStringLiteral("Mudflow Test")})
+            || !git({QStringLiteral("-C"), repository, QStringLiteral("config"), QStringLiteral("user.name"), QStringLiteral("Runmark Test")})
             || !writeFile(repository + QStringLiteral("/obsolete.txt"), "old\n")
             || !git({QStringLiteral("-C"), repository, QStringLiteral("add"), QStringLiteral("obsolete.txt")})
             || !git({QStringLiteral("-C"), repository, QStringLiteral("commit"), QStringLiteral("-m"), QStringLiteral("initial")})
             || !git({QStringLiteral("-C"), repository, QStringLiteral("remote"), QStringLiteral("add"), QStringLiteral("origin"), remote})
             || !git({QStringLiteral("-C"), repository, QStringLiteral("push"), QStringLiteral("-u"), QStringLiteral("origin"), QStringLiteral("main")})) return 1;
 
-    if (!QDir().mkpath(root + QStringLiteral("/.mudflow"))
+    if (!QDir().mkpath(root + QStringLiteral("/.runmark"))
             || !writeFile(root + QStringLiteral("/plan.md"), "- [x] MF-1\n")
             || !writeFile(config, R"({"version":1,"name":"test","worktree_root":"worktrees","repos":[{"name":"repo","path":"repo","base":{"remote":"origin","branch":"main"}}],"plan":{"path":"plan.md"},"task_id_pattern":"MF-\\d+"})")) return 1;
 
     try {
         // ADR-014: kirli ana repo baslatmayi engellemez, uyarir ve ledger'a yazar.
         if (!writeFile(repository + QStringLiteral("/scratch.txt"), "dirty\n")) return 1;
-        const QJsonObject started = mudflow::startExecution(config, QStringLiteral("MF-1"), QStringLiteral("codex"), {});
+        const QJsonObject started = runmark::startExecution(config, QStringLiteral("MF-1"), QStringLiteral("codex"), {});
         if (!hasFinding(started.value(QStringLiteral("warnings")).toArray(), QStringLiteral("git.dirty_workspace"))) return 1;
         if (!QFile::remove(repository + QStringLiteral("/scratch.txt"))) return 1;
         const QString executionId = started.value(QStringLiteral("exec")).toString();
         const QString worktree = started.value(QStringLiteral("worktree")).toString();
         if (executionId.isEmpty() || !git({QStringLiteral("-C"), worktree, QStringLiteral("config"), QStringLiteral("user.email"), QStringLiteral("test@example.invalid")})
-                || !git({QStringLiteral("-C"), worktree, QStringLiteral("config"), QStringLiteral("user.name"), QStringLiteral("Mudflow Test")})
+                || !git({QStringLiteral("-C"), worktree, QStringLiteral("config"), QStringLiteral("user.name"), QStringLiteral("Runmark Test")})
                 || !QFile::remove(worktree + QStringLiteral("/obsolete.txt"))
                 || !git({QStringLiteral("-C"), worktree, QStringLiteral("add"), QStringLiteral("-u")})
                 || !git({QStringLiteral("-C"), worktree, QStringLiteral("commit"), QStringLiteral("-m"), QStringLiteral("remove obsolete")})) return 1;
 
-        mudflow::recordEvidence(config, executionId, QStringLiteral("test"), QStringLiteral("1 passed"), {});
-        mudflow::recordEvidence(config, executionId, QStringLiteral("agent_summary"), QStringLiteral("Removed obsolete file"), {});
-        mudflow::recordNote(config, executionId, QStringLiteral("unresolved"), QStringLiteral("Needs follow-up"), {});
-        const QString handoff = root + QStringLiteral("/.mudflow/handoffs/") + executionId + QStringLiteral(".md");
+        runmark::recordEvidence(config, executionId, QStringLiteral("test"), QStringLiteral("1 passed"), {});
+        runmark::recordEvidence(config, executionId, QStringLiteral("agent_summary"), QStringLiteral("Removed obsolete file"), {});
+        runmark::recordNote(config, executionId, QStringLiteral("unresolved"), QStringLiteral("Needs follow-up"), {});
+        const QString handoff = root + QStringLiteral("/.runmark/handoffs/") + executionId + QStringLiteral(".md");
         if (!QDir().mkpath(handoff)) return 1;
         try {
-            mudflow::finishExecution(config, executionId, QStringLiteral("finished"));
+            runmark::finishExecution(config, executionId, QStringLiteral("finished"));
             return 1;
         } catch (const std::exception&) {
         }
         if (!QDir(handoff).removeRecursively()) return 1;
-        const QJsonObject finished = mudflow::finishExecution(config, executionId, QStringLiteral("finished"));
+        const QJsonObject finished = runmark::finishExecution(config, executionId, QStringLiteral("finished"));
         QFile handoffFile(handoff);
         if (!handoffFile.open(QIODevice::ReadOnly)) return 1;
         const QString handoffText = QString::fromUtf8(handoffFile.readAll());
 
-        const QJsonObject active = mudflow::startExecution(config, QStringLiteral("MF-2"), QStringLiteral("codex"), {});
+        const QJsonObject active = runmark::startExecution(config, QStringLiteral("MF-2"), QStringLiteral("codex"), {});
         const QString activeExecutionId = active.value(QStringLiteral("exec")).toString();
-        const QString activeLedger = root + QStringLiteral("/.mudflow/ledger/") + activeExecutionId + QStringLiteral(".jsonl");
-        const QJsonArray activeFindings = mudflow::projectStatus(config).value(QStringLiteral("findings")).toArray();
+        const QString activeLedger = root + QStringLiteral("/.runmark/ledger/") + activeExecutionId + QStringLiteral(".jsonl");
+        const QJsonArray activeFindings = runmark::projectStatus(config).value(QStringLiteral("findings")).toArray();
         if (!hasFinding(activeFindings, QStringLiteral("context.active_execution"))) return 1;
         QFile activeLedgerFile(activeLedger);
         if (!activeLedgerFile.open(QIODevice::ReadOnly)) return 1;
@@ -115,11 +115,11 @@ int main()
         const int timestampValue = timestampStart + 6;
         activeLedgerContents.replace(timestampValue, 20, "2000-01-01T00:00:00Z");
         if (!writeFile(activeLedger, activeLedgerContents)) return 1;
-        const QJsonArray orphanFindings = mudflow::projectStatus(config).value(QStringLiteral("findings")).toArray();
+        const QJsonArray orphanFindings = runmark::projectStatus(config).value(QStringLiteral("findings")).toArray();
         if (!hasFinding(orphanFindings, QStringLiteral("context.orphaned_execution"))) return 1;
         activeLedgerContents.replace("2000-01-01T00:00:00Z", "BOZUK-TARIH");
         if (!writeFile(activeLedger, activeLedgerContents)) return 1;
-        const QJsonArray invalidTimestampFindings = mudflow::projectStatus(config).value(QStringLiteral("findings")).toArray();
+        const QJsonArray invalidTimestampFindings = runmark::projectStatus(config).value(QStringLiteral("findings")).toArray();
         if (!hasFinding(invalidTimestampFindings, QStringLiteral("context.invalid_ledger_timestamp"))) return 1;
 
         const QString externalWorktree = root + QStringLiteral("/worktrees/MF-3");
@@ -127,7 +127,7 @@ int main()
                 || !git({QStringLiteral("-C"), repository, QStringLiteral("commit"), QStringLiteral("--allow-empty"), QStringLiteral("-m"), QStringLiteral("advance after external worktree")})
                 || !git({QStringLiteral("-C"), repository, QStringLiteral("push")})) return 1;
         const QString externalHead = gitOutput({QStringLiteral("-C"), externalWorktree, QStringLiteral("rev-parse"), QStringLiteral("HEAD")});
-        const QJsonObject adopted = mudflow::startExecution(config, QStringLiteral("MF-3"), QStringLiteral("claude"), {});
+        const QJsonObject adopted = runmark::startExecution(config, QStringLiteral("MF-3"), QStringLiteral("claude"), {});
         if (externalHead.isEmpty()
                 || adopted.value(QStringLiteral("worktree")).toString() != externalWorktree
                 || adopted.value(QStringLiteral("branch")).toString() != QLatin1String("external/MF-3")
@@ -138,14 +138,14 @@ int main()
         if (!writeFile(root + QStringLiteral("/plan.md"), "- [x] MF-1\nupdated\n")
                 || !git({QStringLiteral("-C"), repository, QStringLiteral("commit"), QStringLiteral("--allow-empty"), QStringLiteral("-m"), QStringLiteral("advance base")})
                 || !git({QStringLiteral("-C"), repository, QStringLiteral("push")})) return 1;
-        const QJsonObject status = mudflow::projectStatus(config);
+        const QJsonObject status = runmark::projectStatus(config);
         const QJsonArray findings = status.value(QStringLiteral("findings")).toArray();
         const QJsonArray repositories = status.value(QStringLiteral("repositories")).toArray();
         if (repositories.isEmpty()) return 1;
         const QJsonObject repositoryStatus = repositories.at(0).toObject();
         if (finished.value(QStringLiteral("outcome")).toString() != QLatin1String("finished")
                 || repositoryStatus.value(QStringLiteral("ahead_of_base")).toInt() != 1
-                || !handoffText.contains(QStringLiteral("## Doğrulanmış (Mudflow üretti)"))
+                || !handoffText.contains(QStringLiteral("## Doğrulanmış (Runmark üretti)"))
                 || !handoffText.contains(QStringLiteral("## Agent notu (zayıf evidence — doğrulanmadı)"))
                 || !handoffText.contains(QStringLiteral("Removed obsolete file"))
                 || !handoffText.contains(QStringLiteral("## Açık kalanlar"))
@@ -157,7 +157,7 @@ int main()
 
         if (!writeFile(worktree + QStringLiteral("/untracked.txt"), "dirty\n")
                 || !git({QStringLiteral("-C"), worktree, QStringLiteral("remote"), QStringLiteral("set-url"), QStringLiteral("origin"), root + QStringLiteral("/missing.git")})) return 1;
-        const QJsonArray offlineFindings = mudflow::projectStatus(config).value(QStringLiteral("findings")).toArray();
+        const QJsonArray offlineFindings = runmark::projectStatus(config).value(QStringLiteral("findings")).toArray();
         if (repositoryStatus.value(QStringLiteral("dirty")).toBool()
                 || !hasFinding(offlineFindings, QStringLiteral("git.fetch_failed"))
                 || !hasFinding(offlineFindings, QStringLiteral("git.dirty_workspace"))) return 1;

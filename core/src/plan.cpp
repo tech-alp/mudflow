@@ -5,7 +5,7 @@
 #include <QFile>
 #include <QRegularExpression>
 
-namespace mudflow {
+namespace runmark {
 
 PlanFacts observePlan(const ProjectConfig& config, const QString& root)
 {
@@ -55,4 +55,4 @@ QString planReference(const ProjectConfig& config, const QString& root, const QS
     return {};
 }
 
-} // namespace mudflow
+} // namespace runmark

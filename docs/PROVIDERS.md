@@ -99,4 +99,4 @@ Evidence:
 
 Runtime adaptörleri `plugins/integrations/`; dış agent uygulamalarına kurulan
 skill/hook paketleri `integrations/agent-clients/runmark/` altında hedeflenir.
-Mevcut `plugins/mudflow-agent/` henüz taşınmadı.
+Mevcut `plugins/runmark-agent/` henüz taşınmadı.

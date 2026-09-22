@@ -2,7 +2,7 @@
 // Git repo gerektirmez: repo yolu cozulemeyince status repo raporuna hata yazip
 // plan bolumunu yine calistirir.
 
-#include "mudflow/workflow.h"
+#include "runmark/workflow.h"
 
 #include <QDir>
 #include <QFile>
@@ -32,7 +32,7 @@ bool hasFinding(const QJsonArray& findings, const QString& id)
 
 QJsonArray findingsFor(const QString& config)
 {
-    return mudflow::projectStatus(config).value(QStringLiteral("findings")).toArray();
+    return runmark::projectStatus(config).value(QStringLiteral("findings")).toArray();
 }
 
 } // namespace
@@ -42,10 +42,10 @@ int main()
     QTemporaryDir project;
     if (!project.isValid()) return 1;
     const QString root = project.path();
-    const QString config = root + QStringLiteral("/.mudflow/project.json");
+    const QString config = root + QStringLiteral("/.runmark/project.json");
     const QString plan = root + QStringLiteral("/plan.md");
 
-    if (!QDir().mkpath(root + QStringLiteral("/.mudflow"))
+    if (!QDir().mkpath(root + QStringLiteral("/.runmark"))
             || !writeFile(config, R"({"version":1,"name":"t","worktree_root":"w","repos":[{"name":"r","path":"missing-repo","base":{"remote":"origin","branch":"main"}}],"plan":{"path":"plan.md"},"task_id_pattern":"MF-\\d+"})")) return 1;
 
     try {

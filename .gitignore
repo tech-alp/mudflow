@@ -1,6 +1,6 @@
 /build/
 /worktrees/
-/.mudflow/ledger/
-/.mudflow/evidence/
-/.mudflow/handoffs/
+/.runmark/ledger/
+/.runmark/evidence/
+/.runmark/handoffs/
 /CMakeUserPresets.json

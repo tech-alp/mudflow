@@ -6,7 +6,7 @@
 #include <QString>
 #include <QVector>
 
-namespace mudflow {
+namespace runmark {
 
 QString nowUtc();
 
@@ -20,4 +20,4 @@ ResumeFacts observeResumeLedger(const Paths& paths, const QString& taskOrExecuti
 // İçerik adresli: aynı payload aynı dosyaya düşer.
 QString writeEvidence(const Paths& paths, const QJsonObject& value);
 
-} // namespace mudflow
+} // namespace runmark

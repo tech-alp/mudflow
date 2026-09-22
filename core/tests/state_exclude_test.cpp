@@ -1,4 +1,4 @@
-#include "mudflow/workflow.h"
+#include "runmark/workflow.h"
 
 #include <QFile>
 #include <QProcess>
@@ -44,13 +44,13 @@ int main()
     if (!directory.isValid()) return 1;
     const QString repository = directory.path() + QStringLiteral("/repo");
     const QString remote = directory.path() + QStringLiteral("/remote.git");
-    const QString config = repository + QStringLiteral("/.mudflow/project.json");
+    const QString config = repository + QStringLiteral("/.runmark/project.json");
 
     if (!git({QStringLiteral("init"), QStringLiteral("--bare"), remote})
             || !git({QStringLiteral("init"), QStringLiteral("-b"), QStringLiteral("main"), repository})
             || !git({QStringLiteral("-C"), repository, QStringLiteral("config"), QStringLiteral("user.email"), QStringLiteral("test@example.invalid")})
-            || !git({QStringLiteral("-C"), repository, QStringLiteral("config"), QStringLiteral("user.name"), QStringLiteral("Mudflow Test")})
-            || !QDir().mkpath(repository + QStringLiteral("/.mudflow"))
+            || !git({QStringLiteral("-C"), repository, QStringLiteral("config"), QStringLiteral("user.name"), QStringLiteral("Runmark Test")})
+            || !QDir().mkpath(repository + QStringLiteral("/.runmark"))
             || !writeFile(repository + QStringLiteral("/plan.md"), "- [ ] MF-1\n")
             || !writeFile(config, R"({"version":1,"name":"test","worktree_root":"worktrees","repos":[{"name":"repo","path":".","base":{"remote":"origin","branch":"main"}}],"plan":{"path":"plan.md"},"task_id_pattern":"MF-\\d+"})")
             || !git({QStringLiteral("-C"), repository, QStringLiteral("add"), QStringLiteral(".")})
@@ -59,14 +59,14 @@ int main()
             || !git({QStringLiteral("-C"), repository, QStringLiteral("push"), QStringLiteral("-u"), QStringLiteral("origin"), QStringLiteral("main")})) return 1;
 
     try {
-        mudflow::projectStatus(config);
-        if (!writeFile(repository + QStringLiteral("/.mudflow/ledger/probe.jsonl"), "{}\n")
+        runmark::projectStatus(config);
+        if (!writeFile(repository + QStringLiteral("/.runmark/ledger/probe.jsonl"), "{}\n")
                 || !gitOutput({QStringLiteral("-C"), repository, QStringLiteral("status"), QStringLiteral("--porcelain")}).isEmpty()) return 1;
 
-        mudflow::projectStatus(config);
+        runmark::projectStatus(config);
         const QString commonDirValue = gitOutput({QStringLiteral("-C"), repository, QStringLiteral("rev-parse"), QStringLiteral("--git-common-dir")});
         const QString commonDir = QDir::isAbsolutePath(commonDirValue) ? commonDirValue : QDir(repository).filePath(commonDirValue);
-        for (const QString& pattern : {QStringLiteral("/.mudflow/ledger/"), QStringLiteral("/.mudflow/evidence/"), QStringLiteral("/.mudflow/handoffs/"), QStringLiteral("/.mudflow/hook-observed.json")}) {
+        for (const QString& pattern : {QStringLiteral("/.runmark/ledger/"), QStringLiteral("/.runmark/evidence/"), QStringLiteral("/.runmark/handoffs/"), QStringLiteral("/.runmark/hook-observed.json")}) {
             const int occurrences = lineCount(commonDir + QStringLiteral("/info/exclude"), pattern);
             if (occurrences != 1) return 1;
         }

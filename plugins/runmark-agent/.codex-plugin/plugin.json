@@ -1,0 +1,23 @@
+{
+  "name": "runmark-agent",
+  "version": "0.3.0",
+  "description": "Runmark SessionStart pilot with CLI-only context and evidence guidance.",
+  "author": {
+    "name": "Runmark"
+  },
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "Runmark Agent",
+    "shortDescription": "SessionStart pilot and evidence guidance.",
+    "longDescription": "Injects the previous execution's verified context at session start and guides evidence recording. Context comes only from the rmk CLI; the hook reads no state files.",
+    "developerName": "Runmark",
+    "category": "Productivity",
+    "capabilities": [
+      "Instructions",
+      "Lifecycle hooks"
+    ],
+    "defaultPrompt": [
+      "Resume a known Runmark task and review its evidence."
+    ]
+  }
+}

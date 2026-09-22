@@ -1,8 +1,8 @@
 # Runmark Data Model (mevcut v0.1 sözleşmesi)
 
 Ürün Runmark olarak adlandırıldı; bu doküman henüz kodda kullanılan
-`mudflow`, `.mudflow/` ve `refs/mudflow/preserved/*` sözleşmelerini tanımlar.
-Örnek çıktılardaki Mudflow adı mevcut üreticiye aittir. Hedef CLI `rmk`,
+`rmk`, `.runmark/` ve `refs/runmark/preserved/*` sözleşmelerini tanımlar.
+Örnek çıktılardaki Runmark adı mevcut üreticiye aittir. Hedef CLI `rmk`,
 veri dizini `.runmark/` olacaktır; otomatik migration henüz yoktur.
 Eski/yeni dizin birlikte bulunduğunda seçim ve rollback davranışı ayrıca
 tanımlanacaktır. Adlandırma değişikliği kayıt şemasını kendiliğinden değiştirmez.
@@ -19,7 +19,7 @@ Genişleme noktaları en altta işaretli.
 ## 1. Disk düzeni
 
 ```text
-.mudflow/
+.runmark/
 ├ project.json                                  el ile yazılır
 ├ ledger/20260918T142231Z-SCMS-042.jsonl        execution başına 1 dosya
 ├ handoffs/20260918T142231Z-SCMS-042.md         execution başına 1 dosya
@@ -41,10 +41,10 @@ ledger'da yeri yoktur. Ledger append-only bir **olay** kaydıdır, bu dosya ise
 üzerine yazılan tek bir **gözlem**dir. Son değerden fazlası tutulmaz: soru
 "hook en son ne zaman çalıştı" değil, "hiç çalıştı mı".
 
-Project anchor bir Git worktree içindeyse Mudflow yalnız ürettiği `ledger/`,
+Project anchor bir Git worktree içindeyse Runmark yalnız ürettiği `ledger/`,
 `evidence/`, `handoffs/` ve `hook-observed.json` yollarını ortak Git dizinindeki `info/exclude`a
-idempotent ekler. `.mudflow/project.json` dışlanmaz; proje config'i takip
-edilir. Paylaşılan `.gitignore` Mudflow tarafından değiştirilmez.
+idempotent ekler. `.runmark/project.json` dışlanmaz; proje config'i takip
+edilir. Paylaşılan `.gitignore` Runmark tarafından değiştirilmez.
 
 **Execution ID formatı:**
 
@@ -113,7 +113,7 @@ Ortak alanlar: `ts` (UTC ISO8601), `type`, `exec`.
 
 ### 3.1 execution.started
 
-`mudflow start <task>` preflight'ı geçtikten sonra yazar.
+`rmk start <task>` preflight'ı geçtikten sonra yazar.
 
 ```json
 {
@@ -147,11 +147,11 @@ Ortak alanlar: `ts` (UTC ISO8601), `type`, `exec`.
 Bloklamaz, kaydedilir ve `start` çıktısının `warnings` dizisinde döner.
 
 `preserved_ref`: worktree'de commit edilmemiş iş varsa
-`refs/mudflow/preserved/<exec>`; yoksa `null`. Ref, geçici index ile üretilen
+`refs/runmark/preserved/<exec>`; yoksa `null`. Ref, geçici index ile üretilen
 snapshot commit'ini gösterir; working tree ve stash değiştirilmez.
 
 `workspace_source`: `created` | `adopted`. `created` için `base_sha`, fetch
-sonrası remote base'dir. `adopted` için Mudflow'un ölçtüğü
+sonrası remote base'dir. `adopted` için Runmark'un ölçtüğü
 `merge-base(HEAD, base)` değeridir; dış aracın "hangi SHA'dan açtım" iddiası
 ledger'a yazılmaz.
 
@@ -168,7 +168,7 @@ eleman atılmaz: `sha1: null` kaydedilir ve start sonucunun `warnings` dizisine
 
 ### 3.2 execution.finished
 
-`mudflow finish` yazar.
+`rmk finish` yazar.
 
 ```json
 {
@@ -254,11 +254,11 @@ Karar ve açık maddeler.
   geçici ağ/ortam hatası kalıcı execution gerçeği gibi görünür.
 - **Finding'ler türetilir, saklanmaz.** Her `status`, ledger + Git + plan'dan
   yeniden hesaplar; aksi halde bayat finding gerçek durumla çelişir.
-- **`base_sha` Mudflow'un kendi ölçümüdür.** Provider'ın söylediği SHA olduğu
+- **`base_sha` Runmark'un kendi ölçümüdür.** Provider'ın söylediği SHA olduğu
   gibi kaydedilmez; aksi halde ADR-002'nin evidence > claim sınırı bozulur.
 - **Evidence gücü `kind`'dan türetilir.** Ayrı bir güç alanı saklanmaz; aksi
   halde aynı evidence için iki çelişen otorite oluşur.
-- **Handoff ölçülen gerçekleri agent iddialarından ayrı tutar.** Mudflow'un
+- **Handoff ölçülen gerçekleri agent iddialarından ayrı tutar.** Runmark'un
   ürettiği bölüm ile `agent_summary` aynı başlıkta birleşmez; aksi halde iddia
   doğrulanmış veri gibi okunur.
 - **Ledger'daki `base` opak bir gösterim alanıdır, ayrıştırılmaz.** Git ref'i
@@ -339,10 +339,10 @@ ilk blocking kural geldiğinde şema değişmesin.
 
 ## 6. Handoff
 
-`mudflow finish` üretir. Okuyucusu bir sonraki **agent**, o yüzden format
+`rmk finish` üretir. Okuyucusu bir sonraki **agent**, o yüzden format
 markdown; makine alanları frontmatter'da.
 
-`.mudflow/handoffs/20260918T142231Z-SCMS-042.md`
+`.runmark/handoffs/20260918T142231Z-SCMS-042.md`
 
 ```markdown
 ---
@@ -357,7 +357,7 @@ base: origin/development@a1b2c3d4
 range: a1b2c3d4..f9e8d7c6
 ---
 
-## Doğrulanmış (Mudflow üretti)
+## Doğrulanmış (Runmark üretti)
 
 Commits:
 - b2c3d4e  config: introduce ConfigV2 reader
@@ -370,7 +370,7 @@ Değişen dosyalar: 12 (+340 / -58)
 
 Test: ctest 148 passed, 0 failed  (15:40)
 
-Preserved uncommitted snapshot: refs/mudflow/preserved/20260918T142231Z-SCMS-042
+Preserved uncommitted snapshot: refs/runmark/preserved/20260918T142231Z-SCMS-042
 
 ## Agent notu (zayıf evidence — doğrulanmadı)
 
@@ -383,7 +383,7 @@ Eski format okuma yolu loader.cpp'de duruyor, henüz silinmedi.
 ```
 
 Üç başlık tesadüf değil, ADR-002'yi formatın içine gömer:
-Mudflow'un git'ten ölçtüğü ile agent'ın iddia ettiği aynı bölümde durmaz.
+Runmark'un git'ten ölçtüğü ile agent'ın iddia ettiği aynı bölümde durmaz.
 
 ---
 
@@ -391,7 +391,7 @@ Mudflow'un git'ten ölçtüğü ile agent'ın iddia ettiği aynı bölümde durm
 
 **Melez.**
 
-- Mudflow mekanik bölümü üretir: SHA aralığı, commit'ler, değişen dosyalar,
+- Runmark mekanik bölümü üretir: SHA aralığı, commit'ler, değişen dosyalar,
   kaydedilmiş test sonuçları. Ölçüm, iddia değil.
 - Agent'ın özeti ayrı başlıkta, `agent_summary` kind'ıyla ve
   "doğrulanmadı" etiketiyle durur.
@@ -404,7 +404,7 @@ birlikte sağlanır ve handoff hiçbir zaman saf agent çıktısı olmaz.
 
 ## 8. Resume paketi
 
-`mudflow resume [<task|exec>]` stdout'a JSON; `--markdown` aynı alanları
+`rmk resume [<task|exec>]` stdout'a JSON; `--markdown` aynı alanları
 handoff.md ile aynı dilde liste ve başlıklarla sunar. Kayıtlı exec ID'ye tam
 eşleşme önceliklidir; aksi halde task'ın en büyük execution ID'si seçilir
 (ID içindeki UTC zamanına göre leksikografik sıralama). Execution yoksa exit 0
@@ -462,7 +462,7 @@ yan ürün. Başarısızlık "görülmedi" tarafına düşer, güvenli yön budu
   "instructions": [{"name": "AGENTS.md", "path": "/projects/scms/AGENTS.md", "sha1": "<SHA1>"}],
   "preserved_ref": null,
   "handoff": {
-    "path": "/projects/scms/.mudflow/handoffs/20260918T142231Z-SCMS-042.md",
+    "path": "/projects/scms/.runmark/handoffs/20260918T142231Z-SCMS-042.md",
     "sha1": "<okunan byte'ların SHA1'i>",
     "recorded_sha1": "<finish'te kaydedilen SHA1>",
     "verified": true,

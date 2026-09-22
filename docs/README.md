@@ -2,7 +2,7 @@
 
 > **Runmark, AI ile geliştirilen projelerde planın, kodun, Git state’inin ve agent context’inin birbirinden kopmasını engelleyen local-first execution control plane’dir.**
 
-Ürünün önceki adı Mudflow'dur. Hedef CLI `rmk`, workspace veri dizini
+Ürünün önceki adı Runmark'dur. Hedef CLI `rmk`, workspace veri dizini
 `.runmark/` olacaktır. Kod geçişi henüz yapılmadığından çalışan komut ve veri
 örnekleri [README](../README.md) ve [DATA_MODEL.md](DATA_MODEL.md) içinde
 eski adlarla korunur. Hedef mimari, uygulanmış özellik listesi değildir.

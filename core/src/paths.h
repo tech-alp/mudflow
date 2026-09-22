@@ -3,11 +3,11 @@
 #include <QDateTime>
 #include <QString>
 #include <optional>
-#include "mudflow/facts.h"
+#include "runmark/facts.h"
 
-namespace mudflow {
+namespace runmark {
 
-// .mudflow durum dizininin yerleşimi.
+// .runmark durum dizininin yerleşimi.
 struct Paths {
     QString root;
     QString state;
@@ -24,9 +24,9 @@ QString sha1File(const QString& path);
 FileFacts observePath(const QString& path);
 QJsonArray observeInstructions(const QStringList& instructions, const QString& root);
 
-// .mudflow/hook-observed.json: ajan hook'unun son calistigi an. Ledger olayi
+// .runmark/hook-observed.json: ajan hook'unun son calistigi an. Ledger olayi
 // degil; bir execution'a ait degil ve okuma yolunda yazilir.
 QString readHookObservation(const Paths& paths, std::optional<QDateTime>& lastSeen);
 void writeHookObservation(const Paths& paths);
 
-} // namespace mudflow
+} // namespace runmark

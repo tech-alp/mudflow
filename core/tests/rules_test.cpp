@@ -1,7 +1,7 @@
 // evaluate() saf olduğu için bu test git reposu, dosya sistemi veya saat
 // kurmaz. Facts elle inşa edilir, finding'ler doğrudan kontrol edilir.
 
-#include "mudflow/rules.h"
+#include "runmark/rules.h"
 
 #include <QJsonArray>
 #include <QJsonObject>
@@ -16,9 +16,9 @@ bool has(const QJsonArray& findings, const QString& id)
     return false;
 }
 
-mudflow::ProjectConfig config()
+runmark::ProjectConfig config()
 {
-    mudflow::ProjectConfig c;
+    runmark::ProjectConfig c;
     c.name = QStringLiteral("t");
     c.planPath = QStringLiteral("plan.md");
     c.taskIdPattern = QStringLiteral("MF-\\d+");
@@ -43,11 +43,11 @@ int main()
 
     // 1. Git: fetch patlasa bile offline hesaplanabilenler susmaz.
     {
-        mudflow::StatusFacts f;
+        runmark::StatusFacts f;
         f.now = now;
         f.plan.readable = true;
         f.plan.taskCount = 1;
-        mudflow::RepoFacts repo;
+        runmark::RepoFacts repo;
         repo.name = QStringLiteral("r");
         repo.base = QStringLiteral("origin/main");
         repo.fetchError = QStringLiteral("network down");
@@ -55,7 +55,7 @@ int main()
         repo.dirty = true;
         repo.behind = 3;
         f.repos.append(repo);
-        const QJsonArray findings = mudflow::evaluate(config(), f);
+        const QJsonArray findings = runmark::evaluate(config(), f);
         if (!has(findings, QStringLiteral("git.fetch_failed"))
                 || !has(findings, QStringLiteral("git.dirty_workspace"))
                 || !has(findings, QStringLiteral("git.remote_ahead"))) return 1;
@@ -63,81 +63,81 @@ int main()
 
     // 2. Ölçüm yarıda kaldıysa ölçüme dayalı kural üretilmez.
     {
-        mudflow::StatusFacts f;
+        runmark::StatusFacts f;
         f.now = now;
         f.plan.readable = true;
         f.plan.taskCount = 1;
-        mudflow::RepoFacts repo;
+        runmark::RepoFacts repo;
         repo.name = QStringLiteral("r");
         repo.measurementError = QStringLiteral("boom");
         repo.dirty = true;   // ölçülmediği için kullanılmamalı
         f.repos.append(repo);
-        if (has(mudflow::evaluate(config(), f), QStringLiteral("git.dirty_workspace"))) return 1;
+        if (has(runmark::evaluate(config(), f), QStringLiteral("git.dirty_workspace"))) return 1;
     }
 
     // 3. 24 saat sınırı — "şimdi" fact olduğu için ledger tarihi geri alınmadan test edilir.
     {
-        mudflow::StatusFacts f;
+        runmark::StatusFacts f;
         f.now = now;
         f.plan.readable = true;
         f.plan.taskCount = 1;
         f.events.append(startedEvent(QStringLiteral("E1"), QStringLiteral("MF-1"), QStringLiteral("2026-09-20T11:00:00Z")));
         f.executions.append({QStringLiteral("E1"), false, false});
-        const QJsonArray fresh = mudflow::evaluate(config(), f);
+        const QJsonArray fresh = runmark::evaluate(config(), f);
         if (!has(fresh, QStringLiteral("context.active_execution"))
                 || has(fresh, QStringLiteral("context.orphaned_execution"))) return 1;
 
         f.events[0] = startedEvent(QStringLiteral("E1"), QStringLiteral("MF-1"), QStringLiteral("2026-09-19T11:00:00Z"));
-        const QJsonArray stale = mudflow::evaluate(config(), f);
+        const QJsonArray stale = runmark::evaluate(config(), f);
         if (!has(stale, QStringLiteral("context.orphaned_execution"))
                 || has(stale, QStringLiteral("context.active_execution"))) return 1;
 
         f.events[0] = startedEvent(QStringLiteral("E1"), QStringLiteral("MF-1"), QStringLiteral("bozuk"));
-        if (!has(mudflow::evaluate(config(), f), QStringLiteral("context.invalid_ledger_timestamp"))) return 1;
+        if (!has(runmark::evaluate(config(), f), QStringLiteral("context.invalid_ledger_timestamp"))) return 1;
     }
 
     // 4. Plan körlüğü: okunabilir ama task yok → uyarmalı.
     {
-        mudflow::StatusFacts f;
+        runmark::StatusFacts f;
         f.now = now;
         f.plan.readable = true;
         f.plan.checklistCount = 3;
         f.plan.taskCount = 0;
-        if (!has(mudflow::evaluate(config(), f), QStringLiteral("plan.no_parsable_tasks"))) return 1;
+        if (!has(runmark::evaluate(config(), f), QStringLiteral("plan.no_parsable_tasks"))) return 1;
 
         f.plan.readable = false;
-        if (!has(mudflow::evaluate(config(), f), QStringLiteral("plan.unreadable"))) return 1;
+        if (!has(runmark::evaluate(config(), f), QStringLiteral("plan.unreadable"))) return 1;
     }
 
     // 5. done_without_evidence, kanıt varsa susmalı.
     {
-        mudflow::StatusFacts f;
+        runmark::StatusFacts f;
         f.now = now;
         f.plan.readable = true;
         f.plan.taskCount = 1;
         f.plan.doneTasks = {QStringLiteral("MF-1")};
-        if (!has(mudflow::evaluate(config(), f), QStringLiteral("plan.done_without_evidence"))) return 1;
+        if (!has(runmark::evaluate(config(), f), QStringLiteral("plan.done_without_evidence"))) return 1;
 
         f.events.append({{QStringLiteral("type"), QStringLiteral("evidence.recorded")},
                          {QStringLiteral("task"), QStringLiteral("MF-1")},
                          {QStringLiteral("kind"), QStringLiteral("test")}});
-        if (has(mudflow::evaluate(config(), f), QStringLiteral("plan.done_without_evidence"))) return 1;
+        if (has(runmark::evaluate(config(), f), QStringLiteral("plan.done_without_evidence"))) return 1;
 
         // manual_note en zayıf kanıt: tek başına "done"u doğrulamaz.
         f.events[0] = QJsonObject{{QStringLiteral("type"), QStringLiteral("evidence.recorded")},
                                   {QStringLiteral("task"), QStringLiteral("MF-1")},
                                   {QStringLiteral("kind"), QStringLiteral("manual_note")}};
-        if (!has(mudflow::evaluate(config(), f), QStringLiteral("plan.done_without_evidence"))) return 1;
+        if (!has(runmark::evaluate(config(), f), QStringLiteral("plan.done_without_evidence"))) return 1;
     }
 
     // Resume: deterministic facts, no git/filesystem/clock access.
     {
-        mudflow::ResumeFacts f;
+        runmark::ResumeFacts f;
         f.task = QStringLiteral("MF-1");
-        if (!has(mudflow::evaluateResume(f), QStringLiteral("context.no_execution"))) return 1;
+        if (!has(runmark::evaluateResume(f), QStringLiteral("context.no_execution"))) return 1;
         f.ledgerError = QStringLiteral("permission denied");
-        if (!has(mudflow::evaluateResume(f), QStringLiteral("context.ledger_unreadable"))
-                || has(mudflow::evaluateResume(f), QStringLiteral("context.no_execution"))) return 1;
+        if (!has(runmark::evaluateResume(f), QStringLiteral("context.ledger_unreadable"))
+                || has(runmark::evaluateResume(f), QStringLiteral("context.no_execution"))) return 1;
         f.ledgerError.clear();
         f.exec = QStringLiteral("E1");
         f.started = startedEvent(f.exec, f.task, QStringLiteral("2026-09-20T11:00:00Z"));
@@ -149,14 +149,14 @@ int main()
         f.handoff.exists = true;
         f.worktree.exists = true;
         f.baseAdvanced = false;
-        if (!mudflow::evaluateResume(f).isEmpty()) return 1;
+        if (!runmark::evaluateResume(f).isEmpty()) return 1;
 
         f.handoff.exists = false;
         f.handoff.sha1.clear();
         f.worktree.exists = false;
         f.baseAdvanced = true;
         f.planSha1 = QStringLiteral("changed");
-        const QJsonArray missing = mudflow::evaluateResume(f);
+        const QJsonArray missing = runmark::evaluateResume(f);
         for (const QString& id : {QStringLiteral("context.no_handoff"), QStringLiteral("git.worktree_missing"),
                 QStringLiteral("git.base_advanced"), QStringLiteral("plan.changed_during_execution")}) {
             if (!has(missing, id)) return 1;
@@ -174,7 +174,7 @@ int main()
         f.fetchError = QStringLiteral("offline");
         f.measurementError = QStringLiteral("missing git objects");
         f.started.remove(QStringLiteral("instructions"));
-        const QJsonArray unknown = mudflow::evaluateResume(f);
+        const QJsonArray unknown = runmark::evaluateResume(f);
         for (const QString& id : {QStringLiteral("context.handoff_unreadable"), QStringLiteral("git.worktree_unknown"),
                 QStringLiteral("git.base_unknown"), QStringLiteral("git.fetch_failed"), QStringLiteral("plan.comparison_unknown"),
                 QStringLiteral("git.measurement_unavailable"), QStringLiteral("context.instructions_unknown")}) {
@@ -184,31 +184,31 @@ int main()
                 || has(unknown, QStringLiteral("plan.changed_during_execution")) || has(unknown, QStringLiteral("git.base_advanced"))) return 1;
         f.handoff.exists = true;
         f.handoff.sha1 = QStringLiteral("edited");
-        if (!has(mudflow::evaluateResume(f), QStringLiteral("context.handoff_changed"))) return 1;
+        if (!has(runmark::evaluateResume(f), QStringLiteral("context.handoff_changed"))) return 1;
         f.finished.remove(QStringLiteral("handoff_sha1"));
-        if (!has(mudflow::evaluateResume(f), QStringLiteral("context.handoff_unverified"))) return 1;
+        if (!has(runmark::evaluateResume(f), QStringLiteral("context.handoff_unverified"))) return 1;
         f.started.insert(QStringLiteral("instructions"), QJsonArray{QJsonObject{{QStringLiteral("path"), QStringLiteral("missing.md")}, {QStringLiteral("sha1"), QJsonValue::Null}}});
-        if (!has(mudflow::evaluateResume(f), QStringLiteral("context.instruction_unreadable"))) return 1;
+        if (!has(runmark::evaluateResume(f), QStringLiteral("context.instruction_unreadable"))) return 1;
     }
 
     // 6. Hook körlüğü: beklenti yazıldıysa gözlem yokluğu bulgudur; beklenti
     //    yoksa sessiz kalmalı, aksi halde CLI'yi tek başına kullanan proje
     //    kapatamayacağı bir uyarı görür.
     {
-        mudflow::StatusFacts f;
+        runmark::StatusFacts f;
         f.now = now;
         f.plan.readable = true;
         f.plan.taskCount = 1;
-        mudflow::ProjectConfig expects = config();
+        runmark::ProjectConfig expects = config();
         expects.hooksExpected = true;
-        if (has(mudflow::evaluate(config(), f), QStringLiteral("context.hooks_not_observed"))) return 1;
-        if (!has(mudflow::evaluate(expects, f), QStringLiteral("context.hooks_not_observed"))) return 1;
+        if (has(runmark::evaluate(config(), f), QStringLiteral("context.hooks_not_observed"))) return 1;
+        if (!has(runmark::evaluate(expects, f), QStringLiteral("context.hooks_not_observed"))) return 1;
         f.lastHookObserved = now.addSecs(-3600);
-        if (has(mudflow::evaluate(expects, f), QStringLiteral("context.hooks_not_observed"))) return 1;
+        if (has(runmark::evaluate(expects, f), QStringLiteral("context.hooks_not_observed"))) return 1;
         // Bozuk kayıt "görüldü" sayılmamalı; sebep açıklamada durmalı.
         f.lastHookObserved.reset();
         f.hookError = QStringLiteral("Invalid ts: soon");
-        const QJsonArray broken = mudflow::evaluate(expects, f);
+        const QJsonArray broken = runmark::evaluate(expects, f);
         if (!has(broken, QStringLiteral("context.hooks_not_observed"))) return 1;
         bool explained = false;
         for (const QJsonValue& value : broken) {

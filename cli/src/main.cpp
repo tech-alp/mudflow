@@ -1,6 +1,6 @@
-#include "mudflow/project_config.h"
-#include "mudflow/version.h"
-#include "mudflow/workflow.h"
+#include "runmark/project_config.h"
+#include "runmark/version.h"
+#include "runmark/workflow.h"
 
 #include <QCommandLineOption>
 #include <QCommandLineParser>
@@ -30,8 +30,8 @@ int emitError(const QString& code, const QString& message, int exitCode)
 int main(int argc, char* argv[])
 {
     QCoreApplication app(argc, argv);
-    app.setApplicationName(QStringLiteral("mudflow"));
-    app.setApplicationVersion(QStringLiteral(MUDFLOW_VERSION));
+    app.setApplicationName(QStringLiteral("rmk"));
+    app.setApplicationVersion(QStringLiteral(RUNMARK_VERSION));
 
     QCommandLineParser parser;
     parser.setApplicationDescription(QStringLiteral("Local-first execution continuity CLI"));
@@ -41,7 +41,7 @@ int main(int argc, char* argv[])
         {QStringLiteral("p"), QStringLiteral("project")},
         QStringLiteral("Path to project.json."),
         QStringLiteral("path"),
-        QDir::current().filePath(QStringLiteral(".mudflow/project.json")));
+        QDir::current().filePath(QStringLiteral(".runmark/project.json")));
     parser.addOption(projectOption);
     const QCommandLineOption agentOption(QStringLiteral("agent"), QStringLiteral("Agent: codex or claude."), QStringLiteral("agent"), QStringLiteral("codex"));
     const QCommandLineOption repositoryOption(QStringLiteral("repo"), QStringLiteral("Repository name."), QStringLiteral("name"));
@@ -63,30 +63,30 @@ int main(int argc, char* argv[])
         const QString configPath = parser.value(projectOption);
         QJsonObject result;
         if (arguments == QStringList{QStringLiteral("inspect")}) {
-            result = mudflow::inspectProject(configPath);
+            result = runmark::inspectProject(configPath);
         } else if (arguments == QStringList{QStringLiteral("status")}) {
-            result = mudflow::projectStatus(configPath);
+            result = runmark::projectStatus(configPath);
         } else if (arguments.size() == 2 && arguments.constFirst() == QLatin1String("start")) {
-            result = mudflow::startExecution(configPath, arguments.constLast(), parser.value(agentOption), parser.value(repositoryOption), parser.values(instructionOption));
+            result = runmark::startExecution(configPath, arguments.constLast(), parser.value(agentOption), parser.value(repositoryOption), parser.values(instructionOption));
         } else if ((arguments.size() == 1 || arguments.size() == 2) && arguments.constFirst() == QLatin1String("resume")) {
             // Argumansiz resume = en son execution. SessionStart hook'u hangi
             // task'ta oldugunu bilmez; secici vermeden cagirabilmeli.
-            result = mudflow::resumeExecution(configPath, arguments.size() == 2 ? arguments.constLast() : QString(), parser.isSet(hookOption));
+            result = runmark::resumeExecution(configPath, arguments.size() == 2 ? arguments.constLast() : QString(), parser.isSet(hookOption));
             if (parser.isSet(markdownOption)) {
-                QTextStream(stdout) << mudflow::resumeMarkdown(result);
+                QTextStream(stdout) << runmark::resumeMarkdown(result);
                 return 0;
             }
         } else if (arguments.size() == 2 && arguments.constFirst() == QLatin1String("finish")) {
-            result = mudflow::finishExecution(configPath, arguments.constLast(), parser.value(outcomeOption));
+            result = runmark::finishExecution(configPath, arguments.constLast(), parser.value(outcomeOption));
         } else if (arguments.size() == 2 && arguments.constFirst() == QLatin1String("evidence") && parser.isSet(kindOption) && parser.isSet(summaryOption)) {
-            mudflow::recordEvidence(configPath, arguments.constLast(), parser.value(kindOption), parser.value(summaryOption), parser.value(referenceOption));
+            runmark::recordEvidence(configPath, arguments.constLast(), parser.value(kindOption), parser.value(summaryOption), parser.value(referenceOption));
             result = {{QStringLiteral("recorded"), QStringLiteral("evidence")}};
         } else if (arguments.size() == 2 && arguments.constFirst() == QLatin1String("note") && parser.isSet(kindOption) && parser.isSet(textOption)) {
-            mudflow::recordNote(configPath, arguments.constLast(), parser.value(kindOption), parser.value(textOption), parser.value(referenceOption));
+            runmark::recordNote(configPath, arguments.constLast(), parser.value(kindOption), parser.value(textOption), parser.value(referenceOption));
             result = {{QStringLiteral("recorded"), QStringLiteral("note")}};
         } else {
             return emitError(QStringLiteral("usage"),
-                QStringLiteral("Usage: mudflow <inspect|status|start|finish|resume|evidence|note> [argument] [options]"), 2);
+                QStringLiteral("Usage: rmk <inspect|status|start|finish|resume|evidence|note> [argument] [options]"), 2);
         }
         QTextStream(stdout) << QJsonDocument(result).toJson(QJsonDocument::Indented);
         return 0;

@@ -1,7 +1,7 @@
 #include "handoff.h"
 
 #include "error.h"
-#include "mudflow/workflow.h"
+#include "runmark/workflow.h"
 
 #include <QCryptographicHash>
 #include <QDir>
@@ -10,7 +10,7 @@
 #include <QJsonDocument>
 #include <QTextStream>
 
-namespace mudflow {
+namespace runmark {
 
 void readHandoff(const Paths& paths, ResumeFacts& facts)
 {
@@ -106,7 +106,7 @@ QString resumeMarkdown(const QJsonObject& package)
     };
 
     const QJsonValue task = package.value(QStringLiteral("task"));
-    out << "# Mudflow resume";
+    out << "# Runmark resume";
     if (task.isString() && !task.toString().isEmpty()) out << ": " << task.toString();
     out << "\n\n";
 
@@ -134,7 +134,7 @@ QString resumeMarkdown(const QJsonObject& package)
         out << '\n';
     }
 
-    out << "## Doğrulanmış (Mudflow üretti)\n\n";
+    out << "## Doğrulanmış (Runmark üretti)\n\n";
     const QJsonObject measured = package.value(QStringLiteral("measured")).toObject();
     const QJsonArray commits = measured.value(QStringLiteral("commits")).toArray();
     if (commits.isEmpty()) {
@@ -246,7 +246,7 @@ void writeHandoff(const Paths& paths, const HandoffInput& input, const QVector<Q
            << "\nbranch: " << input.started.value(QStringLiteral("branch")).toString()
            << "\nbase: " << input.started.value(QStringLiteral("base")).toString() << "@" << input.baseSha
            << "\nrange: " << input.baseSha << ".." << input.headSha
-           << "\n---\n\n## Doğrulanmış (Mudflow üretti)\n\nCommits:\n";
+           << "\n---\n\n## Doğrulanmış (Runmark üretti)\n\nCommits:\n";
     for (const QString& commit : input.commitLines) output << "- " << commit << '\n';
     output << "\nDeğişen dosyalar: " << input.filesChanged << " (+" << input.insertions << " / -" << input.deletions << ")\n";
     for (const QString& file : input.files) output << "- " << file << '\n';
@@ -285,4 +285,4 @@ void writeHandoff(const Paths& paths, const HandoffInput& input, const QVector<Q
     }
 }
 
-} // namespace mudflow
+} // namespace runmark

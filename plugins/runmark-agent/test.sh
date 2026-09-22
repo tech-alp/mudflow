@@ -20,22 +20,22 @@ function scan(directory) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const file = path.join(directory, entry.name);
     if (entry.isDirectory()) scan(file);
-    else assert(!fs.readFileSync(file, 'utf8').includes('.mudflow/'), file);
+    else assert(!fs.readFileSync(file, 'utf8').includes('.runmark/'), file);
   }
 }
-check('TC-007: hooks/ and skills/ contain no .mudflow/ string', () => {
+check('TC-007: hooks/ and skills/ contain no .runmark/ string', () => {
   scan(path.join(plugin, 'hooks'));
   scan(path.join(plugin, 'skills'));
 });
 check('four plugin JSON files parse', () => {
   for (const file of ['.claude-plugin/plugin.json', '.codex-plugin/plugin.json',
-    'hooks/hooks.json', 'skills/mudflow/compatibility.json']) json(path.join(plugin, file));
+    'hooks/hooks.json', 'skills/runmark/compatibility.json']) json(path.join(plugin, file));
 });
 check('single SessionStart hook and manifest contracts', () => {
   const claude = json(path.join(plugin, '.claude-plugin/plugin.json'));
   const codex = json(path.join(plugin, '.codex-plugin/plugin.json'));
   assert.deepEqual(Object.keys(claude).sort(), ['author', 'description', 'name', 'version']);
-  assert.equal(claude.name, 'mudflow-agent');
+  assert.equal(claude.name, 'runmark-agent');
   assert.equal(codex.name, claude.name);
   // Codex `hooks` alanini dosya yolu olarak istiyor. Bos nesne yazilinca
   // plugin'in hook'lari hic kesfedilmiyor (Codex desktop "From Plugins"
@@ -60,9 +60,9 @@ check('single SessionStart hook and manifest contracts', () => {
   // Hook'lar dar PATH ile calisabiliyor (Codex'te node bulunamayip exit 127).
   // Giris noktasi bu yuzden PATH'i genisleten bir sh sarmalayici; shebang,
   // +x biti ve kurulum dizinleri sozlesmenin parcasi.
-  assert.equal(session.hooks[0].command, '${CLAUDE_PLUGIN_ROOT}/hooks/mudflow-session-start.sh');
-  assert.equal(session.hooks[0].commandWindows, 'node "${CLAUDE_PLUGIN_ROOT}/hooks/mudflow-session-start.js"');
-  const entry = path.join(plugin, 'hooks/mudflow-session-start.sh');
+  assert.equal(session.hooks[0].command, '${CLAUDE_PLUGIN_ROOT}/hooks/runmark-session-start.sh');
+  assert.equal(session.hooks[0].commandWindows, 'node "${CLAUDE_PLUGIN_ROOT}/hooks/runmark-session-start.js"');
+  const entry = path.join(plugin, 'hooks/runmark-session-start.sh');
   const wrapper = fs.readFileSync(entry, 'utf8');
   assert(wrapper.startsWith('#!/bin/sh\n'), 'shebang');
   assert(fs.statSync(entry).mode & 0o111, 'wrapper must be executable');
@@ -74,7 +74,7 @@ for (const runtime of ['claude', 'codex']) {
   check(`${runtime} marketplace JSON and source directory`, () => {
     const file = runtime === 'claude' ? '.claude-plugin/marketplace.json' : '.agents/plugins/marketplace.json';
     const market = json(path.join(repo, file));
-    assert(market.plugins.some(entry => entry.name === 'mudflow-agent'));
+    assert(market.plugins.some(entry => entry.name === 'runmark-agent'));
     for (const entry of market.plugins) {
       const source = runtime === 'claude' ? entry.source : entry.source.path;
       assert(source.startsWith('./') && !source.split('/').includes('..'));
@@ -92,19 +92,19 @@ check('root CMakeLists.txt contains no plugins', () => {
   assert(!fs.readFileSync(path.join(repo, 'CMakeLists.txt'), 'utf8').includes('plugins'));
 });
 check('skill frontmatter and ADR-002 recording guidance', () => {
-  const skill = fs.readFileSync(path.join(plugin, 'skills/mudflow/SKILL.md'), 'utf8');
-  assert.match(skill, /^---\nname: mudflow\ndescription: .+\n---\n/);
-  for (const text of ['mudflow evidence', 'mudflow note', '--kind agent_summary', 'ADR-002', 'claim, not a measurement']) {
+  const skill = fs.readFileSync(path.join(plugin, 'skills/runmark/SKILL.md'), 'utf8');
+  assert.match(skill, /^---\nname: runmark\ndescription: .+\n---\n/);
+  for (const text of ['rmk evidence', 'rmk note', '--kind agent_summary', 'ADR-002', 'claim, not a measurement']) {
     assert(skill.includes(text), text);
   }
 });
 
-const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'mudflow-hook-test-'));
+const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'runmark-hook-test-'));
 try {
   const log = path.join(temporary, 'calls.jsonl');
   const bin = path.join(temporary, 'bin');
   fs.mkdirSync(bin);
-  fs.writeFileSync(path.join(bin, 'mudflow'), `#!${process.execPath}
+  fs.writeFileSync(path.join(bin, 'rmk'), `#!${process.execPath}
 const fs = require('node:fs');
 fs.appendFileSync(process.env.CALL_LOG, JSON.stringify(process.argv.slice(2)) + '\\n');
 if (process.env.FAKE_MODE === 'timeout') setTimeout(() => {}, 10000);
@@ -123,7 +123,7 @@ else process.stdout.write(process.env.FAKE_RESUME || '');
     const result = spawnSync('/bin/sh', ['-c', command], {
       input, encoding: 'utf8', timeout: 6000,
       env: { ...process.env, CLAUDE_PLUGIN_ROOT: plugin, PATH: bin, HOME: temporary,
-        CALL_LOG: log, FAKE_VERSION: 'mudflow 0.2.0', FAKE_MODE: '', ...env },
+        CALL_LOG: log, FAKE_VERSION: 'rmk 0.3.0', FAKE_MODE: '', ...env },
     });
     assert.ifError(result.error);
     assert.equal(result.status, 0);
@@ -144,15 +144,15 @@ else process.stdout.write(process.env.FAKE_RESUME || '');
     assert.deepEqual(result.calls, []);
   });
   check('TC-006: compatible CLI injects selector-less resume, hook itself touches no files', () => {
-    for (const version of ['0.2.0', '0.2.0+build.1', '0.10.0', '1.0.0', '0.3.0-rc.1']) {
-      const result = run(valid, { FAKE_VERSION: `mudflow ${version}`, FAKE_RESUME: '# Mudflow resume: MF-1\n' });
+    for (const version of ['0.3.0', '0.3.0+build.1', '0.10.0', '1.0.0', '0.4.0-rc.1']) {
+      const result = run(valid, { FAKE_VERSION: `rmk ${version}`, FAKE_RESUME: '# Runmark resume: MF-1\n' });
       assert.equal(result.stderr, '');
       // Hook yalnizca cagirir; secici vermez, karar vermez (TC-006).
       assert.deepEqual(result.calls, [['--version'], ['resume', '--markdown', '--hook']]);
       // hookEventName olmadan Claude Code ciktiyi yonlendirmiyor: hook
       // calisir, JSON uretir, ajana hicbir sey ulasmaz.
       // Duz metin: her iki runtime da stdout'u dogrudan baglam sayiyor.
-      assert.equal(result.stdout, '# Mudflow resume: MF-1\n');
+      assert.equal(result.stdout, '# Runmark resume: MF-1\n');
     }
   });
   check('empty resume output: no injection', () => {
@@ -162,9 +162,9 @@ else process.stdout.write(process.env.FAKE_RESUME || '');
     assert.deepEqual(result.calls, [['--version'], ['resume', '--markdown', '--hook']]);
   });
   check('incompatible or unknown version: explicit minimum on stderr, exit 0', () => {
-    for (const version of ['mudflow 0.1.9', 'mudflow 0.2.0-rc.1', 'unknown']) {
+    for (const version of ['rmk 0.2.9', 'rmk 0.3.0-rc.1', 'unknown']) {
       const result = run(valid, { FAKE_VERSION: version });
-      assert.match(result.stderr, /requires >= 0\.2\.0/);
+      assert.match(result.stderr, /requires >= 0\.3\.0/);
       assert.deepEqual(result.calls, [['--version']]);
       assert.equal(result.stdout, '');
     }

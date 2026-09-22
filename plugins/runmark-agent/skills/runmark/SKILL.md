@@ -1,19 +1,19 @@
 ---
-name: mudflow
-description: Resume a known Mudflow task, record observed evidence, and preserve decisions or unresolved work through the Mudflow CLI.
+name: runmark
+description: Resume a known Runmark task, record observed evidence, and preserve decisions or unresolved work through the Runmark CLI.
 ---
 
-Use only the `mudflow` CLI for project state. Never read or write its state
+Use only the `rmk` CLI for project state. Never read or write its state
 files directly. Run from the configured project directory, or pass
 `-p "$PROJECT_CONFIG"` using a project config path supplied by the user.
 
-Check `mudflow --version`; minimum supported version is in `compatibility.json`.
-If the CLI is missing, continue the agent session without Mudflow. If its version
-is incompatible, explain the required minimum and skip Mudflow commands.
+Check `rmk --version`; minimum supported version is in `compatibility.json`.
+If the CLI is missing, continue the agent session without Runmark. If its version
+is incompatible, explain the required minimum and skip Runmark commands.
 
-Run `mudflow resume "$TASK_OR_EXEC" --markdown` for a known task or execution,
-or `mudflow resume --markdown` with no selector for the most recent execution in
-the project. For recording, use the exact execution ID returned by Mudflow
+Run `rmk resume "$TASK_OR_EXEC" --markdown` for a known task or execution,
+or `rmk resume --markdown` with no selector for the most recent execution in
+the project. For recording, use the exact execution ID returned by Runmark
 (`resume` JSON exposes `exec`); never substitute a task ID or session ID.
 
 The SessionStart hook runs the selector-less form, so a session usually opens
@@ -25,7 +25,7 @@ slate. Read the `gaps` array: it reports what could not be established.
 After observing a test, command result, commit or diff, record the actual result:
 
 ```sh
-mudflow evidence "$EXEC" --kind test --summary "<command, result, failures>" --ref "<durable log path>"
+rmk evidence "$EXEC" --kind test --summary "<command, result, failures>" --ref "<durable log path>"
 ```
 
 Use `commit`, `diff`, `test`, `files` or `command` only for observed evidence.
@@ -35,7 +35,7 @@ option when no source exists. Never invent a measurement or source reference.
 Before handing work over, record your own summary separately:
 
 ```sh
-mudflow evidence "$EXEC" --kind agent_summary --summary "<agent account of completed and remaining work>"
+rmk evidence "$EXEC" --kind agent_summary --summary "<agent account of completed and remaining work>"
 ```
 
 ADR-002: an agent summary is a claim, not a measurement. Always use
@@ -47,7 +47,7 @@ when progress stops. Use the corresponding `decision`, `unresolved` or `blocker`
 kind, with concrete text and a durable `--ref` when available:
 
 ```sh
-mudflow note "$EXEC" --kind unresolved --text "<open question and next action>"
+rmk note "$EXEC" --kind unresolved --text "<open question and next action>"
 ```
 
 These are deliberate agent CLI calls. The SessionStart hook never records

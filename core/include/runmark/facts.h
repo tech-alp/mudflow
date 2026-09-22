@@ -11,7 +11,7 @@
 #include <QVector>
 #include <optional>
 
-namespace mudflow {
+namespace runmark {
 
 struct RepoFacts {
     QString name;
@@ -85,4 +85,4 @@ struct ResumeFacts {
     QString measurementError;
 };
 
-} // namespace mudflow
+} // namespace runmark

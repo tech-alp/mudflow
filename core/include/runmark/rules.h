@@ -1,12 +1,12 @@
 #pragma once
 
-#include "mudflow/facts.h"
-#include "mudflow/project_config.h"
+#include "runmark/facts.h"
+#include "runmark/project_config.h"
 
 #include <QJsonArray>
 #include <QJsonObject>
 
-namespace mudflow {
+namespace runmark {
 
 // Finding üretir. SAF: dosya sistemi, git veya saat okumaz.
 // Aynı facts her zaman aynı finding dizisini verir — testi düz fonksiyon çağrısı.
@@ -17,4 +17,4 @@ QJsonArray evaluateResume(const ResumeFacts& facts);
 QJsonObject finding(const QString& id, const QString& severity, const QString& domain,
                     const QString& title, const QString& explanation, const QString& action = {});
 
-} // namespace mudflow
+} // namespace runmark

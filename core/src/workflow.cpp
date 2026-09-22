@@ -1,7 +1,7 @@
-#include "mudflow/workflow.h"
+#include "runmark/workflow.h"
 
-#include "mudflow/project_config.h"
-#include "mudflow/rules.h"
+#include "runmark/project_config.h"
+#include "runmark/rules.h"
 #include "error.h"
 #include "git.h"
 #include "handoff.h"
@@ -15,7 +15,7 @@
 #include <QJsonArray>
 #include <QRegularExpression>
 
-namespace mudflow {
+namespace runmark {
 namespace {
 
 // Orkestrasyon: iki ayrı sorumluluğu birleştirir. Dizin açmak paths'in,
@@ -300,4 +300,4 @@ void recordNote(const QString& configPath, const QString& executionId, const QSt
         {QStringLiteral("source"), QStringLiteral("human")}, {QStringLiteral("ref"), orNull(reference)}});
 }
 
-} // namespace mudflow
+} // namespace runmark

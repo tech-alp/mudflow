@@ -1,7 +1,7 @@
 # Runmark Roadmap
 
 Bu doküman hedef kapsam ve sırayı gösterir; maddelerin tamamlandığı anlamına
-gelmez. Hedef komut adı `rmk`'dır; mevcut build henüz `mudflow` üretir.
+gelmez. Komut adı `rmk`'dır ve build onu üretir.
 İsim ve mimari kararları: [ADR-016–019](DECISIONS.md).
 
 ## Phase 0 — Workflow validation
@@ -35,9 +35,9 @@ Amaç: modeli gerçek bir SCMS/TVM benzeri akışta doğrulamak.
 
 ## Desktop öncesi — Adlandırma ve mimari geçişi
 
-1. `rmk` executable, `runmark` namespace ve paket/hook adlarını birlikte taşı.
-   `.mudflow/` → `.runmark/` geçişinde eski/yeni dizin çakışma ve rollback
-   politikasını tanımla; ledger, handoff ve preserved ref'leri koru.
+1. ~~`rmk` executable, `runmark` namespace ve paket/hook adlarını birlikte taşı.~~
+   Yapıldı (2026-09-22). PoC olduğu için eski ad, dizin ve ref'ler korunmadı;
+   migration kodu yazılmadı, kurulu eski binary ve pluginler söküldü.
 2. `apps/cli` ile `libs/domain`, `libs/application`, `libs/infrastructure`
    sınırlarını kur; CLI JSON/exit ve mevcut veri sözleşmelerini regression testleriyle koru.
 3. Küçük bir named module + QObject/QML köprüsünü macOS/Linux/Windows'ta

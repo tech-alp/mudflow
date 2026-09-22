@@ -14,7 +14,7 @@
 
 #include <stdexcept>
 
-namespace mudflow {
+namespace runmark {
 namespace {
 
 ProcessResult run(const QString& program, const QStringList& arguments, const QProcessEnvironment& environment = QProcessEnvironment::systemEnvironment())
@@ -242,9 +242,9 @@ QString preserveWorktree(const QString& worktree, const QString& executionId, co
             commitArguments.append({QStringLiteral("-p"), previous.output});
         }
     }
-    commitArguments.append({QStringLiteral("-m"), QStringLiteral("mudflow: preserve uncommitted work for ") + executionId});
+    commitArguments.append({QStringLiteral("-m"), QStringLiteral("runmark: preserve uncommitted work for ") + executionId});
     const QString preservedObject = gitRequired(worktree, commitArguments);
-    const QString preservedRef = QStringLiteral("refs/mudflow/preserved/") + executionId;
+    const QString preservedRef = QStringLiteral("refs/runmark/preserved/") + executionId;
     gitRequired(worktree, {QStringLiteral("update-ref"), preservedRef, preservedObject});
     return preservedRef;
 }
@@ -295,4 +295,4 @@ void ensureGitExcludes(const Paths& paths)
     }
 }
 
-} // namespace mudflow
+} // namespace runmark

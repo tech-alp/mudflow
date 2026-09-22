@@ -1,10 +1,14 @@
 # Runmark Architecture
 
-Durum: hedef mimari; kaynak kod ve adlandırma geçişi henüz uygulanmadı.
+Durum: adlandırma uygulandı; katman ve dizin geçişi bekliyor.
 Ürün kapsamı [PRD](PRD.md), karar geçmişi [DECISIONS](DECISIONS.md), geçiş
 sırası [ROADMAP](ROADMAP.md), mevcut disk sözleşmesi [DATA_MODEL](DATA_MODEL.md).
 
 ## Temel karar
+
+Nexroz, aynı çalışma alanındaki kardeş projedir (`../nexroz`,
+`Nexroz_Specification_v0.3_Combined.md`); plugin runtime, module sınırları ve
+agent runtime tasarımı oradan alınır.
 
 Runmark, Nexroz'un module ve plugin sınırlarını ürünün ihtiyaçlarına uyarlar:
 ince plugin runtime, kalıcı ürün servisleri, değiştirilebilir UI ve entegrasyonlar.
@@ -27,13 +31,15 @@ Bir ekran kapatıldığında verisi silinmez ve ilgili ürün servisi durmaz.
 | C++ namespace / named module | `runmark` / `runmark.domain` |
 | QML module | `Runmark.Shell` |
 | Workspace verisi | `.runmark/` |
+| Preserved Git ref | `refs/runmark/preserved/<exec-id>` |
 | Plugin ID | `com.runmark.findings` |
 | Route | `runmark://com.runmark.findings/list` |
 
-Bugün `mudflow`, `.mudflow/`, `mudflow::core` ve `core/` / `cli/` kullanılır.
-Yeni adlar henüz çalışan alias veya otomatik migration değildir. Eski kayıtlar,
-handoff referansları ve `refs/mudflow/preserved/*` korunarak geçiş tasarlanır;
-yalnız dizini yeniden adlandırmak yeterli değildir.
+Tablodaki adlar koda uygulandı. Bekleyen tek şey dizin düzeni: bugün hâlâ
+`core/` ve `cli/` var, hedef `apps/` + `libs/`.
+
+PoC sürecinde geriye uyumluluk aranmadı: önceki ad, veri dizini ve Git
+ref'leri hiçbir yerde tutulmaz, migration kodu yazılmaz.
 
 ## Katmanlar ve bağımlılıklar
 
@@ -130,7 +136,7 @@ doküman yerleşimidir, ikinci bir karar kaynağı henüz açılmaz.
 
 `plugins/integrations/`, Runmark'ın yüklediği adaptörleri içerir.
 `integrations/agent-clients/runmark/`, dış agent uygulamalarına kurulan
-skill/hook paketidir. Bugünkü `plugins/mudflow-agent` ikinci gruba taşınır;
+skill/hook paketidir. Bugünkü `plugins/runmark-agent` ikinci gruba taşınır;
 marketplace tanımları ve hook yolları aynı geçişte güncellenir.
 
 ## C++ named modules
@@ -158,9 +164,10 @@ libs/domain/
 - QObject/QML köprüsü başlangıçta `.h/.cpp` kalır; module import `.cpp`
   tarafında yapılır. MOC header'ı module içindeki tiplere bağımlı olmaz.
 - `import std`, header units ve özel MOC/module helper'ı başlangıç kapsamı dışıdır.
-- Mevcut baseline C++20 / Qt 6.11+ / CMake 3.21+'dır. Merce CMake 3.30+
-  gerektirir. Nexroz'daki C++23 / CMake 4.4+ / Ninja / LLVM Clang 19.1+
-  ve Windows MSVC hattı teknik doğrulama adaylarıdır; henüz build gereksinimi değildir.
+- Baseline C++20 / Qt 6.11+ / CMake 4.4+'dır. `FILE_SET CXX_MODULES` CMake
+  3.28'de geldi, Merce 3.30+ ister; 4.4 tabanı ikisini de karşılar ve yerel
+  derlemede doğrulanan sürümdür. C++23 / Ninja / LLVM Clang 19.1+ ve Windows
+  MSVC hattı teknik doğrulama adaylarıdır; henüz build gereksinimi değildir.
 - Conan 2 bu kararla otomatik eklenmez. Araç zinciri macOS/Linux/Windows'ta
   clean ve incremental build, MOC/QML köprüsü ve testler doğrulanınca sabitlenir.
 
@@ -239,7 +246,7 @@ Hedef disk düzeni, mevcut JSON/JSONL sözleşmesini korur:
 └── hook-observed.json
 ```
 
-Mevcut `.mudflow/` dosyaları ve preserved Git ref'leri geçiş yapılana kadar
+Mevcut `.runmark/` dosyaları ve preserved Git ref'leri geçiş yapılana kadar
 geçerlidir. Eski/yeni dizin birlikte bulunduğunda seçim, migration, backup ve
 rollback davranışı kod geçişinden önce tanımlanıp compatibility testleriyle
 doğrulanır. Bu doküman SQLite veya otomatik veri taşıma kararı getirmez.

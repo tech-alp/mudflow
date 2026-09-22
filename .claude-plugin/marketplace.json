@@ -1,14 +1,14 @@
 {
-  "name": "mudflow",
+  "name": "runmark",
   "owner": {
-    "name": "Mudflow"
+    "name": "Runmark"
   },
-  "description": "Mudflow yurutme kontrol duzlemi icin ajan eklentileri.",
+  "description": "Runmark yurutme kontrol duzlemi icin ajan eklentileri.",
   "plugins": [
     {
-      "name": "mudflow-agent",
-      "source": "./plugins/mudflow-agent",
-      "description": "Mudflow SessionStart pilot and CLI evidence guidance."
+      "name": "runmark-agent",
+      "source": "./plugins/runmark-agent",
+      "description": "Runmark SessionStart pilot and CLI evidence guidance."
     }
   ]
 }

@@ -1,4 +1,4 @@
-#include "mudflow/project_config.h"
+#include "runmark/project_config.h"
 
 #include <QFile>
 #include <QJsonArray>
@@ -9,7 +9,7 @@
 
 #include <stdexcept>
 
-namespace mudflow {
+namespace runmark {
 namespace {
 
 [[noreturn]] void fail(const QString& message)
@@ -126,4 +126,4 @@ QJsonObject ProjectConfig::toJson() const
     };
 }
 
-} // namespace mudflow
+} // namespace runmark

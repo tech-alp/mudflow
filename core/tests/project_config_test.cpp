@@ -1,4 +1,4 @@
-#include "mudflow/project_config.h"
+#include "runmark/project_config.h"
 
 #include <QFile>
 #include <QJsonArray>
@@ -21,17 +21,17 @@ int main()
     }
     file.write(R"({
         "version": 1,
-        "name": "mudflow",
+        "name": "runmark",
         "worktree_root": "~/worktrees",
-        "repos": [{"name": "mudflow", "path": ".", "base": {"remote": "origin", "branch": "main"}}],
+        "repos": [{"name": "runmark", "path": ".", "base": {"remote": "origin", "branch": "main"}}],
         "plan": {"path": "docs/ROADMAP.md"},
         "task_id_pattern": "MF-\\d+"
     })");
     file.close();
 
     try {
-        const mudflow::ProjectConfig config = mudflow::ProjectConfig::load(path);
-        if (config.name != QLatin1String("mudflow")
+        const runmark::ProjectConfig config = runmark::ProjectConfig::load(path);
+        if (config.name != QLatin1String("runmark")
                 || config.repositories.size() != 1
                 || !config.instructions.isEmpty()
                 || config.toJson().value(QStringLiteral("repos")).toArray().at(0).toObject().value(QStringLiteral("base")).toObject().value(QStringLiteral("remote")).toString() != QLatin1String("origin")
@@ -43,7 +43,7 @@ int main()
     }
 
     // Optional instructions must be a list of non-empty paths.
-    const QJsonObject valid = mudflow::ProjectConfig::load(path).toJson();
+    const QJsonObject valid = runmark::ProjectConfig::load(path).toJson();
     for (const QJsonValue& instructions : {QJsonValue("AGENTS.md"), QJsonValue(QJsonValue::Null),
             QJsonValue(QJsonArray{42}), QJsonValue(QJsonArray{""})}) {
         QJsonObject invalid = valid;
@@ -52,7 +52,7 @@ int main()
         file.write(QJsonDocument(invalid).toJson());
         file.close();
         try {
-            mudflow::ProjectConfig::load(path);
+            runmark::ProjectConfig::load(path);
             return 1;
         } catch (const std::exception&) {
         }
@@ -62,7 +62,7 @@ int main()
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) return 1;
     file.write(QJsonDocument(valid).toJson());
     file.close();
-    if (mudflow::ProjectConfig::load(path).hooksExpected) return 1;
+    if (runmark::ProjectConfig::load(path).hooksExpected) return 1;
     for (const QJsonValue& hooks : {QJsonValue(true), QJsonValue("yes"), QJsonValue(1)}) {
         QJsonObject candidate = valid;
         candidate.insert(QStringLiteral("hooks_expected"), hooks);
@@ -70,7 +70,7 @@ int main()
         file.write(QJsonDocument(candidate).toJson());
         file.close();
         try {
-            if (mudflow::ProjectConfig::load(path).hooksExpected != hooks.toBool()) return 1;
+            if (runmark::ProjectConfig::load(path).hooksExpected != hooks.toBool()) return 1;
             if (!hooks.isBool()) return 1;
         } catch (const std::exception&) {
             if (hooks.isBool()) return 1;
@@ -83,7 +83,7 @@ int main()
     }
     file.close();
     try {
-        mudflow::ProjectConfig::load(file.fileName());
+        runmark::ProjectConfig::load(file.fileName());
         return 1;
     } catch (const std::exception&) {
     }
@@ -94,7 +94,7 @@ int main()
     }
     file.close();
     try {
-        mudflow::ProjectConfig::load(file.fileName());
+        runmark::ProjectConfig::load(file.fileName());
         return 1;
     } catch (const std::exception& error) {
         return QString::fromUtf8(error.what()).contains(QStringLiteral("project.repos[].base must be an object with non-empty remote and branch")) ? 0 : 1;

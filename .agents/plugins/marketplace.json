@@ -1,10 +1,10 @@
 {
-  "name": "mudflow",
-  "interface": { "displayName": "Mudflow" },
+  "name": "runmark",
+  "interface": { "displayName": "Runmark" },
   "plugins": [
     {
-      "name": "mudflow-agent",
-      "source": { "source": "local", "path": "./plugins/mudflow-agent" },
+      "name": "runmark-agent",
+      "source": { "source": "local", "path": "./plugins/runmark-agent" },
       "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
       "category": "Productivity"
     }

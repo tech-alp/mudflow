@@ -1,6 +1,6 @@
 # Runmark Teknoloji Kararları
 
-TC-001–009 mevcut Mudflow uygulamasının kararlarını ve yollarını kaydeder.
+TC-001–009 mevcut Runmark uygulamasının kararlarını ve yollarını kaydeder.
 Runmark/`rmk`, hedef dizin yapısı, Merce ve modules geçişi TC-010 ile
 tanımlanır; mevcut kodun taşındığı veya minimum build sürümünün değiştiği
 varsayılmaz. Yeni kararlar [ADR-016–019](DECISIONS.md) ile birlikte okunur.
@@ -31,7 +31,7 @@ Değerlendirilen alternatifler:
 
 - **Atılacak prototip (Go/Python):** hızlı iterasyon, ama "atarız" diye başlayan
   prototip atılmaz; üç ay sonra iki çekirdek bakarsın.
-- **Ayrı süreç (desktop → `mudflow status --json`):** süreç sınırı cazip ama
+- **Ayrı süreç (desktop → `rmk status --json`):** süreç sınırı cazip ama
   yanlış yerde. Uzun süren işler (çok repo fetch, agent launch, canlı ilerleme)
   bu sınırdan geçmek zorunda kalır.
 
@@ -98,7 +98,7 @@ edilir, kalan argümanlar o komuta ait parser'a verilir. ~15 satır.
 Ciddi alternatif **CLI11** (header-only, gerçek subcommand, iç içe gruplar,
 validator, daha iyi help çıktısı).
 
-**Geçiş tetikleyicisi:** `mudflow project status` gibi **iç içe** komut grupları.
+**Geçiş tetikleyicisi:** `rmk project status` gibi **iç içe** komut grupları.
 İç içe gruplar gerekirse parser yeniden değerlendirilir; mevcut düz komut
 yapısı ve hedef `rmk` adlandırması tek başına yeni parser gerektirmez.
 
@@ -109,7 +109,7 @@ parser değişimi tek dosyaya dokunur. Bu yüzden karar üzerinde durulmaz.
 
 ## TC-005 — Dosya izleme: v0.1'de yok
 
-`mudflow status` çalışır, hesaplar, çıkar. İzlemeye ihtiyacı yok.
+`rmk status` çalışır, hesaplar, çıkar. İzlemeye ihtiyacı yok.
 İzleme sadece desktop'ın canlı yenilemesi için gerekli — **Phase 3.**
 
 Sırası geldiğinde: `QFileSystemWatcher`.
@@ -117,7 +117,7 @@ Sırası geldiğinde: `QFileSystemWatcher`.
 İzlenecek küme küçük ve recursive değil:
 
 ```text
-.mudflow/ledger/*.jsonl
+.runmark/ledger/*.jsonl
 .git/HEAD, .git/refs/**, .git/packed-refs
 plan dosyası
 ```
@@ -135,13 +135,13 @@ dosya başına bildirime gerek yok.
 | FD limiti | Sorun değil | macOS/kqueue: yol başına 1 FD |
 | Dağıtım | Kullanıcı daemon kuracak | Yok |
 
-Watchman'ın çözdüğü problem (devasa ağacın recursive izlenmesi) Mudflow'da yok.
+Watchman'ın çözdüğü problem (devasa ağacın recursive izlenmesi) Runmark'da yok.
 Local-first bir masaüstü uygulamasına daemon kurma yükü bindirmek adoption
 maliyeti.
 
 **Watchman'ın gerçekten yeri olduğu senaryo ayrı:** repo çok büyük ve
 `git status` yavaşsa, git'in `core.fsmonitor` ayarı Watchman'ı kullanabilir.
-Bu **git'e** bağlanır, Mudflow'a değil. Mudflow hiçbir şey bilmeden hızlanır.
+Bu **git'e** bağlanır, Runmark'a değil. Runmark hiçbir şey bilmeden hızlanır.
 
 Geri dönüş maliyeti: **yok** — henüz kod yazılmıyor.
 
@@ -180,7 +180,7 @@ Süreç sınırı eklemek **alt katmanı** değiştirmek olur; üst katman deği
 
 Ve o gün kendi IDL'ini yazma — **JSON-RPC 2.0 over stdio** yeterli.
 Vicinae figura'yı kendine özgü kısıtları için yazdı (üçüncü parti eklentiler,
-farklı dil, kamuya açık versiyonlu sözleşme); bunların hiçbiri Mudflow'da yok.
+farklı dil, kamuya açık versiyonlu sözleşme); bunların hiçbiri Runmark'da yok.
 JSON-RPC aynı katmanlamayı verir ve bakılacak bir derleyici bırakmaz.
 
 Geri dönüş maliyeti: **yok** — bugün kod değil, kural.
@@ -206,7 +206,7 @@ Hata gövdesi:
 ```
 
 Neden ayrı akış: stdout "sonuç" kanalıdır, taşıma düzeyindeki başarısızlıkları
-taşımaz — TC-006'nın aynı ayrımı. Böylece `mudflow status | jq` boruya hata
+taşımaz — TC-006'nın aynı ayrımı. Böylece `rmk status | jq` boruya hata
 sızdırmaz ve desktop, CLI'ı spawn ederse iki kanalı karıştırmadan okur.
 
 `code` şimdilik yalnızca iki değer alıyor: `usage`, `runtime`. Daha ince bir
@@ -228,17 +228,17 @@ Dizin adları proje öneki taşımaz: `core/`, `cli/`, `docs/`, `cmake/`.
 Core testleri `core/tests/`, CLI sözleşme testi `cli/tests/` altında tutulur.
 Henüz uygulanmayan `ui/` ve `agent/` dizinleri oluşturulmaz.
 
-Header'lar `core/include/mudflow/` altında kalır; include yolu
-`<mudflow/...>` olarak korunur. Statik core hedefi `mudflow_core`, alias'ı
-`mudflow::core` olur.
+Header'lar `core/include/runmark/` altında kalır; include yolu
+`<runmark/...>` olarak korunur. Statik core hedefi `runmark_core`, alias'ı
+`runmark::core` olur.
 
 Her bileşen doğrudan kullandığı dış bağımlılığı kendi `find_package` çağrısıyla
 bulur. Core, `Qt6::Core` bağımlılığını `PUBLIC` aktarır; CLI yalnız
-`mudflow::core` linkler. Core'u linklemeyen CLI sözleşme testi Qt'yi kendi bulur.
+`runmark::core` linkler. Core'u linklemeyen CLI sözleşme testi Qt'yi kendi bulur.
 Kök CMake Qt aramaz ve hedef ya da install kuralı tanımlamaz; proje sürümünü,
 seçenekleri, CTest, alt dizinler ve CPack'i yönetir.
 
-C++20 gereksinimi `target_compile_features(mudflow_core PUBLIC cxx_std_20)`
+C++20 gereksinimi `target_compile_features(runmark_core PUBLIC cxx_std_20)`
 ile tüketicilere aktarılır; global `CMAKE_CXX_STANDARD` kullanılmaz.
 Core'u linklemeyen CLI sözleşme testi C++20 gereksinimini kendi hedefinde belirtir.
 Kurulum `cli/` içinde `GNUInstallDirs` ile yapılır; dış tüketicisi olmayan
@@ -246,8 +246,8 @@ statik core için install kuralı yoktur.
 
 Sürümün tek kaynağı kök CMake'deki `project(... VERSION ...)` olur.
 CLI, `cmake/version.h.in` şablonundan `configure_file` ile üretilen başlığı
-kullanır. `MUDFLOW_BUILD_CLI` varsayılan olarak açık, gelecekteki UI için
-`MUDFLOW_BUILD_UI` kapalıdır; testler `BUILD_TESTING` ile yönetilir.
+kullanır. `RUNMARK_BUILD_CLI` varsayılan olarak açık, gelecekteki UI için
+`RUNMARK_BUILD_UI` kapalıdır; testler `BUILD_TESTING` ile yönetilir.
 
 Geri dönüş maliyeti: **düşük.** Dizin yolları ve CMake bağlantıları değişir;
 çalışma zamanı mantığı değişmez.
@@ -271,13 +271,13 @@ Dosya karşılığı:
 core/src/git.cpp       taşıma (run/git/gitRequired) + ölçüm → RepoFacts
 core/src/plan.cpp      ölçüm → PlanFacts
 core/src/ledger.cpp    olay yaz/oku, evidence
-core/src/paths.cpp     .mudflow yerleşimi, expandPath, sha1
+core/src/paths.cpp     .runmark yerleşimi, expandPath, sha1
 core/src/handoff.cpp   handoff oku/yaz, resume JSON/Markdown sunumu
 core/src/rules.cpp     SAF — facts alır, finding döndürür, I/O yok
 core/src/workflow.cpp  yalnız orkestrasyon
 ```
 
-`facts.h` ve `rules.h` public (`core/include/mudflow/`); geri kalan başlıklar
+`facts.h` ve `rules.h` public (`core/include/runmark/`); geri kalan başlıklar
 `core/src/` altında çekirdeğe özeldir.
 
 ### Neden
@@ -320,26 +320,26 @@ Durum: hedef karar; implementation bekliyor.
   integration pluginleri ayrı tutulur. İç bağımlılıklar açıkça verilir.
 - Named modules dahili API sınırıdır; public plugin ABI'si değildir.
   QObject/QML köprüleri başlangıçta `.h/.cpp`; module import `.cpp` içindedir.
-- Mevcut C++20 / CMake 3.21+ build korunur. Merce CMake 3.30+ gerektirir;
-  C++23 / CMake 4.4+ / Ninja / LLVM Clang ve Windows MSVC hattı modules
+- C++20 korunur; CMake tabanı 4.4'tür (`FILE_SET CXX_MODULES` 3.28+, Merce
+  3.30+). C++23 / Ninja / LLVM Clang ve Windows MSVC hattı modules
   doğrulamasında değerlendirilir. Üç OS sonucu olmadan yeni baseline ilan edilmez.
 - Merce yalnız desktop katmanında eklenir; Qt/Merce sürümleri sabitlenir.
   CLI için Qt Core bağımlılık sınırı korunur. TC-002'nin yeni bağımlılığı
   gerekçelendirme ilkesi devam eder; desktop için Merce ADR-017 ile seçilmiştir.
-- `.runmark/` hedef veri dizinidir. Eski `.mudflow/` kayıtlarının, handoff
-  yollarının, preserved ref'lerin ve agent hook'larının uyumluluğu geçiş testidir.
-  CLI adı değişse de JSON/exit sözleşmesi korunur; veri geçişi ayrı uygulanır.
+- `.runmark/` veri dizinidir ve adlandırma geçişinde birlikte taşındı.
+  PoC sürecinde geriye uyumluluk aranmadı; eski dizin ve ref'ler korunmaz.
+  CLI adı değişti, JSON/exit sözleşmesi değişmedi — bunu cli_contract testi tutar.
 
 Tek hedef ağaç [ARCHITECTURE.md](ARCHITECTURE.md) içindedir. Mevcut kod eşlemesi:
 
 | Bugünkü kod | Hedef sorumluluk |
 |---|---|
 | `cli/` | `apps/cli/` |
-| `core/include/mudflow/facts.h`, `core/src/rules.cpp` | `libs/domain/` |
+| `core/include/runmark/facts.h`, `core/src/rules.cpp` | `libs/domain/` |
 | `core/src/workflow.cpp` | `libs/application/` |
 | `core/src/git.cpp`, `ledger.cpp`, `paths.cpp` | `libs/infrastructure/` |
 | `core/src/plan.cpp`, `handoff.cpp`, `project_config.cpp` | Saf tip/kurallar domain; I/O infrastructure; akış application |
-| `plugins/mudflow-agent/` | `integrations/agent-clients/runmark/` |
+| `plugins/runmark-agent/` | `integrations/agent-clients/runmark/` |
 
 Geri dönüş maliyeti: **orta/yüksek.** Dizin taşıma tek başına düşük maliyetlidir;
 module toolchain, plugin lifecycle ve veri migration sözleşmeleri değildir.
@@ -359,6 +359,6 @@ Geçiş [ROADMAP](ROADMAP.md) sırasıyla, mevcut CLI regression testleri koruna
 | Provider katmanlaması | Kural, kod değil | Phase 6 → JSON-RPC 2.0 over stdio |
 | Hata `code` alanı | `usage` / `runtime` | Tüketici koda göre dallanmak isteyince |
 | `rules.cpp` saflığı | I/O yok, `now` fact | Bozulursa ayrım kaybolur — yeni gerçek `facts.h`'ye eklenir |
-| Ürün / CLI | Kodda Mudflow / `mudflow` | ADR-016 → Runmark / `rmk` |
+| Ürün / CLI | Kodda Runmark / `rmk` | ADR-016 → Runmark / `rmk` |
 | Katmanlar | `core/`, `cli/` | TC-010 → `apps/`, `libs/`, plugin sınırları |
 | Named modules | Yok | Üç OS toolchain doğrulaması ardından aşamalı geçiş |

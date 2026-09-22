@@ -73,7 +73,7 @@ void resumeContract(const QString& executable)
     const QString root = fixture.path();
     const QString repo = root + "/repo";
     const QString remote = root + "/remote.git";
-    const QString configPath = root + "/.mudflow/project.json";
+    const QString configPath = root + "/.runmark/project.json";
     const auto git = [](const QStringList& args) {
         QByteArray out, err;
         check(run(QStringLiteral("git"), args, 0, &out, &err), "git fixture command");
@@ -89,14 +89,14 @@ void resumeContract(const QString& executable)
     };
     git({"init", "--bare", remote});
     git({"init", "-b", "main", repo});
-    git({"-C", repo, "config", "user.name", "Mudflow Contract"});
+    git({"-C", repo, "config", "user.name", "Runmark Contract"});
     git({"-C", repo, "config", "user.email", "test@example.invalid"});
     check(writeFile(repo + "/file.txt", "initial\n"), "initial file");
     git({"-C", repo, "add", "."});
     git({"-C", repo, "commit", "-m", "initial"});
     git({"-C", repo, "remote", "add", "origin", remote});
     git({"-C", repo, "push", "-u", "origin", "main"});
-    check(QDir().mkpath(root + "/.mudflow"), "state directory");
+    check(QDir().mkpath(root + "/.runmark"), "state directory");
     check(writeFile(root + "/plan.md", "- [ ] MF-1\n- [ ] MF-2\n"), "plan");
     check(writeFile(root + "/AGENTS.md", "Project instructions\n"), "project instructions");
     check(writeFile(root + "/extra.md", "Extra instructions\n"), "extra instructions");
@@ -106,14 +106,14 @@ void resumeContract(const QString& executable)
     const QJsonObject none = cli({"resume", "MF-99"});
     check(none.value("exec").isNull() && hasGap(none, "context.no_execution"), "no execution gap");
     check(none.value("workspace").toObject().value("worktree_exists").isNull(), "no execution is unknown workspace");
-    check(!QFile::exists(root + "/.mudflow/ledger"), "resume creates no ledger");
+    check(!QFile::exists(root + "/.runmark/ledger"), "resume creates no ledger");
 
     const QJsonObject started = cli({"start", "MF-1", "--agent", "claude", "--instruction", "extra.md", "--instruction", "missing.md"});
     check(started.value("warnings").toArray().size() == 1, "unreadable instruction warning");
     check(started.value("warnings").toArray().at(0).toObject().value("id") == "context.instruction_unreadable", "instruction warning id");
     const QString exec = started.value("exec").toString();
     const QString worktree = started.value("worktree").toString();
-    const QString ledger = root + "/.mudflow/ledger/" + exec + ".jsonl";
+    const QString ledger = root + "/.runmark/ledger/" + exec + ".jsonl";
     const QJsonObject event = QJsonDocument::fromJson(readFile(ledger).trimmed()).object();
     const QJsonArray instructions = event.value("instructions").toArray();
     check(instructions.size() == 3, "project plus repeatable CLI instructions");
@@ -150,7 +150,7 @@ void resumeContract(const QString& executable)
     check(package.value("unresolved").toObject().value("with_ref").toArray().size() == 1
         && package.value("unresolved").toObject().value("without_ref").toArray().size() == 1, "unresolved refs separated");
     check(package.value("instructions") == instructions, "resume recorded instructions");
-    check(package.value("preserved_ref").toString().startsWith("refs/mudflow/preserved/"), "preserved ref");
+    check(package.value("preserved_ref").toString().startsWith("refs/runmark/preserved/"), "preserved ref");
     const QJsonObject handoff = package.value("handoff").toObject();
     const QString handoffPath = handoff.value("path").toString();
     check(handoff.value("sha1") == hash(readFile(handoffPath)) && handoff.value("verified") == true, "handoff production hash verified");
@@ -158,13 +158,13 @@ void resumeContract(const QString& executable)
     check(package.value("plan_changed") == false && package.value("workspace").toObject().value("base_advanced") == false, "known unchanged");
     QByteArray markdown, stderrOutput;
     check(run(executable, {"--project", configPath, "resume", exec, "--markdown"}, 0, &markdown, &stderrOutput)
-        && stderrOutput.isEmpty() && markdown.startsWith("# Mudflow resume:")
+        && stderrOutput.isEmpty() && markdown.startsWith("# Runmark resume:")
         && markdown.contains(QStringLiteral("Agent notu (zayıf evidence — doğrulanmadı)").toUtf8()) && markdown.contains(handoff.value("sha1").toString().toUtf8()), "markdown contract");
     check(readFile(ledger) == before, "resume never appends delivery event");
 
     // --hook: hook'un calistigi ledger'a degil ayri bir dosyaya yazilir; bu
     // olmadan hic calismamis bir hook temiz projeden ayirt edilemez.
-    const QString hookObserved = root + "/.mudflow/hook-observed.json";
+    const QString hookObserved = root + "/.runmark/hook-observed.json";
     check(!QFile::exists(hookObserved), "no observation before --hook");
     QJsonObject hooked = config;
     hooked.insert("hooks_expected", true);
@@ -237,13 +237,13 @@ void resumeContract(const QString& executable)
         legacy.remove("instructions");
         legacy.remove("remote_base_sha");
         legacy.insert("workspace_source", "adopted");
-        check(writeFile(root + "/.mudflow/ledger/" + id + ".jsonl", QJsonDocument(legacy).toJson(QJsonDocument::Compact) + '\n'), "legacy ledger");
+        check(writeFile(root + "/.runmark/ledger/" + id + ".jsonl", QJsonDocument(legacy).toJson(QJsonDocument::Compact) + '\n'), "legacy ledger");
     }
     check(cli({"resume", "MF-7"}).value("exec") == newExec && cli({"resume", oldExec}).value("exec") == oldExec, "latest task and exact exec priority");
     const QJsonObject legacy = cli({"resume", oldExec});
     check(legacy.value("instructions").isNull() && hasGap(legacy, "context.instructions_unknown")
         && legacy.value("workspace").toObject().value("base_advanced").isNull(), "legacy unknown provenance and adopted baseline");
-    check(writeFile(root + "/.mudflow/ledger/broken.jsonl", "not json\n"), "corrupt ledger");
+    check(writeFile(root + "/.runmark/ledger/broken.jsonl", "not json\n"), "corrupt ledger");
     const QJsonObject corrupt = cli({"resume", "MF-99"});
     check(hasGap(corrupt, "context.ledger_unreadable") && !hasGap(corrupt, "context.no_execution"), "unreadable history not absent history");
     QTextStream(stdout) << "resume contract: git chain, no execution, missing/tampered handoff, missing worktree, offline, plan/base changes, provenance, legacy selection, ledger immutability passed\n";
