@@ -5,5 +5,15 @@
       "displayName": "Runmark Desktop",
       "path": "desktop.json"
     }
+  },
+  "brands": {
+    "runmark": {
+      "displayName": "Runmark",
+      "defaultMode": "dark",
+      "modes": {
+        "light": "runmark.light.json",
+        "dark": "runmark.dark.json"
+      }
+    }
   }
 }

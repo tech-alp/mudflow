@@ -7,6 +7,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QUrl>
 #include <QtQmlIntegration>
 
 namespace runmark {
@@ -15,6 +16,7 @@ class StatusViewModel : public QObject
 {
     Q_OBJECT
     QML_ELEMENT
+    Q_PROPERTY(QString configPath READ configPath NOTIFY configPathChanged)
     Q_PROPERTY(QString project READ project NOTIFY changed)
     Q_PROPERTY(bool busy READ busy NOTIFY changed)
     Q_PROPERTY(QString error READ error NOTIFY changed)
@@ -23,12 +25,15 @@ class StatusViewModel : public QObject
 public:
     explicit StatusViewModel(QObject* parent = nullptr);
 
+    QString configPath() const { return m_configPath; }
     QString project() const { return m_project; }
     bool busy() const { return m_busy; }
     QString error() const { return m_error; }
     FindingModel* findings() { return &m_findings; }
 
-    // Absolute path to project.json. Set once before refresh().
+    // Project changes are rejected while a measurement is running.
+    Q_INVOKABLE void restoreProject(const QString& explicitPath = {});
+    Q_INVOKABLE void openProject(const QUrl& url);
     Q_INVOKABLE void setConfigPath(const QString& path);
     // Runs off the GUI thread: status shells out to git fetch, which can take
     // seconds. The application API stays synchronous; the wait lives here.
@@ -36,6 +41,7 @@ public:
 
 signals:
     void changed();
+    void configPathChanged();
 
 private:
     void apply(const QString& project, const QVector<FindingModel::Row>& rows, const QString& error);

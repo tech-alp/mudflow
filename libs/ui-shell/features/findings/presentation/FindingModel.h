@@ -31,13 +31,15 @@ public:
         QString suggestedAction;
     };
 
-    enum Role { IdRole = Qt::UserRole + 1, SeverityRole, DomainRole, TitleRole, ExplanationRole, SuggestedActionRole };
+    enum Role { IdRole = Qt::UserRole + 1, SeverityRole, DomainRole, TitleRole, ExplanationRole, SuggestedActionRole, KeyRole, DomainLabelRole };
 
     using QAbstractListModel::QAbstractListModel;
 
     int rowCount(const QModelIndex& parent = {}) const override;
     QVariant data(const QModelIndex& index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
+
+    static QString domainLabel(const QString& domain);
 
     void reset(const QVector<Row>& rows);
 

@@ -1,0 +1,91 @@
+{
+    "brandId": "runmark",
+    "colors": {
+        "action": {
+            "destructive": {
+                "container": "#B3261E",
+                "content": "#FFFFFF",
+                "outline": "#B3261E"
+            },
+            "primary": {
+                "container": "#2660BF",
+                "content": "#FFFFFF",
+                "outline": "#2660BF"
+            },
+            "secondary": {
+                "container": "#50525A",
+                "content": "#FFFFFF",
+                "outline": "#50525A"
+            }
+        },
+        "content": {
+            "disabled": "#81838C",
+            "inverse": "#EFF0FA",
+            "link": "#1556B5",
+            "primary": "#1D1F27",
+            "secondary": "#50525A",
+            "tertiary": "#5C5E67"
+        },
+        "outline": {
+            "focus": "#1556B5",
+            "strong": "#757780",
+            "subtle": "#D5D7E1"
+        },
+        "status": {
+            "error": {
+                "container": "#FEF2F2",
+                "content": "#A61B14",
+                "outline": "#A61B14"
+            },
+            "info": {
+                "container": "#E4F4F8",
+                "content": "#00566B",
+                "outline": "#00566B"
+            },
+            "neutral": {
+                "container": "#ECEDF7",
+                "content": "#50525A",
+                "outline": "#50525A"
+            },
+            "success": {
+                "container": "#ECFDF3",
+                "content": "#166B3B",
+                "outline": "#166B3B"
+            },
+            "warning": {
+                "container": "#FFFBEB",
+                "content": "#7A4200",
+                "outline": "#7A4200"
+            }
+        },
+        "surface": {
+            "canvas": "#F5F6FF",
+            "container": "#FFFFFF",
+            "containerRaised": "#FFFFFF",
+            "containerSunken": "#ECEDF7",
+            "containerTinted": "#ECEDF7",
+            "floating": "#FFFFFF",
+            "inverse": "#1D1F27",
+            "scrim": "#A3000000",
+            "shadow": "#000000"
+        }
+    },
+    "identity": {
+        "mark": "#5B8DEF"
+    },
+    "kind": "resolved-theme",
+    "mode": "light",
+    "resolvedThemeSchemaVersion": 1,
+    "state": {
+        "disabled": {
+            "containerOpacity": 0.12,
+            "contentOpacity": 0.38
+        },
+        "layer": {
+            "focus": 0.1,
+            "hover": 0.08,
+            "pressed": 0.1,
+            "selected": 0.12
+        }
+    }
+}

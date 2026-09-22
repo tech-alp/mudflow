@@ -1,6 +1,6 @@
 # The QML bridge. Depends on the application layer, never the other way round;
 # apps/cli must not reach any of this (TC-012).
-find_package(Qt6 6.11 REQUIRED COMPONENTS Gui Quick Qml LabsStyleKit)
+find_package(Qt6 6.11 REQUIRED COMPONENTS Gui Quick Qml LabsStyleKit Concurrent)
 
 # Called here, not at the root. It is a macro: CMAKE_AUTOMOC/AUTOUIC and the
 # Qt policies land in the calling directory scope and are inherited by every
@@ -30,17 +30,29 @@ qt_add_qml_module(runmark_ui_shell
     VERSION 1.0
     IMPORT_PATH "${merce_BINARY_DIR}/qml"
     SOURCES
-        src/FindingModel.cpp
-        src/FindingModel.h
-        src/StatusViewModel.cpp
-        src/StatusViewModel.h
+        features/findings/presentation/FindingFilterModel.cpp
+        features/findings/presentation/FindingFilterModel.h
+        features/findings/presentation/FindingModel.cpp
+        features/findings/presentation/FindingModel.h
+        features/findings/presentation/StatusViewModel.cpp
+        features/findings/presentation/StatusViewModel.h
     QML_FILES
         Shell.qml
+        features/findings/qml/FindingsPage.qml
+        features/findings/qml/FindingsFilterBar.qml
+        features/findings/qml/FindingListItem.qml
+        features/findings/qml/FindingDetails.qml
+        shell/WorkspaceLayout.qml
+        shell/Sidebar.qml
+        shell/ProjectHeader.qml
+        components/StatusBadge.qml
+        components/EmptyState.qml
 )
 
-target_include_directories(runmark_ui_shell PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
+target_include_directories(runmark_ui_shell PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/features/findings/presentation>)
 target_link_libraries(runmark_ui_shell PUBLIC runmark::application Qt6::Quick Qt6::Qml
-    Merce::Theme Merce::Foundation Merce::Style Merce::Controls)
+    Merce::Theme Merce::Foundation Merce::Style Merce::Controls
+    PRIVATE Qt6::Concurrent)
 # qt_add_library turns module scanning off; StatusViewModel.cpp imports
 # runmark.domain through workflow.h, so turn it back on for this target.
 set_property(TARGET runmark_ui_shell PROPERTY CXX_SCAN_FOR_MODULES ON)

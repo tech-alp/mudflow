@@ -1,0 +1,6 @@
+{
+  "kind": "tenant-brand",
+  "tenantBrandSchemaVersion": 1,
+  "brandId": "runmark",
+  "seed": "#5B8DEF"
+}

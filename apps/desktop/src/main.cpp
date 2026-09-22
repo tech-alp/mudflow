@@ -1,19 +1,18 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QCommandLineParser>
-#include <QDir>
 
 int main(int argc, char* argv[])
 {
     QGuiApplication app(argc, argv);
+    app.setOrganizationName(QStringLiteral("Runmark"));
     app.setApplicationName(QStringLiteral("Runmark"));
 
     QCommandLineParser parser;
     parser.addHelpOption();
     const QCommandLineOption projectOption(
         {QStringLiteral("p"), QStringLiteral("project")},
-        QStringLiteral("Path to project.json."), QStringLiteral("path"),
-        QDir::current().filePath(QStringLiteral(".runmark/project.json")));
+        QStringLiteral("Path to project.json."), QStringLiteral("path"));
     parser.addOption(projectOption);
     parser.process(app);
 

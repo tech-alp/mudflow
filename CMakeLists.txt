@@ -6,7 +6,7 @@ include(RunmarkVersion)
 project(Runmark VERSION ${RUNMARK_VERSION} LANGUAGES CXX)
 
 option(RUNMARK_BUILD_CLI "Build the Runmark CLI" ON)
-option(RUNMARK_BUILD_UI "Build the Runmark UI" OFF)
+option(RUNMARK_BUILD_UI "Build the Runmark UI" ON)
 option(RUNMARK_BUNDLE_RUNTIME "Bundle macOS CLI runtime for distribution" OFF)
 option(RUNMARK_MERCE_NOTIFICATIONS "Build Merce's notification and dialog module" OFF)
 
