@@ -1,5 +1,9 @@
 # Mudflow POC Plan
 
+Tarihsel POC kaydıdır. Ürün artık Runmark olarak adlandırılır; `MF-*` task
+kimlikleri ve aşağıdaki mevcut `mudflow` komutu evidence bağlantılarını
+korumak için değiştirilmedi. Hedef adlandırma [Architecture](../ARCHITECTURE.md)'dadır.
+
 Görevler `- [ ]` / `- [x]` checklist maddesi olarak yazılır ve task ID taşır.
 Format `project.json` içindeki `task_id_pattern` ile eşleşmezse `mudflow status`
 `plan.no_parsable_tasks` uyarısı verir — kurallar sessizce kör kalmaz.

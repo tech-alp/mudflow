@@ -1,8 +1,12 @@
-# Mudflow Trust Model
+# Runmark Trust Model
 
 ## İlke
 
-Mudflow opaque “83% healthy” skoru vermek yerine explainable findings üretir.
+Runmark opaque “83% healthy” skoru vermek yerine explainable findings üretir.
+
+Bu kurallar korumalı ürün servislerine aittir. Feature pluginler findings'i
+gösterir; entegrasyonlar ölçüm/evidence sağlar. Bir plugin'in veya agent'ın
+tamamlandı iddiası, bu değerlendirme kurallarının yerine geçmez.
 
 ## Truth domains
 

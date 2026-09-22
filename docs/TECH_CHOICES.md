@@ -1,4 +1,9 @@
-# Mudflow Teknoloji Kararları (v0.1)
+# Runmark Teknoloji Kararları
+
+TC-001–009 mevcut Mudflow uygulamasının kararlarını ve yollarını kaydeder.
+Runmark/`rmk`, hedef dizin yapısı, Merce ve modules geçişi TC-010 ile
+tanımlanır; mevcut kodun taşındığı veya minimum build sürümünün değiştiği
+varsayılmaz. Yeni kararlar [ADR-016–019](DECISIONS.md) ile birlikte okunur.
 
 ADR'ler ürün kararlarını tutar (DECISIONS.md). Bu doküman **uygulama
 kararlarını** tutar: hangi kütüphane, hangi sınıf, neden, ne zaman değişir.
@@ -9,6 +14,9 @@ ucuz olanlar tartışılmaz.
 ---
 
 ## TC-001 — Tek C++ core, iki ince frontend
+
+İki frontend'in ortak iş mantığı ilkesi korunur. Dizin ve katman yerleşimi
+hedefte TC-010 ile güncellenir; aşağıdaki yapı mevcut sürümdür.
 
 ```text
 core/             tüm mantık, Qt Core, GUI yok
@@ -91,8 +99,8 @@ Ciddi alternatif **CLI11** (header-only, gerçek subcommand, iç içe gruplar,
 validator, daha iyi help çıktısı).
 
 **Geçiş tetikleyicisi:** `mudflow project status` gibi **iç içe** komut grupları.
-ROADMAP Phase 1'de bunlar var; geldiklerinde manuel dispatch çirkinleşir.
-v0.1'in üç komutu (`start` / `finish` / `status`) için gerek yok.
+İç içe gruplar gerekirse parser yeniden değerlendirilir; mevcut düz komut
+yapısı ve hedef `rmk` adlandırması tek başına yeni parser gerektirmez.
 
 Geri dönüş maliyeti: **çok düşük.** Mantığın tamamı `core/` altında;
 parser değişimi tek dosyaya dokunur. Bu yüzden karar üzerinde durulmaz.
@@ -214,6 +222,8 @@ Geri dönüş maliyeti: **düşük.** Tek fonksiyon (`emitError`).
 
 ## TC-008 — Bileşen dizinleri ve CMake bağımlılıkları
 
+Mevcut build düzeni. Hedef adlandırma ve dizinler TC-010'da tanımlanır.
+
 Dizin adları proje öneki taşımaz: `core/`, `cli/`, `docs/`, `cmake/`.
 Core testleri `core/tests/`, CLI sözleşme testi `cli/tests/` altında tutulur.
 Henüz uygulanmayan `ui/` ve `agent/` dizinleri oluşturulmaz.
@@ -234,7 +244,7 @@ Core'u linklemeyen CLI sözleşme testi C++20 gereksinimini kendi hedefinde beli
 Kurulum `cli/` içinde `GNUInstallDirs` ile yapılır; dış tüketicisi olmayan
 statik core için install kuralı yoktur.
 
-Sürümün tek kaynağı `project(Mudflow VERSION 0.1.0 ...)` olur.
+Sürümün tek kaynağı kök CMake'deki `project(... VERSION ...)` olur.
 CLI, `cmake/version.h.in` şablonundan `configure_file` ile üretilen başlığı
 kullanır. `MUDFLOW_BUILD_CLI` varsayılan olarak açık, gelecekteki UI için
 `MUDFLOW_BUILD_UI` kapalıdır; testler `BUILD_TESTING` ile yönetilir.
@@ -297,6 +307,44 @@ ile çıktı karşılaştırması yapıldı), ama geri birleştirmek testleri ka
 
 ---
 
+## TC-010 — Runmark hedef düzenine aşamalı geçiş
+
+Durum: hedef karar; implementation bekliyor.
+
+- Ürün Runmark, CLI executable `rmk`; dizin adları `apps/cli`, `apps/desktop`
+  ve `libs/domain` gibi sorumluluk adlarıdır. `runmark-` dizin öneki kullanılmaz.
+- Teknik namespace'ler `runmark::domain`, `runmark.domain`, `Runmark.Shell`
+  biçimindedir. CMake target'ları bağımlılık ve compile features'ı taşır.
+- `core` domain/application/infrastructure olarak ayrılır. Runtime ürün
+  kurallarını bilmez; korumalı ürün servisleri ile değiştirilebilir feature ve
+  integration pluginleri ayrı tutulur. İç bağımlılıklar açıkça verilir.
+- Named modules dahili API sınırıdır; public plugin ABI'si değildir.
+  QObject/QML köprüleri başlangıçta `.h/.cpp`; module import `.cpp` içindedir.
+- Mevcut C++20 / CMake 3.21+ build korunur. Merce CMake 3.30+ gerektirir;
+  C++23 / CMake 4.4+ / Ninja / LLVM Clang ve Windows MSVC hattı modules
+  doğrulamasında değerlendirilir. Üç OS sonucu olmadan yeni baseline ilan edilmez.
+- Merce yalnız desktop katmanında eklenir; Qt/Merce sürümleri sabitlenir.
+  CLI için Qt Core bağımlılık sınırı korunur. TC-002'nin yeni bağımlılığı
+  gerekçelendirme ilkesi devam eder; desktop için Merce ADR-017 ile seçilmiştir.
+- `.runmark/` hedef veri dizinidir. Eski `.mudflow/` kayıtlarının, handoff
+  yollarının, preserved ref'lerin ve agent hook'larının uyumluluğu geçiş testidir.
+  CLI adı değişse de JSON/exit sözleşmesi korunur; veri geçişi ayrı uygulanır.
+
+Tek hedef ağaç [ARCHITECTURE.md](ARCHITECTURE.md) içindedir. Mevcut kod eşlemesi:
+
+| Bugünkü kod | Hedef sorumluluk |
+|---|---|
+| `cli/` | `apps/cli/` |
+| `core/include/mudflow/facts.h`, `core/src/rules.cpp` | `libs/domain/` |
+| `core/src/workflow.cpp` | `libs/application/` |
+| `core/src/git.cpp`, `ledger.cpp`, `paths.cpp` | `libs/infrastructure/` |
+| `core/src/plan.cpp`, `handoff.cpp`, `project_config.cpp` | Saf tip/kurallar domain; I/O infrastructure; akış application |
+| `plugins/mudflow-agent/` | `integrations/agent-clients/runmark/` |
+
+Geri dönüş maliyeti: **orta/yüksek.** Dizin taşıma tek başına düşük maliyetlidir;
+module toolchain, plugin lifecycle ve veri migration sözleşmeleri değildir.
+Geçiş [ROADMAP](ROADMAP.md) sırasıyla, mevcut CLI regression testleri korunarak yapılır.
+
 ## Özet: neyi ne zaman değiştiririz
 
 | Karar | Şimdi | Tetikleyici |
@@ -307,7 +355,10 @@ ile çıktı karşılaştırması yapıldı), ama geri birleştirmek testleri ka
 | Dosya izleme | Yok | Phase 3 → QFileSystemWatcher |
 | Recursive izleme | — | FD limiti veya kaynak ağacı izleme ihtiyacı → Watchman |
 | Markdown | 2 regex | Checkbox/başlık/ID'den fazlası → parser |
-| Qt dışı bağımlılık | Sıfır | Her biri ayrı karar |
+| Qt dışı bağımlılık | CLI'da sıfır | Desktop için Merce seçildi (ADR-017) |
 | Provider katmanlaması | Kural, kod değil | Phase 6 → JSON-RPC 2.0 over stdio |
 | Hata `code` alanı | `usage` / `runtime` | Tüketici koda göre dallanmak isteyince |
 | `rules.cpp` saflığı | I/O yok, `now` fact | Bozulursa ayrım kaybolur — yeni gerçek `facts.h`'ye eklenir |
+| Ürün / CLI | Kodda Mudflow / `mudflow` | ADR-016 → Runmark / `rmk` |
+| Katmanlar | `core/`, `cli/` | TC-010 → `apps/`, `libs/`, plugin sınırları |
+| Named modules | Yok | Üç OS toolchain doğrulaması ardından aşamalı geçiş |

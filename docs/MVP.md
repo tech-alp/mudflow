@@ -1,4 +1,8 @@
-# Mudflow MVP
+# Runmark MVP
+
+Ürün adı Runmark, hedef CLI `rmk`'dır. Aşağıdaki maddeler kapsam hedefidir;
+tamamlanmış özellik listesi değildir. Mevcut build hâlâ `mudflow` kullanır.
+Adlandırma/modules geçişi ve Merce desktop sırası [ROADMAP](ROADMAP.md)'tedir.
 
 ## Ana amaç
 

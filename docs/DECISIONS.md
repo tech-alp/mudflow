@@ -1,4 +1,8 @@
-# Mudflow Decisions
+# Runmark Decisions
+
+ADR-001–015, Mudflow adıyla alınan karar geçmişidir; eski komut ve veri
+yolları tarihsel bağlamıyla korunur. 22 Eylül 2026 tarihli ADR-016–019 hedef
+mimariyi tanımlar. Kabul edilmiş hedef, kodun taşındığı anlamına gelmez.
 
 ## ADR-001 — Planning framework değil
 Accepted.
@@ -12,6 +16,8 @@ Commit, diff ve test; agent summary’den daha güçlü evidence’tır.
 
 ## ADR-003 — Plugin-first, not everything-is-a-plugin
 Accepted.
+
+Core yerleşimi ADR-018 ile güncellendi; ürün kavramlarının sahipliği korunur.
 
 Core:
 - ProjectGraph
@@ -61,6 +67,8 @@ Accepted.
 
 ## ADR-011 — Qt/QML desktop
 Preferred.
+
+Desktop seçimi ADR-017 ile kesinleşti; named modules yönü ADR-019'dadır.
 
 ```text
 C++20
@@ -148,3 +156,64 @@ idempotent olmaktan çıkarır ve ledger'ı ölçümle değil trafikle şişirir
 Yalnız "hiç görüldü mü" ölçülür. "En son ne zaman" tutulur ama henüz kural
 üretmez; hook'un sonradan bozulduğunu yakalamak ayrı bir karardır.
 
+## ADR-016 — Runmark adı, rmk CLI ve sorumluluk bazlı dizinler
+
+Accepted — hedef; kod geçişi bekliyor. Tarih: 2026-09-22.
+
+Ürün adı Runmark, CLI executable adı `rmk` olur. Workspace verisi `.runmark/`
+altında tutulur. Uygulamalar `apps/cli` ve `apps/desktop`; kütüphaneler
+`libs/domain`, `libs/runtime` gibi sorumluluk adlarıyla yerleşir. Dizinlere
+`runmark-` öneki eklenmez. Ürün kimliği `runmark::domain`, `runmark.domain`,
+`Runmark.Shell`, `com.runmark.findings` gibi teknik namespace'lerde kullanılır.
+
+Gerekçe: kısa terminal komutu ve ürün adına bağlı olmayan okunabilir dosya düzeni.
+Bedeli: CLI/hook/marketplace yolları ile veri ve preserved Git ref referansları
+birlikte ele alınmalıdır. Mevcut `mudflow` kurulumu ve `.mudflow/` kayıtları
+doküman güncellemesiyle değişmez. Eski veriyi koruyan migration ve eski/yeni
+dizin çakışma politikası implementation öncesinde netleştirilir.
+
+## ADR-017 — Desktop tasarım sistemi Merce
+
+Accepted — hedef; entegrasyon bekliyor. Tarih: 2026-09-22.
+
+Runmark desktop, Merce kullanır. Kompakt `desktop` profili hazırlanır; kiosk
+profilleri değiştirilmez. Shell ve feature görünümleri ortak semantic tokenları
+kullanır; QGravityUI ikinci bir runtime tasarım bağımlılığı olarak eklenmez.
+
+Gerekçe: merkezi token/style yönetimi ve mevcut tasarım altyapısının kullanımı.
+Veri ekranlarının model/view davranışları Runmark'ta geliştirilir.
+Bedeli: Merce'nin Qt.labs.StyleKit Technology Preview bağımlılığı nedeniyle
+Qt/Merce sürümleri sabitlenir; yükseltmede focus, tema, DPI ve veri ekranları
+doğrulanır. Merce CLI/headless bağımlılığı olmaz.
+
+## ADR-018 — İnce runtime, korumalı ürün servisleri, değiştirilebilir pluginler
+
+Accepted — hedef; runtime henüz yok. Tarih: 2026-09-22.
+ADR-003'ün core yerleşimini günceller; ADR-004'ün public native ABI sınırını korur.
+
+Domain/application/infrastructure ürün davranışını; runtime ise manifest,
+bağımlılık, lifecycle ve effect sahipliğini yönetir. Execution/evidence/trust
+servisleri Runmark'a aittir ve korumalı system plugin üzerinden sunulabilir.
+Üçüncü parti ürün servisi replacement sözleşmesi açılmaz. UI ve dış sistem
+adaptörleri değiştirilebilir. Ekranı kaldırmak veriyi veya ürün servisini silmez.
+
+Gerekçe: yeni ekran/entegrasyon eklerken doğrulama kuralları korunur; CLI ve
+desktop aynı application akışlarını kullanır. Bedeli: activation rollback,
+dependency kaybı, devam eden çağrılar ve effect cleanup test edilmelidir.
+Process izolasyonu sandbox; resource cleanup harici işlem rollback'i sayılmaz.
+
+## ADR-019 — Dahili C++ named modules, ayrı plugin sözleşmesi
+
+Accepted — mimari yön; toolchain doğrulaması bekliyor. Tarih: 2026-09-22.
+
+Dahili API sınırları C++ named modules ile ifade edilir; ilk adaylar
+`runmark.domain`, `runmark.application`, `runmark.runtime` olur. CMake
+`FILE_SET CXX_MODULES` kullanılır. QObject/QML köprüsü başlangıçta klasik
+header/source dosyalarında kalır. BMI public plugin ABI'si değildir.
+
+Gerekçe: açık export yüzeyi ve döngüsüz bağımlılıklar. Bedeli: compiler/BMI,
+dependency scanning ve MOC entegrasyonu; build hızlanması garanti değildir.
+C++23, CMake 4.4+, Ninja ve LLVM Clang/MSVC kombinasyonu adaydır; macOS,
+Linux ve Windows clean/incremental build doğrulaması sonrası baseline seçilir.
+Mevcut C++20 build değiştirilmedi. `import std`, header units, Conan ve özel
+MOC helper'ı bu kararla otomatik eklenmez.

@@ -113,11 +113,17 @@ else if (process.argv.includes('--version')) console.log(process.env.FAKE_VERSIO
 else process.stdout.write(process.env.FAKE_RESUME || '');
 `, { mode: 0o755 });
   const valid = JSON.stringify({ cwd: repo, session_id: 'x' });
+  // Betigi degil, manifest'te YAZAN komutu calistir. Betik dogrudan
+  // cagrildiginda calisiyordu ama hooks.json'daki komut Codex'te exit 127
+  // veriyordu: dogru sey test edilmezse yesil, yanlis seyi kanitlar.
+  const command = json(path.join(plugin, 'hooks/hooks.json'))
+    .hooks.SessionStart[0].hooks[0].command;
   function run(input = valid, env = {}) {
     fs.writeFileSync(log, '');
-    const result = spawnSync(path.join(plugin, 'hooks/mudflow-session-start.sh'), [], {
+    const result = spawnSync('/bin/sh', ['-c', command], {
       input, encoding: 'utf8', timeout: 6000,
-      env: { ...process.env, PATH: bin, HOME: temporary, CALL_LOG: log, FAKE_VERSION: 'mudflow 0.2.0', FAKE_MODE: '', ...env },
+      env: { ...process.env, CLAUDE_PLUGIN_ROOT: plugin, PATH: bin, HOME: temporary,
+        CALL_LOG: log, FAKE_VERSION: 'mudflow 0.2.0', FAKE_MODE: '', ...env },
     });
     assert.ifError(result.error);
     assert.equal(result.status, 0);

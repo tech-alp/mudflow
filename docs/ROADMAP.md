@@ -1,4 +1,8 @@
-# Mudflow Roadmap
+# Runmark Roadmap
+
+Bu doküman hedef kapsam ve sırayı gösterir; maddelerin tamamlandığı anlamına
+gelmez. Hedef komut adı `rmk`'dır; mevcut build henüz `mudflow` üretir.
+İsim ve mimari kararları: [ADR-016–019](DECISIONS.md).
 
 ## Phase 0 — Workflow validation
 Amaç: modeli gerçek bir SCMS/TVM benzeri akışta doğrulamak.
@@ -11,10 +15,10 @@ Amaç: modeli gerçek bir SCMS/TVM benzeri akışta doğrulamak.
 - multi-repo örneği
 
 ## Phase 1 — Core CLI
-- `mudflow inspect`
-- `mudflow project status`
-- `mudflow git health`
-- `mudflow start <task>`
+- `rmk inspect`
+- `rmk status`
+- Git health findings
+- `rmk start <task>`
 - execution begin/finish
 - Superpowers provider
 - MudIssue provider
@@ -27,9 +31,30 @@ Amaç: modeli gerçek bir SCMS/TVM benzeri akışta doğrulamak.
 - plan ↔ evidence mapping
 - stale/unverified task detection
 - handoff artifact
-- `mudflow resume`
+- `rmk resume`
+
+## Desktop öncesi — Adlandırma ve mimari geçişi
+
+1. `rmk` executable, `runmark` namespace ve paket/hook adlarını birlikte taşı.
+   `.mudflow/` → `.runmark/` geçişinde eski/yeni dizin çakışma ve rollback
+   politikasını tanımla; ledger, handoff ve preserved ref'leri koru.
+2. `apps/cli` ile `libs/domain`, `libs/application`, `libs/infrastructure`
+   sınırlarını kur; CLI JSON/exit ve mevcut veri sözleşmelerini regression testleriyle koru.
+3. Küçük bir named module + QObject/QML köprüsünü macOS/Linux/Windows'ta
+   clean/incremental build ile doğrula; compiler/CMake/Ninja baseline'ını sabitle.
+4. Domain'den başlayarak modules geçişini yap. Henüz kullanılmayan host/SDK
+   dizinlerini veya genel amaçlı framework soyutlamalarını oluşturma.
 
 ## Phase 3 — Qt/QML Desktop MVP
+
+- Merce entegrasyonu, sürüm sabitleme ve kompakt `desktop` profili
+- `apps/desktop`, `libs/ui-shell`; CLI'nin GUI bağımlılığı olmaması
+- Minimum plugin runtime/API ve QML katkı host'u
+- İlk feature plugin: Findings; activation failure ve cleanup doğrulaması
+- Korumalı execution servislerine UI proxy'leri; doğrudan ledger yazımı yok
+- Navigation, route/tab, inspector, activity ve temel rescue görünümü
+- Gerçek verili Worktrees ekranında büyük liste, klavye/focus, tema ve DPI doğrulaması
+
 Ekranlar:
 - Overview
 - Plan
@@ -39,10 +64,16 @@ Ekranlar:
 - Findings
 
 ## Phase 4 — Provider Registry
+
+Phase 3'teki minimum runtime üzerine provider capability sözleşmeleri eklenir:
+
 - IPlanProvider
 - ITaskProvider
 - IAgentProvider
 - IEvidenceProvider
+- Sürümlü capability, missing service ve dependency cycle kontrolleri
+- Provider kaybında consumer durdurma ve devam eden çağrıları sonuçlandırma
+- Scope bazlı resource sahipliği ve ters sırada cleanup
 
 ## Phase 5 — Additional providers
 Plan:
@@ -68,7 +99,11 @@ Provider contracts stabilize olduktan sonra:
 - manifest
 - discovery
 - versioning
-- process/JSON-RPC
+- `libs/process-host` ile JSON-RPC 2.0 over stdio
+- Gerçek child process ile handshake, timeout, crash/restart testleri
+- Versioned manifest ve IPC şemaları; eski sürüm fixture'larıyla compatibility
+- Açıkça güvenilen paketler; workspace pluginleri için otomatik çalıştırma yok
+- Public SDK, ilk gerçek process adaptörü doğrulandıktan sonra sabitlenir
 
 ## Phase 7 — Advanced Trust Engine
 - doc freshness
@@ -84,3 +119,6 @@ Provider contracts stabilize olduktan sonra:
 - autonomous merge
 - workflow designer
 - generalized multi-agent orchestration
+- third-party execution/evidence/trust service replacement
+- public native plugin ABI ve native hot-unload
+- OS sandbox olmadan untrusted plugin çalıştırma

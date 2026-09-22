@@ -1,10 +1,14 @@
-# Mudflow Provider Model
+# Runmark Provider Model
+
+Bu doküman provider hedeflerini tanımlar; bütün adaptörlerin veya registry'nin
+uygulanmış olduğunu göstermez. Güncel sıra [ROADMAP](ROADMAP.md), katman
+sınırları [ARCHITECTURE](ARCHITECTURE.md) içindedir.
 
 ## Amaç
 
 External araçları entegre et, ama core kavramlarını değiştirmelerine izin verme.
 
-Mudflow şunları sahiplenir:
+Runmark şunları sahiplenir:
 
 ```text
 Project
@@ -60,9 +64,9 @@ capabilities:
   update: true
 ```
 
-## v0.1
+## İlk provider hedefleri
 
-Built-in provider’lar:
+Ürünle birlikte geliştirilmesi hedeflenen provider'lar:
 
 Plan:
 - Superpowers
@@ -79,17 +83,20 @@ Evidence:
 - Git
 - manual test evidence
 
-## Plugin evrimi
+## Plugin sınırları ve evrimi
 
-v0.1:
-- compiled providers
+- Protected system pluginler Runmark'ın execution/evidence/trust servislerini
+  sunar; üçüncü parti alternatifleriyle değiştirme sözleşmesi yoktur.
+- Feature pluginler bu servislerin görünümüdür; ekranı kapatmak veriyi silmez.
+- Integration pluginler harici plan/task/agent/evidence kaynaklarını normalize
+  eder. Jira task durumu tek başına Runmark'ın doğrulanmış tamamlanma kararı değildir.
+- Önce built-in adaptörler ve minimum runtime, ardından sürümlü provider
+  registry, sonrasında gerçek process adaptörü ve public SDK geliştirilir.
+- Dış adaptör sözleşmesi JSON-RPC 2.0 over stdio; dahili C++ named modules
+  plugin ABI'si değildir. Public C++ shared-library yükleme modeli açılmaz.
+- Başlangıçta açıkça güvenilen pluginler çalıştırılır. Process ayrımı crash
+  izolasyonudur; OS sandbox olmadan güvenilmeyen kodu sınırlama garantisi vermez.
 
-v0.2:
-- provider registry
-
-v0.3+:
-- external process provider
-- JSON-RPC / process protocol
-- manifest
-
-İlk sürümde C++ ABI plugin sistemi kurulmamalı.
+Runtime adaptörleri `plugins/integrations/`; dış agent uygulamalarına kurulan
+skill/hook paketleri `integrations/agent-clients/runmark/` altında hedeflenir.
+Mevcut `plugins/mudflow-agent/` henüz taşınmadı.

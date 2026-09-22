@@ -1,4 +1,12 @@
-# Mudflow Data Model (v0.1)
+# Runmark Data Model (mevcut v0.1 sözleşmesi)
+
+Ürün Runmark olarak adlandırıldı; bu doküman henüz kodda kullanılan
+`mudflow`, `.mudflow/` ve `refs/mudflow/preserved/*` sözleşmelerini tanımlar.
+Örnek çıktılardaki Mudflow adı mevcut üreticiye aittir. Hedef CLI `rmk`,
+veri dizini `.runmark/` olacaktır; otomatik migration henüz yoktur.
+Eski/yeni dizin birlikte bulunduğunda seçim ve rollback davranışı ayrıca
+tanımlanacaktır. Adlandırma değişikliği kayıt şemasını kendiliğinden değiştirmez.
+Bkz. [Architecture](ARCHITECTURE.md) ve [ADR-016](DECISIONS.md#adr-016--runmark-adı-rmk-cli-ve-sorumluluk-bazlı-dizinler).
 
 Bu doküman `start` / `finish` / `status` / `resume` komutlarının yazdığı ve okuduğu verileri tanımlar.
 Kod değil, şema. Amaç: C++ yazmadan önce "ne nereye yazılıyor" sorusunun bitmesi.
@@ -24,7 +32,7 @@ yazma çakışması olmaz. Kilit yok, lock dosyası yok.
 Dosya adı zaman damgasıyla başladığı için `ls` çıktısı zaten kronolojik;
 ayrı index'e gerek yok.
 
-ARCHITECTURE.md'deki `cache/` ve `index/` v0.1'de yok.
+`cache/` ve `index/` v0.1'de yok.
 Ledger birkaç yüz satır; her `status`'ta baştan okunur.
 `status` 200 ms'yi geçerse index eklenir.
 

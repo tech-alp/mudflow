@@ -1,8 +1,28 @@
-# Mudflow Desktop UX
+# Runmark Desktop UX
+
+Hedef desktop tasarımıdır; shell ve plugin runtime henüz uygulanmadı.
+
+## Tasarım sistemi ve shell
+
+Merce kullanılır. Runmark'a özel kompakt `desktop` profili; semantic renk,
+tipografi, spacing ve kontrol boyutlarını sağlar. Kiosk profilleri korunur.
+
+Shell; workspace seçimi, ana navigasyon, route/tab host, context inspector,
+activity alanı ve temel rescue görünümünü sahiplenir. Feature pluginler bu
+bölgelere sayfa, panel ve komut katkısı verir. Theme yönetimi shell'dedir.
+Execution/evidence/trust servislerine izinli proxy üzerinden erişilir.
+
+Route örneği: `runmark://com.runmark.findings/list`. Plugin durdurulduğunda
+ilgili görünüm kontrollü kapanır veya fallback'e geçer; kalıcı kayıt silinmez.
+
+Klavye erişimi, plugin sınırında focus devamlılığı, erişilebilir ad/rol ve
+renk dışı durum göstergeleri zorunludur. İlk doğrulama gerçek verili Worktrees
+ekranında büyük liste, açık/koyu tema ve farklı DPI değerlerini kapsar.
+CLI komutu `rmk`'dır; UI gezinmesi ve görsel durum CLI katmanına taşınmaz.
 
 ## UX hedefi
 
-Mudflow açıldığında birkaç saniyede şu sorular cevaplanmalı:
+Runmark açıldığında birkaç saniyede şu sorular cevaplanmalı:
 
 1. Ne yapıyoruz?
 2. Ne gerçekten bitti?

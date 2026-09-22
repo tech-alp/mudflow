@@ -1,11 +1,28 @@
-# Mudflow
+# Runmark
 
 AI ile geliştirilen projelerde plan, kod, Git state ve agent context'in
 birbirinden kopmasını engelleyen local-first execution control plane.
 
 Doküman: [docs/](docs/README.md)
 
-## Build
+Ürün adı **Runmark**, hedef CLI komutu **`rmk`** olarak belirlendi.
+Adlandırma ve mimari geçişi henüz koda uygulanmadı: mevcut binary `mudflow`,
+veri dizini `.mudflow/`, kaynak dizinleri `core/` ve `cli/` olarak çalışır.
+Aşağıdaki build, kullanım ve plugin kurulum komutları mevcut sürüm içindir.
+Hedef düzen: [Architecture](docs/ARCHITECTURE.md).
+
+Geçiş sonrası CLI örnekleri (henüz kullanılabilir değil):
+
+```sh
+rmk inspect
+rmk status
+rmk start TASK-42 --agent codex
+rmk evidence <exec> --kind test --summary "Tests passed"
+rmk finish <exec> --outcome finished
+rmk resume
+```
+
+## Mevcut sürümü derleme
 
 Gereken: CMake 3.21+, Qt 6.11+, C++20 derleyici.
 
@@ -19,7 +36,7 @@ ctest --preset dev
 `QT6_ROOT` ayarlı değilse CMake Qt'yi sistem yollarında arar.
 Kalıcı bir yapılandırma istersen `CMakeUserPresets.json` yaz (git ignore'da).
 
-## Kullanım
+## Mevcut sürümün kullanımı
 
 ```sh
 mudflow inspect                                   # project.json'u doğrula

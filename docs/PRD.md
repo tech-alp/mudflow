@@ -1,10 +1,14 @@
-# Mudflow PRD
+# Runmark PRD
 
 ## 1. Ürün tanımı
 
-Mudflow, AI ile geliştirilen projelerde plan, kod, Git state ve agent context’in birbirinden kopmasını engelleyen local-first execution control plane’dir.
+Runmark, AI ile geliştirilen projelerde plan, kod, Git state ve agent context’in birbirinden kopmasını engelleyen local-first execution control plane’dir.
 
-Mudflow yeni bir planning framework dayatmaz. Mevcut artifact’ları okur, execution state’i modeller ve kanıtlarla doğrular.
+Runmark yeni bir planning framework dayatmaz. Mevcut artifact’ları okur, execution state’i modeller ve kanıtlarla doğrular.
+
+Hedef CLI komutu `rmk`, desktop tasarım sistemi Merce'dir. Değiştirilebilir
+ekranlar ve entegrasyonlar aynı execution/evidence/trust servislerini kullanır.
+Ürün adı geçişi henüz koda uygulanmadı; mevcut kurulum için [README](../README.md).
 
 ## 2. Ana problemler
 
@@ -110,7 +114,7 @@ Project aç
 
 ## 8. Non-goals
 
-Mudflow ilk aşamada:
+Runmark ilk aşamada:
 - Jira replacement değildir
 - cloud PM tool değildir
 - chat ürünü değildir
