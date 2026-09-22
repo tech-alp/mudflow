@@ -44,7 +44,7 @@ test('real semantic-release dry-run computes 0.3.1 without creating a tag', asyn
   const remote = join(fixture, 'remote.git');
   const repo = join(fixture, 'repo');
   const git = (...args) => execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-  git('init', '--bare', remote);
+  git('init', '--bare', '-b', 'main', remote);
   git('init', '-b', 'main', repo);
   git('-C', repo, 'config', 'user.name', 'Release test');
   git('-C', repo, 'config', 'user.email', 'release-test@example.invalid');

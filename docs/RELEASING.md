@@ -27,10 +27,14 @@ CI runner `macos-15`; minimum deployment target macOS 14.0. Minimum OS'ta
 çalışma ayrıca ölçülmedi. Release araçları Node 24 CI üzerinde çalışır;
 npm sürümleri `tools/release/package-lock.json` ile sabittir.
 
-Homebrew kurulumunun sürümleri zamanla değişebilir: `check-toolchain.sh`
-farklı sürümü sessizce kabul etmez, işi durdurur. Bu eski Homebrew
-paketlerinin arşivlenmesi değildir; sürüm değişiminde yeniden doğrulama
-ve bilinçli baseline güncellemesi gerekir. Qt cache'i action tarafından yönetilir;
+LLVM, resmi `llvmorg-23.1.1` macOS ARM64 arşivinden kurulur; URL ve SHA-256
+`tools/ci/install-llvm.sh` içinde sabittir. Hash doğrulanmadan arşiv açılmaz.
+`clang-scan-deps` aynı arşivden gelir. Kurulum runner geçici dizinindedir;
+yerel Homebrew LLVM değiştirilmez. Arşiv yaklaşık 1.57 GB'dir.
+CMake/Ninja hâlâ Homebrew'den gelir; `check-toolchain.sh` farklı sürümü
+beklenen/gerçek sürüm mesajıyla reddeder. Bunların kurulumları henüz arşivle
+sabitlenmiş değildir; sürüm değişiminde yeniden doğrulama gerekir.
+Qt cache'i action tarafından yönetilir;
 BMI/build dizinleri compiler'lar arasında cache'lenmez.
 
 ## Yerel doğrulama (yayın yapmaz)
@@ -71,7 +75,7 @@ garantisi değildir. Geçici build/test dizinleri tanı için korunur.
 
 ## İlk gerçek yayın öncesi gerekenler
 
-1. Bu workflow'ları push edip hosted macOS CI sonucunu doğrula.
+1. Yayınlanacak main commit'i için hosted macOS CI sonucunu doğrula.
 2. GitHub'da `release` environment için onay ve yalnız main deployment kuralı
    tanımla; main branch protection'a macOS CI kontrolünü ekle. YAML tek başına
    repository protection kurmaz. Bu ayarlar otomatik değiştirilmedi.
@@ -89,6 +93,16 @@ yayının prepare aşamasındadır. Dry-run da GitHub yetkisi ve yayın önkoşu
 doğrular. Token yalnız semantic-release adımına verilir; `contents: write`
 yalnız release job'undadır. Ek PAT veya npm token gerekmez.
 
-İlk hosted CI, GitHub token akışı ve gerçek yayın bu yerel uygulama sırasında
-çalıştırılmadı. Başarısız bir yayında mevcut tag'i silip yeniden yazma;
+İlk hosted CI (`35728139807`, `7d3aa96`) setup aşamasında başarısız oldu:
+Homebrew LLVM 23.1.0 kurdu, sürüm kapısı 23.1.1 bekledi; build/test/paket
+adımları atlandı. Sabit resmi arşiv kurulumu bu sapmayı giderdi. Sonraki
+`35734931715` çalışmasında kurulum geçti; release testinin bare Git deposunda
+varsayılan branch bağımlılığı bulundu ve explicit `main` ile düzeltildi.
+
+[Hosted CI 35735808373](https://github.com/tech-alp/runmark/actions/runs/35735808373)
+`fix/rm5-toolchain` branch'inde `82d8825` için tamamen geçti: toolchain,
+release-tool testleri/audit, Debug build/test, module/QML köprüsü ve Release
+paket smoke testi. Bu sonuç main'e entegrasyon veya gerçek yayın değildir.
+GitHub release token akışı ve gerçek yayın doğrulanmadı.
+Başarısız bir yayında mevcut tag'i silip yeniden yazma;
 önce tag/release/artifact durumunu incele, düzeltmeyi yeni sürümle yayınla.
