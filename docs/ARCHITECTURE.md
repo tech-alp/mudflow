@@ -166,10 +166,10 @@ libs/domain/
 - QObject/QML köprüsü başlangıçta `.h/.cpp` kalır; module import `.cpp`
   tarafında yapılır. MOC header'ı module içindeki tiplere bağımlı olmaz.
 - `import std`, header units ve özel MOC/module helper'ı başlangıç kapsamı dışıdır.
-- Baseline C++20 / Qt 6.11+ / CMake 4.4+'dır. `FILE_SET CXX_MODULES` CMake
-  3.28'de geldi, Merce v1.1.0 3.30 ister; 4.4 ikisini de karşılar ve yerel
-  derlemede doğrulanan sürümdür. C++23 / Ninja / LLVM Clang 19.1+ ve Windows
-  MSVC hattı teknik doğrulama adaylarıdır; henüz build gereksinimi değildir.
+- RM-3 ile üretim macOS baseline'ı C++23 / LLVM Clang 23.1.1 /
+  Ninja 1.13.2 / Qt 6.11.1 / CMake 4.4.3 oldu. `runmark.domain` tipleri ve
+  kuralları named module'e aittir; eski header yolları yalnız import köprüsüdür.
+  Application/infrastructure henüz named module değildir.
 - Conan 2 bu kararla otomatik eklenmez. Platform sırası macOS → Linux → Windows'tur
   (kullanıcı kararı, 2026-09-22). RM-2 macOS clean/incremental build ve MOC/QML
   köprüsü doğrulandı: LLVM Clang 23.1.1 / Ninja 1.13.2 / CMake 4.4.3 /

@@ -3,18 +3,36 @@
   "configurePresets": [
     {
       "name": "dev",
-      "displayName": "macOS Qt 6.11 development",
-      "binaryDir": "${sourceDir}/build",
+      "displayName": "macOS arm64 / LLVM / Debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/dev",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_PREFIX_PATH": "$env{QT6_ROOT}"
+        "CMAKE_CXX_COMPILER": "$env{LLVM_ROOT}/bin/clang++",
+        "CMAKE_PREFIX_PATH": "$env{QT6_ROOT}",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "14.0"
+      }
+    },
+    {
+      "name": "release",
+      "inherits": "dev",
+      "binaryDir": "${sourceDir}/build/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
       }
     }
   ],
   "buildPresets": [
     {
       "name": "dev",
-      "configurePreset": "dev"
+      "configurePreset": "dev",
+      "jobs": 4
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "jobs": 4
     }
   ],
   "testPresets": [
@@ -23,6 +41,21 @@
       "configurePreset": "dev",
       "output": {
         "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "timeout": 180
+      }
+    },
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "output": {
+        "outputOnFailure": true
+      },
+      "execution": {
+        "noTestsAction": "error",
+        "timeout": 180
       }
     }
   ]

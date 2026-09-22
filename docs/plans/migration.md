@@ -30,7 +30,16 @@ Format `project.json` içindeki `task_id_pattern` ile eşleşmezse `rmk status`
   Ninja 1.13.2, Qt 6.11.1; deney C++23 kullanır.
   Kaynak, komutlar ve sonuçlar: [module spike](../../tools/module-spike/README.md).
 
-- [ ] RM-3 — Domain'den başlayarak modules geçişi
+- [x] RM-3 — Domain'den başlayarak modules geçişi
 
   `runmark.domain` ile başla. Henüz kullanılmayan host/SDK dizinleri veya
   genel amaçlı framework soyutlamaları oluşturma.
+
+  `runmark.domain` uygulandı; mevcut header yolları import köprüsüdür.
+  Üretim macOS baseline'ı C++23 + LLVM + Ninja oldu.
+
+- [ ] RM-5 — macOS CI ve manuel semantic-release
+
+  Sabit toolchain, build/test/hook gates, taşınabilir CLI arşivi ve paket
+  smoke testi. Sürüm semantic-release tarafından build'e aktarılır.
+  Yayın yalnız manuel main workflow'undan; Linux/Windows ve desktop imzalama sonra.

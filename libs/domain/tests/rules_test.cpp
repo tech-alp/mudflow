@@ -1,7 +1,7 @@
 // evaluate() is pure, so this test sets up no git repo, no filesystem and no
 // clock. Facts are built by hand and findings are checked directly.
 
-#include "runmark/rules.h"
+import runmark.domain;
 
 #include <QJsonArray>
 #include <QJsonObject>

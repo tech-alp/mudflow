@@ -1,8 +1,10 @@
-#include "runmark/rules.h"
+module;
 
 #include <QHash>
 #include <QJsonArray>
 #include <QSet>
+
+module runmark.domain;
 
 namespace runmark {
 namespace {

@@ -1,10 +1,12 @@
-#include "runmark/project_config.h"
+module;
 
 #include <QJsonArray>
 #include <QJsonValue>
 #include <QRegularExpression>
 
 #include <stdexcept>
+
+module runmark.domain;
 
 namespace runmark {
 namespace {

@@ -12,10 +12,12 @@ Hedef düzen: [Architecture](docs/ARCHITECTURE.md).
 
 ## Derleme
 
-Gereken: CMake 4.4+, Qt 6.11+, C++20 derleyici.
+Doğrulanan macOS arm64 toolchain: CMake 4.4.3, Ninja 1.13.2,
+LLVM Clang 23.1.1, Qt 6.11.1 ve C++23. AppleClang yerine LLVM kullanılır.
 
 ```sh
 export QT6_ROOT=~/Qt/6.11.1/macos      # kendi Qt yolun
+export LLVM_ROOT=/opt/homebrew/opt/llvm
 cmake --preset dev
 cmake --build --preset dev
 ctest --preset dev
@@ -48,7 +50,7 @@ Durum `.runmark/` altında tutulur: `ledger/`, `evidence/`, `handoffs/`.
 `PATH`'te arar, o yüzden önce kur:
 
 ```sh
-cmake --install build --prefix ~/.local    # ~/.local/bin PATH'te olmalı
+cmake --install build/dev --prefix ~/.local    # ~/.local/bin PATH'te olmalı
 claude plugin marketplace add .
 claude plugin install runmark-agent@runmark
 ```
