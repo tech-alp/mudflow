@@ -18,6 +18,11 @@ Linux daha sonra, Windows en son gelir.
 Teslimat birbirine bağlı, okunabilir ölçekte ekranları olan OD prototipidir;
 bağımsız dashboard görselleri veya küçültülmüş ekran kolajı değildir.
 UI Türkçedir. Kod, branch, dosya, komut ve ürün adları çevrilmez.
+Ajana giden metin ayrıdır ve İngilizcedir: `handoff.md` ile `rmk resume
+--markdown` başlıkları (`## Verified (produced by Runmark)`, `## Agent note
+(weak evidence — unverified)`, `## Open items`, `MISSING ON DISK`) İngilizce
+üretilir. UI bu içeriği gösterirken kendi Türkçe etiketlerini kullanır; ham
+handoff/kaynak metni olduğu gibi gösterilir, çevrilmez ve yeniden yazılmaz.
 Ürün Runmark, CLI `rmk`, veri dizini `.runmark/`, ajan bağlantısı
 `runmark-agent` olarak adlandırılır. MudIssue ayrı ürün olarak adını korur.
 
@@ -138,6 +143,15 @@ Jira'yı otomatik kapatmaz.
 
 Aşamalar: Planlama → Onaylandı → Uygulama → Kontrol → İnceleme → Kabul edildi.
 Execution durumu (çalışıyor, ara verildi, kesildi, durduruldu) aşamadan ayrıdır.
+
+**Bu aşamalar bugün yalnız demo semantiğidir.** Ledger `execution.started`,
+`execution.finished` (`outcome`), `evidence.recorded` ve `note`
+(`decision` / `unresolved` / `blocker`) olaylarını tutar; aşama alanı ve insan
+kabulü olayı yoktur. Demo bellek içi olduğu için bu prototipi engellemez, ama
+native tarafta gösterilemez: aşama ve kabul üretime girecekse önce
+[DATA_MODEL](../../DATA_MODEL.md) bir olay tipi tanımlamalıdır. Şema bu belgede
+kararlaştırılmaz. Ölçülmeyen bir durumu üretim UI'ında göstermek, bu ürünün
+tam olarak engellemeye çalıştığı hatadır.
 “Ara ver”, “Durdur” ve “İncelemeye gönder” farklı işlemlerdir; menü içinde sunulur.
 Normal ajan cevabının bitmesi veya test başarısı işi kendiliğinden bitirmez.
 Küçük işlerde gereksiz belge zorunluluğu yoktur; eksik kayıt başarı sayılmaz.
@@ -147,6 +161,7 @@ Küçük işlerde gereksiz belge zorunluluğu yoktur; eksik kayıt başarı say�
 - Üst: proje seçici, `Cmd+K` komut menüsü, yerel/bağlantı durumu ve Demo etiketi.
 - Sol: Genel Bakış, Planlar ve Görevler, Çalışma Alanları, Çalışma Geçmişi.
 - Sol alt: Eklentiler, Ayarlar. Plugin kurmak otomatik navigasyon eklemez.
+  Findings de ayrı sayfa değildir; Genel Bakış içinde görünür (§5).
 - İçerik: tek ana çalışma yüzeyi; bağlama göre sekme ve açılır ayrıntı.
 - Sağ: kapatılabilir “Şu anki çalışma” paneli. Kapatınca alan içeriğe döner.
 - Her ekranda duruma göre tek belirgin ana işlem: Başla, Devam et veya İncele.
@@ -203,6 +218,22 @@ Kontroller: komut, exit code, execution, repo ve commit/çalışma ağacı kimli
 rapor, gözlenen sonuç/ajan bildirimi ayrımı. Eski kod sonucuna açık uyarı verilir.
 Dosyanın yaşı tek başına değişmiş/yanlış olduğu anlamına gelmez.
 
+### Findings
+
+Findings ayrı bir ana navigasyon sayfası değildir; Genel Bakış'a katkı veren
+plugin yüzeyidir (§2). Native PoC'un teslim ettiği iki dilimden biri budur,
+bu yüzden içeriği burada tanımlıdır.
+
+Satır: `severity` (info / warning / blocking), `domain` (git / plan / context),
+başlık ve tek cümlelik açıklama. Varsa `suggested_action` ayrı ve kopyalanabilir
+gösterilir; UI bu komutu çalıştırmaz. Sıralama severity'e göredir, ölçüm sırası
+korunur. Boş durum "Bulgu yok" değil, "Şu an ölçülen sorun yok" der — ölçülmemiş
+olanla temiz olan ayrılır. Aynı bulgu Genel Bakış'ta ikinci kez tekrarlanmaz.
+
+Bulgu şeması [TRUST_MODEL](../../TRUST_MODEL.md) ve
+[DATA_MODEL](../../DATA_MODEL.md) kural kataloğundadır; UI yeni bulgu türü
+üretmez, yalnız application'ın verdiğini gösterir.
+
 ### Çalışmaya Başla
 
 Üç adım; Geri/İleri durum kaybetmez, iptal hiçbir çalışma yaratmaz:
@@ -257,7 +288,9 @@ son kontrol ve gözlenen hook ayrı alanlardır. Gerçek destek kapsamı demo et
 
 Proje bazında etkinleştirme simülasyonu diğer projeyi etkilemez. Devre dışı
 kalınca geçmiş korunur, yeni veri durur ve “Son bilinen durum” gösterilir.
-Hook yoksa “Sınırlı takip: otomatik kontrollerin bir kısmı kullanılamıyor.”
+Hook beklentisi `project.json`'daki `hooks_expected` ile beyan edilir; beyan
+yoksa hook eksikliği bulgu üretmez (ADR-015). Beklenti beyan edilmiş ama hook
+hiç gözlenmemişse “Sınırlı takip: otomatik kontrollerin bir kısmı kullanılamıyor.”
 İzin listesi güvenlik sandbox garantisi değildir. Marketplace veya installer yoktur.
 Ayarlar yalnız tema ve demo profil incelemesini kapsar; sahte kapsamlı ayarlar yoktur.
 
