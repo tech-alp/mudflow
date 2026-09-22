@@ -48,8 +48,10 @@ Amaç: modeli gerçek bir SCMS/TVM benzeri akışta doğrulamak.
    Ölçülen toolchain: LLVM Clang 23.1.1 / CMake 4.4.3 / Ninja 1.13.2 /
    Qt 6.11.1, C++23. Linux ilerleyen süreçte, Windows en son eklenir;
    mevcut kabul kapsamı macOS'tur.
-5. Domain'den başlayarak modules geçişini yap. Henüz kullanılmayan host/SDK
-   dizinlerini veya genel amaçlı framework soyutlamalarını oluşturma.
+5. ~~Domain'den başlayarak modules geçişini yap.~~ Yapıldı (RM-3).
+   Henüz kullanılmayan host/SDK dizinleri oluşturulmadı.
+6. macOS CI ve manuel semantic-release/CLI paketleme (RM-5).
+   [Release rehberi](RELEASING.md); ilk hosted CI ve yayın önkoşulları bekliyor.
 
 ## Phase 3 — Qt/QML Desktop MVP
 

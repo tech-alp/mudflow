@@ -1,0 +1,46 @@
+name: macOS CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup-macos
+      - name: Validate release tooling
+        run: |
+          npm --prefix tools/release ci --ignore-scripts
+          npm --prefix tools/release test
+          npm --prefix tools/release audit --audit-level=high
+      - name: Debug build and tests
+        run: |
+          cmake --preset dev
+          cmake --build --preset dev
+          ctest --preset dev
+      - name: Module and QML bridge
+        run: |
+          cmake -S tools/module-spike -B build/module-spike -G Ninja \
+            -DCMAKE_CXX_COMPILER="$LLVM_ROOT/bin/clang++" \
+            -DCMAKE_PREFIX_PATH="$QT6_ROOT" -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build/module-spike --parallel 4
+          ctest --test-dir build/module-spike --output-on-failure --no-tests=error
+      - name: Release package smoke test (no publication)
+        run: node tools/release/release.mjs prepare 0.0.0
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: macos-arm64-validation
+          path: |
+            build/artifacts/
+            build/dev/Testing/Temporary/
+            build/module-spike/Testing/Temporary/
+          retention-days: 7

@@ -5,6 +5,8 @@ birbirinden kopmasını engelleyen local-first execution control plane.
 
 Doküman: [docs/](docs/README.md)
 
+CI ve paketleme: [Release rehberi](docs/RELEASING.md).
+
 Adlandırma uygulandı: binary `rmk`, veri dizini `.runmark/`, namespace
 `runmark::`, Git ref'leri `refs/runmark/preserved/*`. CLI `apps/cli` altında;
 katman ayrımı `libs/{domain,application,infrastructure}` olarak uygulandı.

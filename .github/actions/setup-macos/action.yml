@@ -1,0 +1,23 @@
+name: Set up macOS toolchain
+description: Shared CI/release toolchain; fail instead of silently changing compilers
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: '24'
+        cache: npm
+        cache-dependency-path: tools/release/package-lock.json
+    - uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4.3.1
+      with:
+        version: '6.11.1'
+        cache: true
+    - name: Install and verify build tools
+      shell: bash
+      run: |
+        brew install llvm cmake ninja
+        export LLVM_ROOT="$(brew --prefix llvm)"
+        export QT6_ROOT="$QT_ROOT_DIR"
+        bash tools/ci/check-toolchain.sh
+        echo "LLVM_ROOT=$LLVM_ROOT" >> "$GITHUB_ENV"
+        echo "QT6_ROOT=$QT6_ROOT" >> "$GITHUB_ENV"

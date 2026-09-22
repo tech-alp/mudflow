@@ -1,0 +1,22 @@
+# A CLI is not an .app: put its runtime beside the executable.
+include(BundleUtilities)
+function(gp_item_default_embedded_path_override item path)
+    set(${path} "@executable_path" PARENT_SCOPE)
+endfunction()
+set(cli "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/@CMAKE_INSTALL_BINDIR@/rmk")
+fixup_bundle("${cli}" "" "@qt_core_dir@")
+# install_name_tool invalidates signatures. Ad-hoc signing allows arm64
+# execution; this is NOT Developer ID signing or notarization.
+get_bundle_all_executables("$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/@CMAKE_INSTALL_BINDIR@" binaries)
+file(GLOB frameworks "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/@CMAKE_INSTALL_BINDIR@/*.framework")
+file(GLOB dylibs "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/@CMAKE_INSTALL_BINDIR@/*.dylib")
+foreach(library IN LISTS frameworks dylibs)
+    execute_process(COMMAND /usr/bin/codesign --force --sign - "${library}"
+        COMMAND_ERROR_IS_FATAL ANY)
+endforeach()
+foreach(binary IN LISTS binaries)
+    execute_process(COMMAND /usr/bin/codesign --force --sign - "${binary}"
+        COMMAND_ERROR_IS_FATAL ANY)
+endforeach()
+execute_process(COMMAND /usr/bin/codesign --force --sign - "${cli}"
+    COMMAND_ERROR_IS_FATAL ANY)

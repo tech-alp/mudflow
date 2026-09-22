@@ -1,7 +1,7 @@
 # Runmark Architecture
 
 Durum: adlandırma ve CLI/domain/application/infrastructure dizin ayrımı uygulandı;
-named modules, plugin runtime ve desktop entegrasyonu bekliyor.
+domain named module uygulandı; plugin runtime ve desktop entegrasyonu bekliyor.
 Ürün kapsamı [PRD](PRD.md), karar geçmişi [DECISIONS](DECISIONS.md), geçiş
 sırası [ROADMAP](ROADMAP.md), mevcut disk sözleşmesi [DATA_MODEL](DATA_MODEL.md).
 
@@ -38,7 +38,7 @@ Bir ekran kapatıldığında verisi silinmez ve ilgili ürün servisi durmaz.
 
 Tablo hedef adlandırmayı gösterir. `apps/cli` ile
 `libs/{domain,application,infrastructure}` ayrımı RM-1'de uygulandı;
-named module, desktop, QML module ve runtime plugin alanları henüz uygulanmadı.
+`runmark.domain` RM-3'te uygulandı; desktop, QML module ve runtime plugin alanları bekliyor.
 
 PoC sürecinde geriye uyumluluk aranmadı: önceki ad, veri dizini ve Git
 ref'leri hiçbir yerde tutulmaz, migration kodu yazılmaz.

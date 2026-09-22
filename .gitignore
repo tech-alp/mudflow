@@ -4,3 +4,4 @@
 /.runmark/evidence/
 /.runmark/handoffs/
 /CMakeUserPresets.json
+/tools/release/node_modules/

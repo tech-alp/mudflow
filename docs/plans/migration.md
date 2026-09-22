@@ -43,3 +43,7 @@ Format `project.json` içindeki `task_id_pattern` ile eşleşmezse `rmk status`
   Sabit toolchain, build/test/hook gates, taşınabilir CLI arşivi ve paket
   smoke testi. Sürüm semantic-release tarafından build'e aktarılır.
   Yayın yalnız manuel main workflow'undan; Linux/Windows ve desktop imzalama sonra.
+
+  Uygulama ve yerel doğrulama mevcut. İlk hosted CI, lisans/bildirim kararı,
+  başlangıç release tag'i ve release environment ayarları bekliyor.
+  Ayrıntılar: [release rehberi](../RELEASING.md).
