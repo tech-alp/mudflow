@@ -642,25 +642,32 @@ RM-7'de üç şey ölçülerek öğrenildi:
   ama engine yalnız `qrc:/qt/qml` altına bakar. Modül derlenir, hiçbir uyarı
   çıkmaz, çalışma anında bulunamaz.
 
-**Qt politikaları açıkça sabitlenir.** `qt_standard_project_setup()`
-çağrılmaz — dizin çapında `AUTOMOC` açardı (TC-011). Bunun yerine tek tek:
+**`qt_standard_project_setup(REQUIRES 6.11)` yalnız `libs/ui-shell` içinde
+çağrılır.** Kökte değil.
+
+Bu bir makrodur: `CMAKE_AUTOMOC`, `CMAKE_AUTOUIC`, RPATH ve IDE klasör
+ayarlarını **çağıran dizin kapsamına** yazar ve sonradan eklenen tüm alt
+dizinler bunları miras alır. Kökten çağrılırsa domain, infrastructure,
+application ve CLI de Qt'nin moc makinesini açar — hiçbirinde `Q_OBJECT`
+olmayan, üstelik olmaması test edilen hedefler (`domain_purity`, `cli_no_gui`).
+
+Ölçüldü: kökten **16** autogen hedefi, `ui-shell`'den **3**. Temiz build
+9s → 10s. Fark küçük, ama sınır bulanıklaşıyor: CLI'nin headless kalması
+mekanik olarak test edilirken ona GUI araç zinciri açmak tutarsız.
+
+`REQUIRES 6.11` Qt politikalarını da sabitler; ayrıca tek tek yazmaya gerek
+kalmaz:
 
 ```text
-QTP0003  köke     qt_add_library BUILD_SHARED_LIBS'i onurlandırır (Qt6Core)
-QTP0001  ui-shell QML modülü kaynak prefix'i :/qt/qml (Qt6Qml)
-QTP0004  ui-shell QML alt dizinleri için qmldir üretimi (Qt6Qml)
-QTP0002  yok      yalnız Android
+QTP0001  QML modülü kaynak prefix'i :/qt/qml        (elle RESOURCE_PREFIX gerekmez)
+QTP0003  qt_add_library BUILD_SHARED_LIBS'i dinler  (RM-8'de Merce statik gömme)
+QTP0004  QML alt dizinleri için qmldir üretimi
+QTP0002  yalnız Android, geçersiz
 ```
 
-Bir politika, onu **tanımlayan modül bulunmadan** set edilemez: kökte yalnız
-`Qt6::Core` arandığı için `qt_policy(SET QTP0001 NEW)` orada
-"not a known Qt policy" hatası verir. QML politikaları bu yüzden
-`libs/ui-shell` içindedir.
-
-QTP0001 NEW, yukarıdaki prefix sorununu resmi yoldan çözer; elle
-`RESOURCE_PREFIX` vermeye gerek kalmaz. QTP0003 RM-8 için gerekli: Merce
-statik gömülürken `BUILD_SHARED_LIBS` ayarı ancak NEW davranışında dikkate
-alınır.
+Not: bir politika, onu **tanımlayan modül bulunmadan** set edilemez. Kökte
+yalnız `Qt6::Core` arandığı için `qt_policy(SET QTP0001 NEW)` orada
+"not a known Qt policy" hatası verir — QTP0001/0004'ü Qt6Qml tanımlar.
 
 Ayrıca `QT_QML_OUTPUT_DIRECTORY` ayarlanmazsa Qt, modülün çıktı dizini hedef
 yoluyla bitmediği için uyarır ve `qmllint` modülü bulamaz.

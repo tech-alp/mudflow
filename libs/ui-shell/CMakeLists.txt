@@ -2,19 +2,17 @@
 # apps/cli must not reach any of this (TC-012).
 find_package(Qt6 6.11 REQUIRED COMPONENTS Gui Quick Qml)
 
-# Defined by Qt6Qml, so they can only be set once that module is found.
-# QTP0001: ':/qt/qml/' is the resource prefix for QML modules -- the engine
-#   searches nowhere else, so the OLD default of '/' makes the module
-#   unfindable at runtime with no build-time error.
-# QTP0004: generate qmldir files for QML subdirectories. None today; set NEW
-#   so adding one later does not silently produce an unusable module.
-qt_policy(SET QTP0001 NEW)
-qt_policy(SET QTP0004 NEW)
+# Called here, not at the root. It is a macro: CMAKE_AUTOMOC/AUTOUIC and the
+# Qt policies land in the calling directory scope and are inherited by every
+# subdirectory added after it. At the root that would turn Qt's moc machinery
+# on for domain, infrastructure, application and the CLI -- none of which may
+# contain a Q_OBJECT (domain_purity, cli_no_gui). Measured: 16 autogen targets
+# from the root versus 3 from here. REQUIRES pins the Qt policies, including
+# QTP0001 (QML resource prefix :/qt/qml) and QTP0003 (BUILD_SHARED_LIBS,
+# needed to embed Merce statically in RM-8).
+qt_standard_project_setup(REQUIRES 6.11)
 
 qt_add_library(runmark_ui_shell STATIC)
-# Target-scoped, not global: a directory-wide AUTOMOC would leak into whatever
-# else gets added here later (TC-011).
-set_target_properties(runmark_ui_shell PROPERTIES AUTOMOC ON)
 add_library(runmark::ui_shell ALIAS runmark_ui_shell)
 
 # qt_add_qml_module warns unless the output directory ends in the module's
