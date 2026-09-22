@@ -23,6 +23,8 @@ int main(int argc, char* argv[])
     // a window opened.
     engine.setInitialProperties({
         {QStringLiteral("configPath"), parser.value(projectOption)},
+        {QStringLiteral("themeIndexPath"), QCoreApplication::applicationDirPath()
+            + QStringLiteral("/theme/themes/index.json")},
         {QStringLiteral("smoke"), qEnvironmentVariableIsSet("RUNMARK_SMOKE")}});
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,
         []() { QCoreApplication::exit(1); }, Qt::QueuedConnection);

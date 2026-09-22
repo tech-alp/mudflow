@@ -1,0 +1,95 @@
+{
+  "profileSchemaVersion": 2,
+  "profileId": "desktop",
+  "spacing": {
+    "base": 4,
+    "none": 0,
+    "xxs": 2,
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "xl2": 32,
+    "xl3": 40,
+    "xl4": 48,
+    "xl5": 64,
+    "xl6": 80,
+    "componentGap": 8,
+    "sectionGap": 24,
+    "pagePadding": 12,
+    "touchTarget": 32,
+    "touchTargetCompact": 28,
+    "gridGap": 8,
+    "stackGap": 8,
+    "inlineGap": 8
+  },
+  "radius": {
+    "none": 0,
+    "small": 4,
+    "medium": 6,
+    "large": 10,
+    "xlarge": 16,
+    "xxlarge": 24,
+    "full": 999,
+    "button": 6,
+    "input": 6,
+    "card": 10,
+    "badge": 999,
+    "dialog": 16,
+    "tooltip": 4
+  },
+  "typography": {
+    "sizeXSmall": 11,
+    "sizeSmall": 12,
+    "sizeMedium": 14,
+    "sizeLarge": 15,
+    "sizeXLarge": 18,
+    "size2XLarge": 24,
+    "size3XLarge": 28,
+    "size4XLarge": 32,
+    "size5XLarge": 32,
+    "size6XLarge": 32,
+    "size7XLarge": 32,
+    "weightRegular": 400,
+    "weightMedium": 500,
+    "weightSemibold": 600,
+    "weightBold": 700,
+    "weightExtraBold": 800,
+    "leadingTight": 1.2,
+    "leadingSnug": 1.35,
+    "leadingNormal": 1.5,
+    "leadingRelaxed": 1.7,
+    "trackingTight": -0.02,
+    "trackingNormal": 0,
+    "trackingWide": 0.02,
+    "trackingWider": 0.05,
+    "trackingWidest": 0.1
+  },
+  "size": {
+    "control": {
+      "small": 28,
+      "medium": 32,
+      "large": 40,
+      "minimum": 28
+    },
+    "icon": {
+      "small": 16,
+      "medium": 20,
+      "large": 24
+    },
+    "outline": {
+      "hairline": 1,
+      "strong": 2,
+      "focus": 3
+    },
+    "dialog": {
+      "small": 320,
+      "medium": 480,
+      "large": 640
+    },
+    "content": {
+      "maxWidth": 640
+    }
+  }
+}

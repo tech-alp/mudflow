@@ -51,10 +51,14 @@ Format `project.json` içindeki `task_id_pattern` ile eşleşmezse `rmk status`
   etmez (TC-012). `apps/cli` GUI bağımlılığı kazanmamalı — mekanik kontrol.
   Merce bu adımda yok; düz Qt Quick Controls ile yapılır.
 
-- [ ] RM-8 — Merce entegrasyonu ve kompakt desktop profili
+- [x] RM-8 — Merce entegrasyonu ve kompakt desktop profili
 
   TC-011'deki FetchContent bloğu, `Merce::*` hedefleri, statik linkleme.
   Sürüm SHA ile sabit. Kiosk profili değişmez.
+
+  Merce v1.2.0 statik QML modülleri ve ayrı `desktop` profili uygulandı.
+  Desktop 11/11, temiz CLI 10/10 test; QML lint ve kurulum smoke kontrolü geçti.
+  Profil/paket sınırları: [ui-shell](../../libs/ui-shell/README.md).
 
 - [x] RM-5 — macOS CI, paketleme ve manuel release altyapısı
 

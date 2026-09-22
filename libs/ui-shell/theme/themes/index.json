@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "profiles": {
+    "desktop": {
+      "displayName": "Runmark Desktop",
+      "path": "desktop.json"
+    }
+  }
+}
