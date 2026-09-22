@@ -55,9 +55,9 @@ int main()
     const QString statusBefore = gitOutput({QStringLiteral("-C"), worktree, QStringLiteral("status"), QStringLiteral("--porcelain")});
     const QString stashBefore = gitOutput({QStringLiteral("-C"), worktree, QStringLiteral("stash"), QStringLiteral("list")});
     try {
-        const QJsonObject started = runmark::startExecution(config, QStringLiteral("MF-1"), QStringLiteral("codex"), {});
-        const QString executionId = started.value(QStringLiteral("exec")).toString();
-        const QString preservedRef = started.value(QStringLiteral("preserved_ref")).toString();
+        const runmark::StartResult started = runmark::startExecution(config, QStringLiteral("MF-1"), QStringLiteral("codex"), {});
+        const QString executionId = started.exec;
+        const QString preservedRef = started.preservedRef;
         if (executionId.isEmpty()
                 || preservedRef != QStringLiteral("refs/runmark/preserved/") + executionId
                 || gitOutput({QStringLiteral("-C"), worktree, QStringLiteral("rev-parse"), QStringLiteral("--verify"), preservedRef}).isEmpty()
@@ -70,9 +70,9 @@ int main()
 
         if (!writeFile(worktree + QStringLiteral("/finish-only.txt"), "preserve this too\n")) return 1;
         const QString statusAtFinish = gitOutput({QStringLiteral("-C"), worktree, QStringLiteral("status"), QStringLiteral("--porcelain")});
-        const QJsonObject finished = runmark::finishExecution(config, executionId, QStringLiteral("interrupted"));
-        QFile handoff(root + QStringLiteral("/.runmark/") + finished.value(QStringLiteral("handoff")).toString());
-        if (finished.value(QStringLiteral("preserved_ref")).toString() != preservedRef
+        const runmark::FinishResult finished = runmark::finishExecution(config, executionId, QStringLiteral("interrupted"));
+        QFile handoff(root + QStringLiteral("/.runmark/") + finished.handoff);
+        if (finished.preservedRef != preservedRef
                 || !handoff.open(QIODevice::ReadOnly)
                 || !QString::fromUtf8(handoff.readAll()).contains(preservedRef)
                 || gitOutput({QStringLiteral("-C"), worktree, QStringLiteral("show"), preservedRef + QStringLiteral(":finish-only.txt")}) != QLatin1String("preserve this too")

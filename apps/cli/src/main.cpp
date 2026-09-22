@@ -1,3 +1,5 @@
+#include "json.h"
+
 #include "runmark/project_config.h"
 #include "runmark/version.h"
 #include "runmark/workflow.h"
@@ -63,21 +65,21 @@ int main(int argc, char* argv[])
         const QString configPath = parser.value(projectOption);
         QJsonObject result;
         if (arguments == QStringList{QStringLiteral("inspect")}) {
-            result = runmark::inspectProject(configPath);
+            result = runmark::inspectProject(configPath).toJson();
         } else if (arguments == QStringList{QStringLiteral("status")}) {
-            result = runmark::projectStatus(configPath);
+            result = toJson(runmark::projectStatus(configPath));
         } else if (arguments.size() == 2 && arguments.constFirst() == QLatin1String("start")) {
-            result = runmark::startExecution(configPath, arguments.constLast(), parser.value(agentOption), parser.value(repositoryOption), parser.values(instructionOption));
+            result = toJson(runmark::startExecution(configPath, arguments.constLast(), parser.value(agentOption), parser.value(repositoryOption), parser.values(instructionOption)));
         } else if ((arguments.size() == 1 || arguments.size() == 2) && arguments.constFirst() == QLatin1String("resume")) {
             // Argumansiz resume = en son execution. SessionStart hook'u hangi
             // task'ta oldugunu bilmez; secici vermeden cagirabilmeli.
-            result = runmark::resumeExecution(configPath, arguments.size() == 2 ? arguments.constLast() : QString(), parser.isSet(hookOption));
+            result = toJson(runmark::resumeExecution(configPath, arguments.size() == 2 ? arguments.constLast() : QString(), parser.isSet(hookOption)));
             if (parser.isSet(markdownOption)) {
                 QTextStream(stdout) << runmark::resumeMarkdown(result);
                 return 0;
             }
         } else if (arguments.size() == 2 && arguments.constFirst() == QLatin1String("finish")) {
-            result = runmark::finishExecution(configPath, arguments.constLast(), parser.value(outcomeOption));
+            result = toJson(runmark::finishExecution(configPath, arguments.constLast(), parser.value(outcomeOption)));
         } else if (arguments.size() == 2 && arguments.constFirst() == QLatin1String("evidence") && parser.isSet(kindOption) && parser.isSet(summaryOption)) {
             runmark::recordEvidence(configPath, arguments.constLast(), parser.value(kindOption), parser.value(summaryOption), parser.value(referenceOption));
             result = {{QStringLiteral("recorded"), QStringLiteral("evidence")}};

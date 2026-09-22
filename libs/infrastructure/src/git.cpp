@@ -121,28 +121,6 @@ RepoFacts observeRepo(const RepositoryConfig& repository, const QString& reposit
     return facts;
 }
 
-QJsonObject toJson(const RepoFacts& facts)
-{
-    QJsonObject report{
-        {QStringLiteral("name"), facts.name},
-        {QStringLiteral("path"), facts.path},
-        {QStringLiteral("base"), facts.base},
-    };
-    if (!facts.fetchError.isEmpty()) {
-        report.insert(QStringLiteral("fetch_error"), facts.fetchError);
-    }
-    if (facts.measured) {
-        report.insert(QStringLiteral("branch"), facts.branch);
-        report.insert(QStringLiteral("head"), facts.head);
-        report.insert(QStringLiteral("base_sha"), facts.baseSha);
-        report.insert(QStringLiteral("behind_base"), facts.behind);
-        report.insert(QStringLiteral("ahead_of_base"), facts.ahead);
-        report.insert(QStringLiteral("dirty"), facts.dirty);
-    } else {
-        report.insert(QStringLiteral("error"), facts.measurementError);
-    }
-    return report;
-}
 
 void observeResumeGit(const ProjectConfig& config, const Paths& paths, ResumeFacts& facts)
 {

@@ -1,7 +1,6 @@
 # Orkestrasyon: inspect/status/start/finish/resume akislari ve CLI'ye
 # donen paketin sekillendirilmesi.
 add_library(runmark_application STATIC
-    src/resume_view.cpp
     src/workflow.cpp
 )
 add_library(runmark::application ALIAS runmark_application)

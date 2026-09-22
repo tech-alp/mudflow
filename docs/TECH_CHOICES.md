@@ -284,8 +284,8 @@ libs/infrastructure/src/handoff.cpp    handoff oku/yaz — yalnız disk
 libs/infrastructure/src/config_io.cpp  project.json'u oku, ProjectConfig::parse'a ver
 libs/domain/src/rules.cpp              SAF — facts alır, finding döndürür, I/O yok
 libs/domain/src/project_config.cpp     SAF — JSON nesnesini doğrular, dosya açmaz
-libs/application/src/workflow.cpp      yalnız orkestrasyon
-libs/application/src/resume_view.cpp   SAF — facts → JSON paketi → Markdown
+libs/application/src/workflow.cpp      yalnız orkestrasyon, TİPLİ sonuç döner
+apps/cli/src/json.cpp                  SAF — tipli sonuç → JSON / Markdown
 ```
 
 Config okuma ile doğrulama RM-1'de ayrıldı: `ProjectConfig::parse` saf ve
@@ -293,8 +293,9 @@ domain'de, dosyayı açan `loadProjectConfig` infrastructure'da. Aksi halde
 domain `QFile`'a bağımlı kalırdı ve bu ayrımın kendisi bozulurdu.
 
 Aynı gerekçeyle `handoff.cpp` ikiye bölündü: `resumePackage` ve
-`resumeMarkdown` saf sunum olduğu için application'a geçti, dosya yazan
-`writeHandoff`/`readHandoff` infrastructure'da kaldı.
+`resumeMarkdown` saf sunum olduğu için ayrıldı, dosya yazan
+`writeHandoff`/`readHandoff` infrastructure'da kaldı. RM-4'te sunum
+`apps/cli/src/json.cpp`'ye indi — JSON, application'ın değil CLI'nin biçimi.
 
 ### Neden
 
@@ -535,7 +536,8 @@ import edilmiş hedeflerdir.
 
 ## TC-012 — DDD ve Qt/QML entegrasyonu
 
-Durum: hedef karar; desktop henüz yazılmadı. Tarih: 2026-09-22.
+Durum: application tarafı RM-4'te uygulandı; ui-shell desktop ile gelecek.
+Tarih: 2026-09-22.
 
 ### Sorun
 
@@ -544,29 +546,32 @@ bilmemelidir. Kolay yol — domain struct'larına `Q_GADGET` serpmek — derleni
 ama domain'i moc'a ve arayüzün veri şekline bağlar; TC-009'un ayırdığı şeyi
 geri birleştirir.
 
-### Önce: application tipli dönmeli
+### Application tipli döner (RM-4)
 
-Bugün application JSON döndürüyor:
+Önceden JSON döndürüyordu:
 
 ```cpp
-QJsonObject projectStatus(const QString& configPath);
+QJsonObject projectStatus(const QString& configPath);   // RM-4 oncesi
 ```
 
 JSON, CLI'nin **sunum biçimidir** (TC-007). Application'a gömülü kalırsa
 desktop de CLI'nin çıktı şekline mahkûm olur: QML her açılışta JSON parse
 eder ve domain'de tipli olan şey string'e düşer.
 
-Hedef:
+Şimdi:
 
 ```cpp
 // libs/application
-struct StatusResult {
-    QString project;
-    QVector<RepoFacts> repositories;
-    QVector<Finding> findings;
-};
-StatusResult projectStatus(const QString& configPath);
+struct StatusResult { QString project; QVector<RepoFacts> repositories; QVector<Finding> findings; };
+struct StartResult  { QString exec, worktree, branch, workspaceSource, baseSha, preservedRef;
+                      QVector<Finding> warnings; };
+struct FinishResult { QString exec, outcome, headSha, preservedRef, handoff; };
+struct ResumeResult { ResumeFacts facts; QVector<Finding> gaps; };
 ```
+
+`Finding` artık domain'de struct (`runmark/finding.h`); `QJsonObject` değil.
+Serileştirme `apps/cli/src/json.cpp`'de: `toJson()` aşırı yüklemeleri ve
+`resumeMarkdown`. Aynı sonucun iki sunumu yan yana, ikisi de CLI'nin.
 
 `apps/cli` bunu JSON'a çevirir, `libs/ui-shell` tipleri doğrudan kullanır.
 ARCHITECTURE'ın "CLI ve desktop aynı application katmanını kullanır" cümlesi
@@ -621,9 +626,11 @@ arayüz donar. ViewModel işi worker'a atar (`QtConcurrent::run` +
 olmayan tek gereksinimdir; application API'si senkron kalır, eşzamansızlık
 ui-shell'in işidir.
 
-**Domain'de `Q_OBJECT` / `Q_GADGET` yok.** Bugün `libs/domain`'i koruyan
-mekanik kontrol (`QFile|QProcess|QDir|QDateTime::current|QTextStream` grep'i)
-bu iki makroyu da kapsar. Çeviri ViewModel'in işidir.
+**Domain'de `Q_OBJECT` / `Q_GADGET` yok.** `domain_purity` testi (RM-4)
+`libs/domain` kaynaklarını tarar ve `QFile|QProcess|QDir|QTextStream|
+QDateTime::current|Q_OBJECT|Q_GADGET` geçen dosya bulursa düşer. Yorum
+satırları çıkarılır, yoksa yasağı anlatan yorumun kendisi ihlal sayılırdı.
+Çeviri ViewModel'in işidir.
 
 ### Neden
 

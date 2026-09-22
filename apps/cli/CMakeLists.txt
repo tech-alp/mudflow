@@ -7,6 +7,7 @@ configure_file(
 )
 
 add_executable(rmk
+    src/json.cpp
     src/main.cpp
 )
 

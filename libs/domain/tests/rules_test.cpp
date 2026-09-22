@@ -8,10 +8,10 @@
 
 namespace {
 
-bool has(const QJsonArray& findings, const QString& id)
+bool has(const QVector<runmark::Finding>& findings, const QString& id)
 {
-    for (const QJsonValue& value : findings) {
-        if (value.toObject().value(QStringLiteral("id")).toString() == id) return true;
+    for (const runmark::Finding& finding : findings) {
+        if (finding.id == id) return true;
     }
     return false;
 }
@@ -55,7 +55,7 @@ int main()
         repo.dirty = true;
         repo.behind = 3;
         f.repos.append(repo);
-        const QJsonArray findings = runmark::evaluate(config(), f);
+        const QVector<runmark::Finding> findings = runmark::evaluate(config(), f);
         if (!has(findings, QStringLiteral("git.fetch_failed"))
                 || !has(findings, QStringLiteral("git.dirty_workspace"))
                 || !has(findings, QStringLiteral("git.remote_ahead"))) return 1;
@@ -83,12 +83,12 @@ int main()
         f.plan.taskCount = 1;
         f.events.append(startedEvent(QStringLiteral("E1"), QStringLiteral("MF-1"), QStringLiteral("2026-09-20T11:00:00Z")));
         f.executions.append({QStringLiteral("E1"), false, false});
-        const QJsonArray fresh = runmark::evaluate(config(), f);
+        const QVector<runmark::Finding> fresh = runmark::evaluate(config(), f);
         if (!has(fresh, QStringLiteral("context.active_execution"))
                 || has(fresh, QStringLiteral("context.orphaned_execution"))) return 1;
 
         f.events[0] = startedEvent(QStringLiteral("E1"), QStringLiteral("MF-1"), QStringLiteral("2026-09-19T11:00:00Z"));
-        const QJsonArray stale = runmark::evaluate(config(), f);
+        const QVector<runmark::Finding> stale = runmark::evaluate(config(), f);
         if (!has(stale, QStringLiteral("context.orphaned_execution"))
                 || has(stale, QStringLiteral("context.active_execution"))) return 1;
 
@@ -146,6 +146,9 @@ int main()
         f.planSha1 = QStringLiteral("plan");
         f.finished.insert(QStringLiteral("handoff_sha1"), QStringLiteral("handoff"));
         f.handoff.sha1 = QStringLiteral("handoff");
+        // Yollar gercekten dolu gelir; bos birakmak bos explanation uretirdi.
+        f.handoff.path = QStringLiteral("/p/.runmark/handoffs/E1.md");
+        f.worktree.path = QStringLiteral("/w/MF-1");
         f.handoff.exists = true;
         f.worktree.exists = true;
         f.baseAdvanced = false;
@@ -155,16 +158,17 @@ int main()
         f.handoff.sha1.clear();
         f.worktree.exists = false;
         f.baseAdvanced = true;
+        f.currentBaseSha = QStringLiteral("bbb");
         f.planSha1 = QStringLiteral("changed");
-        const QJsonArray missing = runmark::evaluateResume(f);
+        const QVector<runmark::Finding> missing = runmark::evaluateResume(f);
         for (const QString& id : {QStringLiteral("context.no_handoff"), QStringLiteral("git.worktree_missing"),
                 QStringLiteral("git.base_advanced"), QStringLiteral("plan.changed_during_execution")}) {
             if (!has(missing, id)) return 1;
         }
-        for (const QJsonValue& value : missing) {
-            for (const QString& key : {QStringLiteral("id"), QStringLiteral("severity"), QStringLiteral("domain"), QStringLiteral("title"), QStringLiteral("explanation")}) {
-                if (!value.toObject().value(key).isString()) return 1;
-            }
+        // Alanlarin varligini artik tip garanti ediyor; kalan risk bos birakmak.
+        for (const runmark::Finding& gap : missing) {
+            if (gap.id.isEmpty() || gap.severity.isEmpty() || gap.domain.isEmpty()
+                    || gap.title.isEmpty() || gap.explanation.isEmpty()) return 1;
         }
 
         f.handoff.exists.reset();
@@ -174,7 +178,7 @@ int main()
         f.fetchError = QStringLiteral("offline");
         f.measurementError = QStringLiteral("missing git objects");
         f.started.remove(QStringLiteral("instructions"));
-        const QJsonArray unknown = runmark::evaluateResume(f);
+        const QVector<runmark::Finding> unknown = runmark::evaluateResume(f);
         for (const QString& id : {QStringLiteral("context.handoff_unreadable"), QStringLiteral("git.worktree_unknown"),
                 QStringLiteral("git.base_unknown"), QStringLiteral("git.fetch_failed"), QStringLiteral("plan.comparison_unknown"),
                 QStringLiteral("git.measurement_unavailable"), QStringLiteral("context.instructions_unknown")}) {
@@ -208,12 +212,12 @@ int main()
         // Bozuk kayıt "görüldü" sayılmamalı; sebep açıklamada durmalı.
         f.lastHookObserved.reset();
         f.hookError = QStringLiteral("Invalid ts: soon");
-        const QJsonArray broken = runmark::evaluate(expects, f);
+        const QVector<runmark::Finding> broken = runmark::evaluate(expects, f);
         if (!has(broken, QStringLiteral("context.hooks_not_observed"))) return 1;
         bool explained = false;
-        for (const QJsonValue& value : broken) {
-            if (value.toObject().value(QStringLiteral("id")).toString() == QLatin1String("context.hooks_not_observed")) {
-                explained = value.toObject().value(QStringLiteral("explanation")).toString().contains(QStringLiteral("Invalid ts: soon"));
+        for (const runmark::Finding& f2 : broken) {
+            if (f2.id == QLatin1String("context.hooks_not_observed")) {
+                explained = f2.explanation.contains(QStringLiteral("Invalid ts: soon"));
             }
         }
         if (!explained) return 1;

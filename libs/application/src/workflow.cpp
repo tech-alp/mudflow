@@ -6,7 +6,6 @@
 #include "config_io.h"
 #include "git.h"
 #include "handoff.h"
-#include "resume_view.h"
 #include "ledger.h"
 #include "paths.h"
 #include "plan.h"
@@ -77,12 +76,12 @@ StatusFacts observe(const ProjectConfig& config, const Paths& paths)
 
 } // namespace
 
-QJsonObject inspectProject(const QString& configPath)
+ProjectConfig inspectProject(const QString& configPath)
 {
-    return loadProjectConfig(configPath).toJson();
+    return loadProjectConfig(configPath);
 }
 
-QJsonObject projectStatus(const QString& configPath)
+StatusResult projectStatus(const QString& configPath)
 {
     const ProjectConfig config = loadProjectConfig(configPath);
     const Paths paths = pathsFor(configPath);
@@ -90,16 +89,10 @@ QJsonObject projectStatus(const QString& configPath)
 
     const StatusFacts facts = observe(config, paths);
 
-    QJsonArray repositories;
-    for (const RepoFacts& repository : facts.repos) {
-        repositories.append(toJson(repository));
-    }
-    return {{QStringLiteral("project"), config.name},
-            {QStringLiteral("repositories"), repositories},
-            {QStringLiteral("findings"), evaluate(config, facts)}};
+    return {config.name, facts.repos, evaluate(config, facts)};
 }
 
-QJsonObject resumeExecution(const QString& configPath, const QString& taskOrExecution, bool observedByHook)
+ResumeResult resumeExecution(const QString& configPath, const QString& taskOrExecution, bool observedByHook)
 {
     const ProjectConfig config = loadProjectConfig(configPath);
     const Paths paths = pathsFor(configPath);
@@ -113,10 +106,10 @@ QJsonObject resumeExecution(const QString& configPath, const QString& taskOrExec
         readHandoff(paths, facts);
         observeResumeGit(config, paths, facts);
     }
-    return resumePackage(facts, evaluateResume(facts));
+    return {facts, evaluateResume(facts)};
 }
 
-QJsonObject startExecution(const QString& configPath, const QString& task, const QString& agent, const QString& repositoryName, const QStringList& instructions)
+StartResult startExecution(const QString& configPath, const QString& task, const QString& agent, const QString& repositoryName, const QStringList& instructions)
 {
     const ProjectConfig config = loadProjectConfig(configPath);
     const Paths paths = pathsFor(configPath);
@@ -140,7 +133,7 @@ QJsonObject startExecution(const QString& configPath, const QString& task, const
     // Worktree'nin kendi kirliligi preserved ref'e yakalanir; aksi halde
     // merge-base..HEAD diff muhasebesinde gorunmez kanit olur.
     const bool repositoryDirty = !gitRequired(repositoryPath, {QStringLiteral("status"), QStringLiteral("--porcelain")}).isEmpty();
-    QJsonArray warnings;
+    QVector<Finding> warnings;
     if (repositoryDirty) {
         warnings.append(finding(QStringLiteral("git.dirty_workspace"), QStringLiteral("warning"), QStringLiteral("git"),
             QStringLiteral("Repository has uncommitted changes"),
@@ -205,12 +198,10 @@ QJsonObject startExecution(const QString& configPath, const QString& task, const
         {QStringLiteral("plan_ref"), planReference(config, paths.root, task)},
         {QStringLiteral("plan_sha1"), sha1File(expandPath(config.planPath, paths.root))},
     });
-    return {{QStringLiteral("exec"), executionId}, {QStringLiteral("worktree"), worktree}, {QStringLiteral("branch"), branch},
-        {QStringLiteral("workspace_source"), workspaceSource}, {QStringLiteral("base_sha"), baseSha},
-        {QStringLiteral("preserved_ref"), orNull(preservedRef)}, {QStringLiteral("warnings"), warnings}};
+    return {executionId, worktree, branch, workspaceSource, baseSha, preservedRef, warnings};
 }
 
-QJsonObject finishExecution(const QString& configPath, const QString& executionId, const QString& outcome)
+FinishResult finishExecution(const QString& configPath, const QString& executionId, const QString& outcome)
 {
     if (outcome != QLatin1String("finished") && outcome != QLatin1String("interrupted") && outcome != QLatin1String("abandoned")) {
         fail(QStringLiteral("Outcome must be finished, interrupted, or abandoned"));
@@ -273,9 +264,8 @@ QJsonObject finishExecution(const QString& configPath, const QString& executionI
         {QStringLiteral("insertions"), input.insertions}, {QStringLiteral("deletions"), input.deletions},
         {QStringLiteral("files_ref"), input.filesRef}, {QStringLiteral("preserved_ref"), orNull(input.preservedRef)},
         {QStringLiteral("handoff_sha1"), handoffFacts.handoff.sha1}});
-    return {{QStringLiteral("exec"), executionId}, {QStringLiteral("outcome"), outcome}, {QStringLiteral("head_sha"), input.headSha},
-        {QStringLiteral("preserved_ref"), orNull(input.preservedRef)},
-        {QStringLiteral("handoff"), QStringLiteral("handoffs/") + executionId + QStringLiteral(".md")}};
+    return {executionId, outcome, input.headSha, input.preservedRef,
+        QStringLiteral("handoffs/") + executionId + QStringLiteral(".md")};
 }
 
 void recordEvidence(const QString& configPath, const QString& executionId, const QString& kind, const QString& summary, const QString& reference)

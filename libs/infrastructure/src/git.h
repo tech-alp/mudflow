@@ -24,7 +24,6 @@ QString gitCommonDir(const QString& repository);
 // --- ölçüm ---
 QString baseRef(const RepositoryConfig& repository);
 RepoFacts observeRepo(const RepositoryConfig& repository, const QString& repositoryPath);
-QJsonObject toJson(const RepoFacts& facts);
 void observeResumeGit(const ProjectConfig& config, const Paths& paths, ResumeFacts& facts);
 
 // Commit'lenmemiş işi refs/runmark/preserved/<exec> altına yakalar.

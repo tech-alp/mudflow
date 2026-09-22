@@ -20,19 +20,19 @@ bool writeFile(const QString& path, const QByteArray& contents)
     return file.open(QIODevice::WriteOnly | QIODevice::Truncate) && file.write(contents) == contents.size();
 }
 
-bool hasFinding(const QJsonArray& findings, const QString& id)
+bool hasFinding(const QVector<runmark::Finding>& findings, const QString& id)
 {
-    for (const QJsonValue& value : findings) {
-        if (value.toObject().value(QStringLiteral("id")).toString() == id) {
+    for (const runmark::Finding& finding : findings) {
+        if (finding.id == id) {
             return true;
         }
     }
     return false;
 }
 
-QJsonArray findingsFor(const QString& config)
+QVector<runmark::Finding> findingsFor(const QString& config)
 {
-    return runmark::projectStatus(config).value(QStringLiteral("findings")).toArray();
+    return runmark::projectStatus(config).findings;
 }
 
 } // namespace
@@ -59,13 +59,13 @@ int main()
 
         // 3. Yalnizca acik maddeler: kural kor degil, uyarmamali.
         if (!writeFile(plan, "- [ ] MF-1 henuz baslamadi\n")) return 1;
-        const QJsonArray openOnly = findingsFor(config);
+        const QVector<runmark::Finding> openOnly = findingsFor(config);
         if (hasFinding(openOnly, QStringLiteral("plan.no_parsable_tasks"))
                 || hasFinding(openOnly, QStringLiteral("plan.done_without_evidence"))) return 1;
 
         // 4. Dogru format, kanit yok: asil kural calismali, korluk uyarisi cikmamali.
         if (!writeFile(plan, "- [x] MF-1 kanit yok\n")) return 1;
-        const QJsonArray done = findingsFor(config);
+        const QVector<runmark::Finding> done = findingsFor(config);
         if (!hasFinding(done, QStringLiteral("plan.done_without_evidence"))
                 || hasFinding(done, QStringLiteral("plan.no_parsable_tasks"))) return 1;
 

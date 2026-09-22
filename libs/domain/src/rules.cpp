@@ -1,6 +1,7 @@
 #include "runmark/rules.h"
 
 #include <QHash>
+#include <QJsonArray>
 #include <QSet>
 
 namespace runmark {
@@ -16,25 +17,15 @@ const ExecutionFacts* executionFor(const StatusFacts& facts, const QString& exec
 
 } // namespace
 
-QJsonObject finding(const QString& id, const QString& severity, const QString& domain,
-                    const QString& title, const QString& explanation, const QString& action)
+Finding finding(const QString& id, const QString& severity, const QString& domain,
+                const QString& title, const QString& explanation, const QString& action)
 {
-    QJsonObject value{
-        {QStringLiteral("id"), id},
-        {QStringLiteral("severity"), severity},
-        {QStringLiteral("domain"), domain},
-        {QStringLiteral("title"), title},
-        {QStringLiteral("explanation"), explanation},
-    };
-    if (!action.isEmpty()) {
-        value.insert(QStringLiteral("suggested_action"), action);
-    }
-    return value;
+    return {id, severity, domain, title, explanation, action};
 }
 
-QJsonArray evaluateResume(const ResumeFacts& facts)
+QVector<Finding> evaluateResume(const ResumeFacts& facts)
 {
-    QJsonArray gaps;
+    QVector<Finding> gaps;
     const auto gap = [&gaps](const QString& id, const QString& domain, const QString& title, const QString& explanation) {
         gaps.append(finding(id, QStringLiteral("warning"), domain, title, explanation));
     };
@@ -113,9 +104,9 @@ QJsonArray evaluateResume(const ResumeFacts& facts)
     return gaps;
 }
 
-QJsonArray evaluate(const ProjectConfig& config, const StatusFacts& facts)
+QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
 {
-    QJsonArray findings;
+    QVector<Finding> findings;
     QHash<QString, QString> remoteBaseShas;
 
     // --- Git ---

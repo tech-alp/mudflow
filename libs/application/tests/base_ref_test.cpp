@@ -43,10 +43,10 @@ int main()
             || !writeFile(config, R"({"version":1,"name":"test","worktree_root":"worktrees","repos":[{"name":"repo","path":"repo","base":{"remote":"up","branch":"feature/x"}}],"plan":{"path":"plan.md"},"task_id_pattern":"MF-\\d+"})")) return 1;
 
     try {
-        const QJsonObject status = runmark::projectStatus(config);
-        if (status.value(QStringLiteral("repositories")).toArray().at(0).toObject().value(QStringLiteral("base")).toString() != QLatin1String("up/feature/x")) return 1;
-        const QJsonObject started = runmark::startExecution(config, QStringLiteral("MF-1"), QStringLiteral("codex"), {});
-        return started.value(QStringLiteral("worktree")).toString().isEmpty() ? 1 : 0;
+        const runmark::StatusResult status = runmark::projectStatus(config);
+        if (status.repositories.at(0).base != QLatin1String("up/feature/x")) return 1;
+        const runmark::StartResult started = runmark::startExecution(config, QStringLiteral("MF-1"), QStringLiteral("codex"), {});
+        return started.worktree.isEmpty() ? 1 : 0;
     } catch (...) {
         return 1;
     }

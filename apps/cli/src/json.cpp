@@ -1,16 +1,99 @@
-// Saf sunum: facts -> JSON paketi -> markdown. Dosya sistemi, git veya saat
+// Saf sunum: tipli sonuc -> JSON / markdown. Dosya sistemi, git veya saat
 // okumaz; girdisi zaten olculmus facts'tir. Handoff'un DISK tarafi
 // infrastructure'da kalir (handoff.cpp), cunku o yaziyor.
-#include "resume_view.h"
-
-#include "runmark/workflow.h"
+#include "json.h"
 
 #include <QJsonArray>
 #include <QTextStream>
 
 namespace runmark {
 
-QJsonObject resumePackage(const ResumeFacts& facts, const QJsonArray& gaps)
+static QJsonObject resumePackage(const ResumeFacts& facts, const QJsonArray& gaps);
+
+QJsonObject toJson(const Finding& finding)
+{
+    QJsonObject value{
+        {QStringLiteral("id"), finding.id},
+        {QStringLiteral("severity"), finding.severity},
+        {QStringLiteral("domain"), finding.domain},
+        {QStringLiteral("title"), finding.title},
+        {QStringLiteral("explanation"), finding.explanation},
+    };
+    if (!finding.suggestedAction.isEmpty()) {
+        value.insert(QStringLiteral("suggested_action"), finding.suggestedAction);
+    }
+    return value;
+}
+
+QJsonObject toJson(const RepoFacts& facts)
+{
+    QJsonObject report{
+        {QStringLiteral("name"), facts.name},
+        {QStringLiteral("path"), facts.path},
+        {QStringLiteral("base"), facts.base},
+    };
+    if (!facts.fetchError.isEmpty()) {
+        report.insert(QStringLiteral("fetch_error"), facts.fetchError);
+    }
+    if (facts.measured) {
+        report.insert(QStringLiteral("branch"), facts.branch);
+        report.insert(QStringLiteral("head"), facts.head);
+        report.insert(QStringLiteral("base_sha"), facts.baseSha);
+        report.insert(QStringLiteral("behind_base"), facts.behind);
+        report.insert(QStringLiteral("ahead_of_base"), facts.ahead);
+        report.insert(QStringLiteral("dirty"), facts.dirty);
+    } else {
+        report.insert(QStringLiteral("error"), facts.measurementError);
+    }
+    return report;
+}
+
+namespace {
+
+QJsonArray toJsonArray(const QVector<Finding>& findings)
+{
+    QJsonArray array;
+    for (const Finding& finding : findings) array.append(toJson(finding));
+    return array;
+}
+
+QJsonValue orNull(const QString& value)
+{
+    return value.isEmpty() ? QJsonValue::Null : QJsonValue(value);
+}
+
+} // namespace
+
+QJsonObject toJson(const StatusResult& result)
+{
+    QJsonArray repositories;
+    for (const RepoFacts& repository : result.repositories) repositories.append(toJson(repository));
+    return {{QStringLiteral("project"), result.project},
+            {QStringLiteral("repositories"), repositories},
+            {QStringLiteral("findings"), toJsonArray(result.findings)}};
+}
+
+QJsonObject toJson(const StartResult& result)
+{
+    return {{QStringLiteral("exec"), result.exec}, {QStringLiteral("worktree"), result.worktree},
+        {QStringLiteral("branch"), result.branch}, {QStringLiteral("workspace_source"), result.workspaceSource},
+        {QStringLiteral("base_sha"), result.baseSha}, {QStringLiteral("preserved_ref"), orNull(result.preservedRef)},
+        {QStringLiteral("warnings"), toJsonArray(result.warnings)}};
+}
+
+QJsonObject toJson(const FinishResult& result)
+{
+    return {{QStringLiteral("exec"), result.exec}, {QStringLiteral("outcome"), result.outcome},
+        {QStringLiteral("head_sha"), result.headSha}, {QStringLiteral("preserved_ref"), orNull(result.preservedRef)},
+        {QStringLiteral("handoff"), result.handoff}};
+}
+
+QJsonObject toJson(const ResumeResult& result)
+{
+    return resumePackage(result.facts, toJsonArray(result.gaps));
+}
+
+static QJsonObject resumePackage(const ResumeFacts& facts, const QJsonArray& gaps)
 {
     const auto nullable = [](const QString& value) -> QJsonValue {
         return value.isEmpty() ? QJsonValue::Null : QJsonValue(value);

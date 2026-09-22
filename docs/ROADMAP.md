@@ -40,8 +40,9 @@ Amaç: modeli gerçek bir SCMS/TVM benzeri akışta doğrulamak.
    migration kodu yazılmadı, kurulu eski binary ve pluginler söküldü.
 2. ~~`apps/cli` ile `libs/domain`, `libs/application`, `libs/infrastructure`
    sınırlarını kur.~~ Yapıldı (RM-1, 2026-09-22).
-3. Application katmanı JSON yerine tipli sonuç döndürsün; JSON serileştirme
-   `apps/cli`'ye insin (TC-012). CLI sözleşmesi değişmez, cli_contract tutar.
+3. ~~Application katmanı JSON yerine tipli sonuç döndürsün.~~ Yapıldı
+   (RM-4, 2026-09-22). `Finding` domain struct'ı oldu, serileştirme
+   `apps/cli/src/json.cpp`'ye indi, `domain_purity` testi sınırı tutuyor.
 4. Küçük bir named module + QObject/QML köprüsünü macOS/Linux/Windows'ta
    clean/incremental build ile doğrula; compiler/CMake/Ninja baseline'ını sabitle.
 5. Domain'den başlayarak modules geçişini yap. Henüz kullanılmayan host/SDK

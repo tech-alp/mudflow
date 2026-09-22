@@ -28,20 +28,18 @@ bool writeFile(const QString& path, const QByteArray& contents)
     return file.open(QIODevice::WriteOnly) && file.write(contents) == contents.size();
 }
 
-bool hasFinding(const QJsonArray& findings, const QString& id)
+bool hasFinding(const QVector<runmark::Finding>& findings, const QString& id)
 {
-    for (const QJsonValue& value : findings) {
-        if (value.toObject().value(QStringLiteral("id")).toString() == id) return true;
+    for (const runmark::Finding& finding : findings) {
+        if (finding.id == id) return true;
     }
     return false;
 }
 
-bool hasFindingFor(const QJsonArray& findings, const QString& id, const QString& value)
+bool hasFindingFor(const QVector<runmark::Finding>& findings, const QString& id, const QString& value)
 {
-    for (const QJsonValue& finding : findings) {
-        const QJsonObject object = finding.toObject();
-        if (object.value(QStringLiteral("id")).toString() == id
-                && object.value(QStringLiteral("explanation")).toString().contains(value)) return true;
+    for (const runmark::Finding& finding : findings) {
+        if (finding.id == id && finding.explanation.contains(value)) return true;
     }
     return false;
 }
@@ -74,11 +72,11 @@ int main()
     try {
         // ADR-014: kirli ana repo baslatmayi engellemez, uyarir ve ledger'a yazar.
         if (!writeFile(repository + QStringLiteral("/scratch.txt"), "dirty\n")) return 1;
-        const QJsonObject started = runmark::startExecution(config, QStringLiteral("MF-1"), QStringLiteral("codex"), {});
-        if (!hasFinding(started.value(QStringLiteral("warnings")).toArray(), QStringLiteral("git.dirty_workspace"))) return 1;
+        const runmark::StartResult started = runmark::startExecution(config, QStringLiteral("MF-1"), QStringLiteral("codex"), {});
+        if (!hasFinding(started.warnings, QStringLiteral("git.dirty_workspace"))) return 1;
         if (!QFile::remove(repository + QStringLiteral("/scratch.txt"))) return 1;
-        const QString executionId = started.value(QStringLiteral("exec")).toString();
-        const QString worktree = started.value(QStringLiteral("worktree")).toString();
+        const QString executionId = started.exec;
+        const QString worktree = started.worktree;
         if (executionId.isEmpty() || !git({QStringLiteral("-C"), worktree, QStringLiteral("config"), QStringLiteral("user.email"), QStringLiteral("test@example.invalid")})
                 || !git({QStringLiteral("-C"), worktree, QStringLiteral("config"), QStringLiteral("user.name"), QStringLiteral("Runmark Test")})
                 || !QFile::remove(worktree + QStringLiteral("/obsolete.txt"))
@@ -96,15 +94,15 @@ int main()
         } catch (const std::exception&) {
         }
         if (!QDir(handoff).removeRecursively()) return 1;
-        const QJsonObject finished = runmark::finishExecution(config, executionId, QStringLiteral("finished"));
+        const runmark::FinishResult finished = runmark::finishExecution(config, executionId, QStringLiteral("finished"));
         QFile handoffFile(handoff);
         if (!handoffFile.open(QIODevice::ReadOnly)) return 1;
         const QString handoffText = QString::fromUtf8(handoffFile.readAll());
 
-        const QJsonObject active = runmark::startExecution(config, QStringLiteral("MF-2"), QStringLiteral("codex"), {});
-        const QString activeExecutionId = active.value(QStringLiteral("exec")).toString();
+        const runmark::StartResult active = runmark::startExecution(config, QStringLiteral("MF-2"), QStringLiteral("codex"), {});
+        const QString activeExecutionId = active.exec;
         const QString activeLedger = root + QStringLiteral("/.runmark/ledger/") + activeExecutionId + QStringLiteral(".jsonl");
-        const QJsonArray activeFindings = runmark::projectStatus(config).value(QStringLiteral("findings")).toArray();
+        const QVector<runmark::Finding> activeFindings = runmark::projectStatus(config).findings;
         if (!hasFinding(activeFindings, QStringLiteral("context.active_execution"))) return 1;
         QFile activeLedgerFile(activeLedger);
         if (!activeLedgerFile.open(QIODevice::ReadOnly)) return 1;
@@ -115,11 +113,11 @@ int main()
         const int timestampValue = timestampStart + 6;
         activeLedgerContents.replace(timestampValue, 20, "2000-01-01T00:00:00Z");
         if (!writeFile(activeLedger, activeLedgerContents)) return 1;
-        const QJsonArray orphanFindings = runmark::projectStatus(config).value(QStringLiteral("findings")).toArray();
+        const QVector<runmark::Finding> orphanFindings = runmark::projectStatus(config).findings;
         if (!hasFinding(orphanFindings, QStringLiteral("context.orphaned_execution"))) return 1;
         activeLedgerContents.replace("2000-01-01T00:00:00Z", "BOZUK-TARIH");
         if (!writeFile(activeLedger, activeLedgerContents)) return 1;
-        const QJsonArray invalidTimestampFindings = runmark::projectStatus(config).value(QStringLiteral("findings")).toArray();
+        const QVector<runmark::Finding> invalidTimestampFindings = runmark::projectStatus(config).findings;
         if (!hasFinding(invalidTimestampFindings, QStringLiteral("context.invalid_ledger_timestamp"))) return 1;
 
         const QString externalWorktree = root + QStringLiteral("/worktrees/MF-3");
@@ -127,24 +125,24 @@ int main()
                 || !git({QStringLiteral("-C"), repository, QStringLiteral("commit"), QStringLiteral("--allow-empty"), QStringLiteral("-m"), QStringLiteral("advance after external worktree")})
                 || !git({QStringLiteral("-C"), repository, QStringLiteral("push")})) return 1;
         const QString externalHead = gitOutput({QStringLiteral("-C"), externalWorktree, QStringLiteral("rev-parse"), QStringLiteral("HEAD")});
-        const QJsonObject adopted = runmark::startExecution(config, QStringLiteral("MF-3"), QStringLiteral("claude"), {});
+        const runmark::StartResult adopted = runmark::startExecution(config, QStringLiteral("MF-3"), QStringLiteral("claude"), {});
         if (externalHead.isEmpty()
-                || adopted.value(QStringLiteral("worktree")).toString() != externalWorktree
-                || adopted.value(QStringLiteral("branch")).toString() != QLatin1String("external/MF-3")
-                || adopted.value(QStringLiteral("workspace_source")).toString() != QLatin1String("adopted")
-                || adopted.value(QStringLiteral("base_sha")).toString() != externalHead) return 1;
+                || adopted.worktree != externalWorktree
+                || adopted.branch != QLatin1String("external/MF-3")
+                || adopted.workspaceSource != QLatin1String("adopted")
+                || adopted.baseSha != externalHead) return 1;
 
         if (!writeFile(config, R"({"version":1,"name":"test","worktree_root":"worktrees","repos":[{"name":"repo","path":"worktrees/MF-1","base":{"remote":"origin","branch":"main"}}],"plan":{"path":"plan.md"},"task_id_pattern":"MF-\\d+"})")) return 1;
         if (!writeFile(root + QStringLiteral("/plan.md"), "- [x] MF-1\nupdated\n")
                 || !git({QStringLiteral("-C"), repository, QStringLiteral("commit"), QStringLiteral("--allow-empty"), QStringLiteral("-m"), QStringLiteral("advance base")})
                 || !git({QStringLiteral("-C"), repository, QStringLiteral("push")})) return 1;
-        const QJsonObject status = runmark::projectStatus(config);
-        const QJsonArray findings = status.value(QStringLiteral("findings")).toArray();
-        const QJsonArray repositories = status.value(QStringLiteral("repositories")).toArray();
+        const runmark::StatusResult status = runmark::projectStatus(config);
+        const QVector<runmark::Finding> findings = status.findings;
+        const QVector<runmark::RepoFacts> repositories = status.repositories;
         if (repositories.isEmpty()) return 1;
-        const QJsonObject repositoryStatus = repositories.at(0).toObject();
-        if (finished.value(QStringLiteral("outcome")).toString() != QLatin1String("finished")
-                || repositoryStatus.value(QStringLiteral("ahead_of_base")).toInt() != 1
+        const runmark::RepoFacts repositoryStatus = repositories.at(0);
+        if (finished.outcome != QLatin1String("finished")
+                || repositoryStatus.ahead != 1
                 || !handoffText.contains(QStringLiteral("## Doğrulanmış (Runmark üretti)"))
                 || !handoffText.contains(QStringLiteral("## Agent notu (zayıf evidence — doğrulanmadı)"))
                 || !handoffText.contains(QStringLiteral("Removed obsolete file"))
@@ -157,8 +155,8 @@ int main()
 
         if (!writeFile(worktree + QStringLiteral("/untracked.txt"), "dirty\n")
                 || !git({QStringLiteral("-C"), worktree, QStringLiteral("remote"), QStringLiteral("set-url"), QStringLiteral("origin"), root + QStringLiteral("/missing.git")})) return 1;
-        const QJsonArray offlineFindings = runmark::projectStatus(config).value(QStringLiteral("findings")).toArray();
-        if (repositoryStatus.value(QStringLiteral("dirty")).toBool()
+        const QVector<runmark::Finding> offlineFindings = runmark::projectStatus(config).findings;
+        if (repositoryStatus.dirty
                 || !hasFinding(offlineFindings, QStringLiteral("git.fetch_failed"))
                 || !hasFinding(offlineFindings, QStringLiteral("git.dirty_workspace"))) return 1;
         return 0;
