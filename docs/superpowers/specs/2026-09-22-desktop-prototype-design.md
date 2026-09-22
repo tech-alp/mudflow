@@ -46,6 +46,76 @@ Demo yalnız bellek içi durum kullanır. Gerçek Git, Jira, dosya, ajan, termin
 credential veya plugin kurulumu işlemi yapmaz. Sabit ve küçük “Demo” göstergesi
 bulunur; simüle başlatma/etkinleştirme işlemleri gerçek başarı gibi sunulmaz.
 
+### Markdown-first planlama ve birleşik görünüm
+
+2026-09-22 kullanıcı kararı: Markdown plan/görev içeriğinin kaynak belgesidir;
+Liste, Kanban ve Belge aynı iş paketlerinin alternatif görünümleridir.
+Genel amaçlı WYSIWYG blok editörü yapılmaz. Amaç AI'ın mevcut metin araçlarıyla
+planı değiştirebilmesi ve insanın aynı işi görsel olarak takip edebilmesidir.
+
+Referans: [Developing a Beautiful and Performant Block Editor in Qt C++ and
+QML](https://rubymamistvalove.com/block-editor). Makale düz metni SQLite içinde
+saklayıp C++ model ve QML blok delegate'leriyle sunar; doğrudan Git'teki `.md`
+dosyalarını kaynak kabul etmez. Runmark için alınan ilke veri/model/görünüm
+ayrımıdır; özel blok sözdizimi, tam editör veya performans sonuçları alınmaz.
+
+```text
+Markdown belgeleri → Parse + doğrulama ──┐
+                                       ├─ Birleşik görünüm modeli
+Execution / evidence → Gözlenen durum ──┘
+                                             ├─ Liste
+                                             ├─ Kanban
+                                             └─ Belge
+```
+
+| Bilgi | Kaynak gerçeklik |
+|---|---|
+| Amaç, kabul kriterleri, iş paketleri ve plan beyanı | Markdown |
+| Harici görevin durumu | Jira veya seçilmiş iş kaynağı |
+| Execution, ajan, worktree, gözlenen kontroller | Runmark kayıtları |
+| İnsan kabulü | Açık kabul kaydı |
+| Görünüm, filtre, panel boyutları | UI tercihi |
+
+Markdown'daki `[x]`, planın tamamlanma beyanıdır; gözlenen test veya insan
+kabulünün yerine geçmez. Kart gerektiğinde “Planda tamamlandı · Doğrulama eksik”
+gösterir. Markdown düzenlemesi execution/evidence/approval geçmişini değiştirmez.
+
+İş paketleri başlık ve satır numarasından bağımsız sabit kimlikle eşlenir;
+tekrarlanan veya eksik kimlik belirsizliği açık hata üretir, tahmini eşleme yapılmaz.
+Her küçük checkbox kart değildir. Superpowers ve planning-with-files belgeleri
+kendi biçimlerinde korunur; yeni Runmark şemasına zorla dönüştürülmez.
+Yalnız tanınan ve kayıpsız düzenlenebilen biçimlerde yazma açılır. Diğer
+biçimlerde görünüm salt okunurdur ve nedenini açıklar.
+
+Yeni Runmark-owned belgeler için sürümlü metadata ve sabit kimlikli Markdown
+checklist yaklaşımı hedeflenir. Bu prototip public dosya şeması oluşturmaz;
+üretim şeması ve provider yazma desteği ayrı implementasyon kararıdır. Demo,
+aşağıda tanımlanan sınırlı fixture üzerinde çalışır. Mevcut regex tabanlı
+`observePlan`/`planReference` kodu tam Markdown parser veya güvenli yazıcı değildir.
+
+### Düzenleme, sürükleme ve eşzamanlı değişiklik
+
+- Liste/Kanban/Belge seçimi kaynağı değiştirmez; seçim ve kimlik korunur.
+- Demo Kanban sütunları plan beyanıdır: “Planda açık” ve “Planda tamamlandı”.
+  Ayrı kart alanı gerçek çalışma aşamasını ve kanıt durumunu gösterir.
+- Sütun değiştirme yalnız ilgili `[ ]` / `[x]` beyanını; sıralama yalnız ilgili
+  kimlikli öğenin belge sırasını değiştirir. Jira ve execution durumu etkilenmez.
+- “İncelemeye gönder” ve “Kabul et” kart taşımadan bağımsız, application
+  kontrollerine bağlı işlemlerdir. Kabul sütununa sürükleyerek onay üretilemez.
+- Sürükle-bırak yanında klavyeyle erişilebilir “Taşı” menüsü bulunur.
+- Belge görünümünde ham Markdown taslağı düzenlenir; açık “Uygula” işlemiyle
+  doğrulanıp ortak modele aktarılır. Parse hatasında taslak korunur, son geçerli
+  model “Son geçerli belge” etiketiyle kalır; boş veya başarılı veri gibi sunulmaz.
+- Kaydetme anında okunan belge sürümü/içeriği yeniden karşılaştırılır. Dışarıdan
+  değişmişse taslak ile yeni kaynak farkı gösterilir; sessiz son-yazan-kazan yoktur.
+  Kullanıcı taslağını kopyalayabilir veya açıkça vazgeçip güncel kaynağı yükleyebilir.
+  Otomatik merge ve zorla üzerine yazma prototipte yoktur.
+- Bilinmeyen bölümler, yorumlar ve ilgisiz biçimlendirme korunur. Üretimde tüm
+  belgeyi yeniden serialize ederek veri kaybetmek kabul edilmez; yazma hatasında
+  eski dosya korunmalıdır. Bu davranışlar OD'de bellek içi simülasyondur.
+- Geri al yalnız kendi plan düzenlemesini geri alır; dış revizyon varsa aynı
+  çakışma kontrolü uygulanır. Execution veya kabul kaydı undo ile silinmez.
+
 ## 3. Roller ve durumların anlamı
 
 - İş kaynağı: Jira, GitHub Issues, MudIssue veya yerel görev; hepsi zorunlu değildir.
@@ -111,10 +181,15 @@ Sağ panel görev, ajan, repo/worktree, son kontrol noktası ve sonraki işlemi 
 ### Planlar ve Görevler
 
 Sol plan/iş paketi listesi, merkez seçili iş. Her checkbox bağımsız görev değildir.
+Üstte Liste / Kanban / Belge görünüm seçici bulunur; varsayılan Liste'dir.
+Görünüm seçici aşağıdaki görev ayrıntı sekmelerinden ayrıdır. Kanban kartını
+seçmek aynı görev ayrıntısını açar; Belge ham kaynağa ve kontrollü demo düzenlemeye
+erişim verir. Genel Bakış plan odaklı kalır; Kanban zorunlu ana ekran olmaz.
 Sekmeler: Özet, Plan ve Belgeler, Değişiklikler, Kontroller, Geçmiş.
 Özet: amaç, kabul kriterleri, kaynak, çalışma aşaması, açık konu, sonraki adım.
 Plan: spec/plan yolu, bölüm, kayıtlı içerikle değişiklik karşılaştırması, Kaynağı aç.
-Kaynağı aç demo belge görüntüleyicisini açar; belgenin tamamı başka ekranlara kopyalanmaz.
+Kaynağı aç aynı Belge görünümündeki ilgili bölümü açar; belgenin tamamı başka
+ekranlara kopyalanmaz. Harici/provider belgesi yazma desteği yoksa salt okunur açılır.
 Değişiklikler: repo/dosya listesi ve kısa demo diff; gerçek editör/terminal yoktur.
 Kontroller: komut, exit code, execution, repo ve commit/çalışma ağacı kimliği,
 rapor, gözlenen sonuç/ajan bildirimi ayrımı. Eski kod sonucuna açık uyarı verilir.
@@ -198,6 +273,22 @@ Profil `C++ / Qt geliştirme`, demo snapshot `cpp-qt-demo-1`.
 Plan `docs/superpowers/plans/config-migration.md`; notlar
 `task_plan.md`, `findings.md`, `progress.md`. Örnek yollar/commitler demodur.
 
+Demo planın kimlikli bölümü aşağıdadır. Bu fixture, dış sağlayıcıların bütün
+belgelerinin bu biçimde olduğu veya mevcut CLI'ın bu alt kimlikleri desteklediği
+iddiası değildir. ID'ler `SCMS-42` görevinin iş paketi kimlikleridir, Jira görevleri değil.
+
+```markdown
+## İş paketleri
+- [x] SCMS-42-W1 — Eski config biçimini incele
+- [x] SCMS-42-W2 — Yeni şemaya dönüştür
+- [ ] SCMS-42-W3 — Device-agent doğrulamasını ekle
+- [ ] SCMS-42-W4 — Geri alma davranışını test et
+- [ ] SCMS-42-W5 — Sonuçları incele
+```
+
+Bu metin kesinti senaryosunun plan beyanıdır. Aşağıdaki tablo gerçek çalışma
+ve kanıt özetidir; `[x]` görünen W2'nin hâlâ inceleme beklemesi kasıtlıdır.
+
 | İş paketi | Kesinti anındaki durum | Kanıt |
 |---|---|---|
 | Eski config biçimini incele | İncelendi | Kayıtlı analiz; insan kabulü değildir |
@@ -226,6 +317,12 @@ Ek senaryolar aynı store üstünden seçilir:
   doğrulama sayılmaz; inceleme öncesi eksik kontrol gösterilir.
 - Plan değişti: kayıtlı plan içeriğiyle fark; tarihinden hata türetilmez.
 - Plugin hata: shell ayakta, ilgili katkı fallback, yeniden deneme/ayrıntı.
+- Markdown düzenlendi: W3 başlığı değişir; sabit kimlik sayesinde bağlı execution
+  ve rapor korunur, üç görünüm güncellenir. `[x]` yapmak test raporu yaratmaz.
+- Dış değişiklik: kullanıcı taslağı açıkken “AI değişikliğini simüle et” yeni
+  belge revizyonu üretir. Uygula çakışma gösterir; iki içerik kaybolmadan incelenir.
+- Geçersiz belge: yinelenen iş paketi kimliği; hata, korunan taslak ve son geçerli
+  görünüm gösterilir. Hiçbir kayda sessizce yanlış görev bağlanmaz.
 
 İkinci proje Runmark demo boş durumdur; SCMS görevleri oraya taşınmaz.
 Proje değiştirip dönünce SCMS seçimi/ilerlemesi korunur. Senaryo sıfırlama tüm
@@ -261,6 +358,12 @@ Doğrulama üretim backend testinden ayrıdır:
 8. Koyu tüm ekranlar + aynı bileşenlerle açık Genel Bakış incelenebilir.
 9. Console/runtime hataları kontrol edilir; çalıştırılmamış kontrol geçti denmez.
 10. Plugin devre dışı/hata durumunda shell ve geçmiş korunur.
+11. Liste/Kanban/Belge aynı kimlik, sıra ve plan beyanını gösterir; ham Markdown
+    değişikliği karta, kart sıralaması/taşıması metne yansır. İlgisiz metin korunur.
+12. `[x]` değişikliği gözlenen test, Jira durumu veya insan kabulü üretmez.
+13. Dış değişiklikte kaydetme ve geri al sessizce yeni revizyonun üzerine yazmaz;
+    taslak ve güncel kaynak görülebilir. Parse/kimlik hatası başarı gibi sunulmaz.
+14. Kart taşımanın klavye alternatifi çalışır; görünüm değişimi seçim kaybettirmez.
 
 Native PoC kabulü ayrı kalır: macOS Merce shell, gerçek application verili
 salt-okunur Overview/Findings, yenileme, plugin activation failure/cleanup ve
@@ -278,6 +381,8 @@ OD üretimi sırasında mevcut bir tasarımın üstüne izinsiz yazılmaz.
 Kapsam dışı: native ürün implementasyonu, gerçek agent/Jira/Git çağrıları,
 marketplace, process plugin SDK, workflow designer, cloud sync, auth aktarımı,
 otomatik merge/rebase, release/push ve Linux/Windows uygulaması.
+Tam WYSIWYG/blok editörü, bloklar arası rich-text seçim, genel Markdown yazıcısı
+ve gerçek dosyaya çift yönlü yazma da bu prototipin kapsamı dışındadır.
 
 İlgili kaynaklar: [UX](../../UX.md), [Mimari](../../ARCHITECTURE.md),
 [Teknoloji kararları](../../TECH_CHOICES.md), [Roadmap](../../ROADMAP.md).
