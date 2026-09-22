@@ -24,6 +24,9 @@ Format `project.json` içindeki `task_id_pattern` ile eşleşmezse `rmk status`
   clean ve incremental build ile doğrula; compiler/CMake/Ninja baseline'ını
   ölçüm sonrası sabitle.
 
+  macOS deneyi geçti; Linux/Windows ölçümleri bekliyor.
+  Kaynak, komutlar ve sonuçlar: [module spike](../../tools/module-spike/README.md).
+
 - [ ] RM-3 — Domain'den başlayarak modules geçişi
 
   `runmark.domain` ile başla. Henüz kullanılmayan host/SDK dizinleri veya
