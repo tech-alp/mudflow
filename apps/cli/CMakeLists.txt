@@ -12,7 +12,7 @@ add_executable(rmk
 )
 
 target_include_directories(rmk PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/include)
-target_link_libraries(rmk PRIVATE runmark::application)
+target_link_libraries(rmk PRIVATE runmark::warnings runmark::application)
 set_target_properties(rmk PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 include(GNUInstallDirs)

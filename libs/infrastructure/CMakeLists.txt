@@ -15,7 +15,7 @@ add_library(runmark::infrastructure ALIAS runmark_infrastructure)
 target_include_directories(runmark_infrastructure
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
 )
-target_link_libraries(runmark_infrastructure PUBLIC runmark::domain)
+target_link_libraries(runmark_infrastructure PUBLIC runmark::warnings runmark::domain)
 
 if(BUILD_TESTING)
     add_subdirectory(tests)

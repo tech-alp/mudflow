@@ -83,11 +83,12 @@ Format `project.json` içindeki `task_id_pattern` ile eşleşmezse `rmk status`
   `suggested_action` yalnız ikisi birden doğruyken çıkar; bilinmeyen durum
   `error` ile ayrılır. Runmark yine kendi silmez.
 
-- [ ] RM-11 — cforgo entegrasyonu
+- [x] RM-11 — Ortak uyarı seti (cforgo değerlendirildi, alınmadı)
 
-  `find_package(Cforgo CONFIG)`; uyarı seti, out-of-source koruması ve statik
-  analiz hedefleri. Bedeli: `cforgo-install.sh` ön koşul olur ve CI'a bir adım
-  ekler; temiz klon + configure artık tek adım değildir.
+  `runmark::warnings`: `-Wall -Wextra -Wpedantic -Werror=return-type` ve
+  out-of-source koruması. cforgo kurulup ölçüldü; değeri doğrulandı ama özel
+  GitLab deposunda olduğu için public repoya bağımlılık olarak alınamadı
+  (TC-011). cforgo yayımlanırsa dosya tek çağrıya döner.
 
 - [ ] RM-9 — İlk yayın hazırlığı ve release doğrulaması
 

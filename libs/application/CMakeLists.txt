@@ -9,7 +9,7 @@ target_include_directories(runmark_application
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 target_link_libraries(runmark_application
-    PUBLIC runmark::domain
+    PUBLIC runmark::warnings runmark::domain
     PRIVATE runmark::infrastructure
 )
 

@@ -10,7 +10,7 @@ target_include_directories(runmark_domain
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
-target_link_libraries(runmark_domain PUBLIC Qt6::Core)
+target_link_libraries(runmark_domain PUBLIC runmark::warnings Qt6::Core)
 target_sources(runmark_domain PUBLIC FILE_SET CXX_MODULES FILES src/domain.cppm)
 target_compile_features(runmark_domain PUBLIC cxx_std_23)
 set_property(TARGET runmark_domain PROPERTY CXX_SCAN_FOR_MODULES ON)

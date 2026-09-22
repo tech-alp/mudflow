@@ -12,6 +12,8 @@ option(RUNMARK_MERCE_NOTIFICATIONS "Build Merce's notification and dialog module
 
 include(CTest)
 
+include(RunmarkWarnings)
+
 find_package(Qt6 6.11 REQUIRED COMPONENTS Core)
 set(CMAKE_CXX_EXTENSIONS OFF)
 

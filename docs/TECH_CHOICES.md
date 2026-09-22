@@ -425,6 +425,38 @@ tükettiğimiz tek şey import edilmiş hedeflerdir.
   kendi varsayılanını cache'e kilitlemiş olur; `block()` olmadan ise
   `BUILD_SHARED_LIBS` gibi ezmeler ana projeye sızar.
 
+### cforgo neden alınmadı
+
+`gitlab.com/asis-tools/cforgo` (v1.1.0) tam olarak 2. ve 3. basamağın
+karşılığı: `cforgo_target_warnings`, `cforgo_require_out_of_source_build`,
+sanitizer/statik analiz hedefleri, preset katalogları. FetchContent değil;
+`scripts/cforgo-install.sh` ile `~/.cforgo/current` altına kurulup CMake
+kullanıcı paket kaydına yazılıyor, yani configure ağa çıkmıyor.
+
+Kurup denendi ve işe yaradığı ölçüldü: `cforgo_target_warnings`
+`-Wall -Wextra -Wpedantic -Werror=return-type` veriyor, bizde **hiç uyarı
+bayrağı yoktu**, ve bu bayraklarla kod temiz çıktı (0 uyarı).
+
+Yine de bağımlılık olarak alınmadı:
+
+```text
+cforgo    özel GitLab projesi   (anonim klon kimlik istiyor)
+runmark   public GitHub deposu
+```
+
+`find_package(Cforgo REQUIRED)` demek, public bir projeyi o özel depoya
+erişimi olmayan hiç kimsenin derleyememesi demek — ve CI'ın bir GitLab
+credential'ı olmadan koşamaması. Bir araç için ödenecek bedel bu değil.
+
+Opsiyonel yapmak da çözmüyor: aynı bayrakları veren bir fallback yazılırsa
+cforgo zaten hiçbir şey katmaz; yazılmazsa uyarılar makineye göre değişir ve
+yerelde yeşil olan CI'da kırmızı olur.
+
+Alınan karar: **ölçülen değer alındı, paket alınmadı.** Bayraklar
+`cmake/RunmarkWarnings.cmake` içinde dört satır, kaynağı yorumda yazılı.
+cforgo public yayımlanırsa o dosya `cforgo_create_options_target()` çağrısına
+dönüşür; çağıran yerler değişmez.
+
 ### Merce nasıl alınır
 
 Merce ayrı bir depodur: `https://github.com/tech-alp/Merce.git`, v1.2.0,
