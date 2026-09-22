@@ -639,8 +639,31 @@ RM-7'de üç şey ölçülerek öğrenildi:
   `module 'runmark.domain' not found` ile düşüyor. Model bu yüzden kendi
   düz `Row` tipini taşır, çeviri `.cpp`'de yapılır.
 - `qt_standard_project_setup()` çağrılmadığında QML kaynak prefix'i `/` olur
-  ama engine yalnız `qrc:/qt/qml` altına bakar. Çözüm global helper değil,
-  modüle `RESOURCE_PREFIX "/qt/qml"` vermek (TC-011).
+  ama engine yalnız `qrc:/qt/qml` altına bakar. Modül derlenir, hiçbir uyarı
+  çıkmaz, çalışma anında bulunamaz.
+
+**Qt politikaları açıkça sabitlenir.** `qt_standard_project_setup()`
+çağrılmaz — dizin çapında `AUTOMOC` açardı (TC-011). Bunun yerine tek tek:
+
+```text
+QTP0003  köke     qt_add_library BUILD_SHARED_LIBS'i onurlandırır (Qt6Core)
+QTP0001  ui-shell QML modülü kaynak prefix'i :/qt/qml (Qt6Qml)
+QTP0004  ui-shell QML alt dizinleri için qmldir üretimi (Qt6Qml)
+QTP0002  yok      yalnız Android
+```
+
+Bir politika, onu **tanımlayan modül bulunmadan** set edilemez: kökte yalnız
+`Qt6::Core` arandığı için `qt_policy(SET QTP0001 NEW)` orada
+"not a known Qt policy" hatası verir. QML politikaları bu yüzden
+`libs/ui-shell` içindedir.
+
+QTP0001 NEW, yukarıdaki prefix sorununu resmi yoldan çözer; elle
+`RESOURCE_PREFIX` vermeye gerek kalmaz. QTP0003 RM-8 için gerekli: Merce
+statik gömülürken `BUILD_SHARED_LIBS` ayarı ancak NEW davranışında dikkate
+alınır.
+
+Ayrıca `QT_QML_OUTPUT_DIRECTORY` ayarlanmazsa Qt, modülün çıktı dizini hedef
+yoluyla bitmediği için uyarır ve `qmllint` modülü bulamaz.
 
 **Domain'de `Q_OBJECT` / `Q_GADGET` yok.** `domain_purity` testi (RM-4)
 `libs/domain` kaynaklarını tarar ve `QFile|QProcess|QDir|QTextStream|

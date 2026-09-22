@@ -15,6 +15,15 @@ include(CTest)
 find_package(Qt6 6.11 REQUIRED COMPONENTS Core)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Qt policies are pinned explicitly rather than through
+# qt_standard_project_setup(), which would also switch AUTOMOC on for every
+# target added below (TC-011). A policy is only known once the module that
+# defines it is found, so the QML ones live in libs/ui-shell.
+# QTP0003 (Qt6Core): qt_add_library honours BUILD_SHARED_LIBS. RM-8 embeds
+#   Merce statically by setting that variable, which OLD ignores.
+# QTP0002 is Android-only and does not apply.
+qt_policy(SET QTP0003 NEW)
+
 # Bagimlilik yonu: application -> infrastructure -> domain. Ters yon yok.
 add_subdirectory(libs/domain)
 add_subdirectory(libs/infrastructure)
