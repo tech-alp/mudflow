@@ -170,8 +170,11 @@ libs/domain/
   3.28'de geldi, Merce v1.1.0 3.30 ister; 4.4 ikisini de karşılar ve yerel
   derlemede doğrulanan sürümdür. C++23 / Ninja / LLVM Clang 19.1+ ve Windows
   MSVC hattı teknik doğrulama adaylarıdır; henüz build gereksinimi değildir.
-- Conan 2 bu kararla otomatik eklenmez. Araç zinciri macOS/Linux/Windows'ta
-  clean ve incremental build, MOC/QML köprüsü ve testler doğrulanınca sabitlenir.
+- Conan 2 bu kararla otomatik eklenmez. Platform sırası macOS → Linux → Windows'tur
+  (kullanıcı kararı, 2026-09-22). RM-2 macOS clean/incremental build ve MOC/QML
+  köprüsü doğrulandı: LLVM Clang 23.1.1 / Ninja 1.13.2 / CMake 4.4.3 /
+  Qt 6.11.1, C++23. Üretim modules geçişi RM-3'tedir. Linux ve Windows daha
+  sonra kendi toolchain'leriyle doğrulanır; bugün kabul kapısı değildir.
 
 Modules açık API sınırı sağlar; build hızlanması ölçülmeden vaat edilmez.
 Teknik referans: [CMake C++ Modules](https://cmake.org/cmake/help/latest/manual/cmake-cxxmodules.7.html).

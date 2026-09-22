@@ -18,13 +18,16 @@ Format `project.json` içindeki `task_id_pattern` ile eşleşmezse `rmk status`
   `projectStatus` ve kardeşleri `QJsonObject` yerine struct döndürsün; JSON
   serileştirme `apps/cli`'ye insin. CLI sözleşmesi değişmez (TC-012).
 
-- [ ] RM-2 — Named module doğrulaması
+- [x] RM-2 — Named module doğrulaması (macOS)
 
-  Küçük bir named module ve QObject/QML köprüsünü macOS/Linux/Windows'ta
+  Küçük bir named module ve QObject/QML köprüsünü macOS'ta
   clean ve incremental build ile doğrula; compiler/CMake/Ninja baseline'ını
   ölçüm sonrası sabitle.
 
-  macOS deneyi geçti; Linux/Windows ölçümleri bekliyor.
+  macOS deneyi geçti. Kullanıcı kararı (2026-09-22): önce macOS,
+  ilerleyen süreçte Linux, en son Windows. Son iki platform RM-2/RM-3 kapısı değildir.
+  Ölçülen macOS toolchain: LLVM Clang 23.1.1, CMake 4.4.3,
+  Ninja 1.13.2, Qt 6.11.1; deney C++23 kullanır.
   Kaynak, komutlar ve sonuçlar: [module spike](../../tools/module-spike/README.md).
 
 - [ ] RM-3 — Domain'den başlayarak modules geçişi

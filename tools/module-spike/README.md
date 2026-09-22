@@ -40,7 +40,9 @@ Sonunda değişikliksiz build `ninja: no work to do.` vermeli.
 | Windows | Henüz ölçülmedi | Bekliyor | Bekliyor |
 
 Runmark execution: `20260922T103319Z-RM-2`. macOS sonucu minimum compiler
-sürümü iddiası değildir. Üç OS ölçümü olmadan RM-2 kapanmaz ve RM-3 başlamaz.
+sürümü iddiası değildir. Kullanıcı kararı (2026-09-22) ile RM-2 kabul kapsamı
+yalnız macOS'tur ve tamamlandı. Linux sonra, Windows en son doğrulanacak;
+bu ölçümler macOS RM-3 geçişini engellemez. Taşınabilirlik henüz doğrulanmadı.
 Üretim C++20 baseline'ı değiştirilmedi.
 
 Referans: [CMake C++ Modules](https://cmake.org/cmake/help/latest/manual/cmake-cxxmodules.7.html).

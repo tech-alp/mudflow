@@ -43,8 +43,11 @@ Amaç: modeli gerçek bir SCMS/TVM benzeri akışta doğrulamak.
 3. ~~Application katmanı JSON yerine tipli sonuç döndürsün.~~ Yapıldı
    (RM-4, 2026-09-22). `Finding` domain struct'ı oldu, serileştirme
    `apps/cli/src/json.cpp`'ye indi, `domain_purity` testi sınırı tutuyor.
-4. Küçük bir named module + QObject/QML köprüsünü macOS/Linux/Windows'ta
-   clean/incremental build ile doğrula; compiler/CMake/Ninja baseline'ını sabitle.
+4. ~~Küçük bir named module + QObject/QML köprüsünü macOS'ta
+   clean/incremental build ile doğrula.~~ Yapıldı (RM-2, 2026-09-22).
+   Ölçülen toolchain: LLVM Clang 23.1.1 / CMake 4.4.3 / Ninja 1.13.2 /
+   Qt 6.11.1, C++23. Linux ilerleyen süreçte, Windows en son eklenir;
+   mevcut kabul kapsamı macOS'tur.
 5. Domain'den başlayarak modules geçişini yap. Henüz kullanılmayan host/SDK
    dizinlerini veya genel amaçlı framework soyutlamalarını oluşturma.
 
