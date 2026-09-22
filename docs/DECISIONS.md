@@ -158,7 +158,9 @@ Yalnız "hiç görüldü mü" ölçülür. "En son ne zaman" tutulur ama henüz 
 
 ## ADR-016 — Runmark adı, rmk CLI ve sorumluluk bazlı dizinler
 
-Accepted. Adlandırma 2026-09-22'de uygulandı; dizin geçişi bekliyor.
+Accepted. Adlandırma ve `apps/cli` + `libs/{domain,application,infrastructure}`
+dizin ayrımı 2026-09-22'de uygulandı. Desktop ve runtime dizinleri ilgili
+özelliklerle birlikte oluşturulacak.
 
 Ürün adı Runmark, CLI executable adı `rmk` olur. Workspace verisi `.runmark/`
 altında tutulur. Uygulamalar `apps/cli` ve `apps/desktop`; kütüphaneler

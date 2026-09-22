@@ -424,7 +424,7 @@ tükettiğimiz tek şey import edilmiş hedeflerdir.
 
 ### Merce nasıl alınır
 
-Merce ayrı bir depodur: `https://github.com/tech-alp/Merce.git`, v1.1.0,
+Merce ayrı bir depodur: `https://github.com/tech-alp/Merce.git`, v1.2.0,
 `cmake_minimum_required(VERSION 3.30)`, `Qt6::LabsStyleKit` (Technology
 Preview) ister.
 
@@ -485,8 +485,7 @@ block(SCOPE_FOR VARIABLES)
 
     FetchContent_Declare(Merce
         GIT_REPOSITORY https://github.com/tech-alp/Merce.git
-        GIT_TAG 9f01139534273a9f67a49dce372d24dc79c4971a   # v1.1.0
-        GIT_SHALLOW TRUE
+        GIT_TAG 2e587eb9f5cfc2f3456508646e22d151f45f0b55   # v1.2.0
         EXCLUDE_FROM_ALL
     )
     FetchContent_MakeAvailable(Merce)
@@ -499,8 +498,10 @@ target_link_libraries(runmark_ui_shell PUBLIC
 Neden bu biçim:
 
 - **`GIT_TAG` bir SHA, tag değil.** Tag taşınabilir; SHA taşınmaz. Yorumda
-  hangi sürüm olduğu yazılır. `GIT_SHALLOW TRUE` ile birlikte çalıştığı
-  ölçüldü — GitHub bu depoda SHA ile shallow fetch'e izin veriyor.
+  hangi sürüm olduğu yazılır. `GIT_SHALLOW` kullanılmaz: CMake, shallow
+  clone ile yalnız branch/tag destekler; commit SHA desteklemez.
+  Tek bir başarılı deneme bu kombinasyonu güvenilir bir sözleşme yapmaz.
+  Kaynak: [CMake Git seçenekleri](https://cmake.org/cmake/help/latest/module/ExternalProject.html#git).
 - **`EXCLUDE_FROM_ALL`** (CMake 3.28+): Merce hedefleri `all`'a girmez,
   yalnız link edilenler derlenir.
 - **Seçenekler düz `set()`, `CACHE ... FORCE` değil.** Merce

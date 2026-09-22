@@ -1,6 +1,7 @@
 # Runmark Architecture
 
-Durum: adlandırma uygulandı; katman ve dizin geçişi bekliyor.
+Durum: adlandırma ve CLI/domain/application/infrastructure dizin ayrımı uygulandı;
+named modules, plugin runtime ve desktop entegrasyonu bekliyor.
 Ürün kapsamı [PRD](PRD.md), karar geçmişi [DECISIONS](DECISIONS.md), geçiş
 sırası [ROADMAP](ROADMAP.md), mevcut disk sözleşmesi [DATA_MODEL](DATA_MODEL.md).
 
@@ -35,8 +36,9 @@ Bir ekran kapatıldığında verisi silinmez ve ilgili ürün servisi durmaz.
 | Plugin ID | `com.runmark.findings` |
 | Route | `runmark://com.runmark.findings/list` |
 
-Tablodaki adlar ve dizin düzeni koda uygulandı: `apps/cli` ile
-`libs/{domain,application,infrastructure}` ayrımı RM-1'de yapıldı.
+Tablo hedef adlandırmayı gösterir. `apps/cli` ile
+`libs/{domain,application,infrastructure}` ayrımı RM-1'de uygulandı;
+named module, desktop, QML module ve runtime plugin alanları henüz uygulanmadı.
 
 PoC sürecinde geriye uyumluluk aranmadı: önceki ad, veri dizini ve Git
 ref'leri hiçbir yerde tutulmaz, migration kodu yazılmaz.
