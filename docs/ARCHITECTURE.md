@@ -268,6 +268,10 @@ Resolve project → resolve task → git fetch → Git Truth → Plan Truth
 → previous execution/handoff → minimal context bundle → launch agent
 ```
 
+Son adım henüz yok: bugün `rmk start` bağlam paketini üretip durur, ajanı
+insan başlatır. Orkestrasyon kalıpları (assign / handoff / send_message) bu
+adıma bağlıdır ve [ADR-020](DECISIONS.md) ile ertelenmiştir.
+
 ## Güvenlik sınırları
 
 - QML gerçek sandbox değildir; proxy erişimi uygulama sözleşmesini sınırlar.

@@ -229,3 +229,51 @@ CMake tabanı 4.4'e çekildi — `FILE_SET CXX_MODULES` 3.28'de geldi, Merce v1.
 Windows clean/incremental build doğrulaması sonrası seçilir.
 Mevcut C++20 build değiştirilmedi. `import std`, header units, Conan ve özel
 MOC helper'ı bu kararla otomatik eklenmez.
+
+---
+
+## ADR-020 — Orkestrasyon kalıpları ertelendi, sırası yazıldı
+Accepted — erteleme kararı. Tarih: 2026-09-22.
+
+CAO'nun (`awslabs/cli-agent-orchestrator`) üç orkestrasyon kalıbı incelendi:
+
+```text
+Assign        ajanı başlat, arka planda bırak, sonra rapor al
+Handoff       ajanı başlat, bitmesini bekle, çıktısını yakala
+Send Message  çalışan iki ajan arasında doğrudan kanal
+```
+
+Üçü de alınmadı. Gerekçe "gereksiz" değil: ARCHITECTURE'ın agent start akışı
+zaten `launch agent` ile bitiyor ve bileşen listesinde `Process Host` var.
+Kalıplar mimaride yeri ayrılmış işlerdir; **ön koşulları yok.**
+
+Bugün `rmk start` worktree'yi açar, bağlam paketini üretir ve durur; ajanı
+insan başlatır. Başlatma yolu yokken "senkron devret" yazmak, olmayan bir şeyi
+devretmek olurdu. Sıra şudur ve atlanamaz:
+
+```text
+1. launch agent    provider adaptörü, süreç gözetimi, çıkış/kesinti tespiti
+2. assign          1 olmadan anlamsız
+3. handoff         1 + bekleme + çıktı yakalama
+4. send_message    1 + iki canlı süreç
+```
+
+Bedeli ölçüldü: CAO'da bu üç satırlık API'yi `providers/` 864 KB (20 ajan
+CLI adaptörü), `backends/` 80 KB (tmux/herdr terminal soyutlaması) ve
+`services/` 2.1 MB taşıyor. Ve `handoff`'un yakaladığı çıktı bir **terminal
+ekranından** okunuyor; CAO'nun kendi belgesi "There is no structured protocol
+between CAO and the provider CLI" diyor ve `cao-session-liveness` skill'i tam
+bu yüzden var. O yola girmek, elimizdeki üstünlüğü satın alınan bir zayıflıkla
+değişmek olurdu: bizde ajan CLI'yi kendisi çağırıyor, sinyal yapısal.
+
+Bu ailenin en küçük ve en sağlam üyesi RM-12'de alındı: eşzamanlı bir kanal
+değil, asenkron bir kayıt. Bir ajan `note` yazar, diğeri `resume`'da onu ve
+son etkinlik yaşını görür. Yavaş, ama ekran okumuyor.
+
+**İsim çakışması.** Runmark'ın "handoff"u CAO'nunkiyle aynı şey değildir:
+bizimki `finish` anında yazılan bir **belge** (DATA_MODEL §6), CAO'nunki
+**bloklayan bir çağrı**. Aynı kelime, iki kavram; karışırsa yanlış beklenti
+üretir.
+
+Yeniden değerlendirme tetikleyicisi: `launch agent` uygulandığında. Ondan önce
+bu kalıplar gündeme alınmaz.

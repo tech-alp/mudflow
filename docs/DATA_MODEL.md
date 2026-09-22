@@ -392,6 +392,11 @@ ilk blocking kural geldiğinde şema değişmesin.
 
 ## 6. Handoff
 
+> **Not:** Runmark'ın "handoff"u bir **belgedir** — `finish` anında yazılır ve
+> bir sonraki oturum okur. CAO gibi orkestratörlerde aynı kelime **bloklayan
+> bir çağrıyı** anlatır (ajanı başlat, bitmesini bekle, çıktısını al). Aynı
+> kelime, iki kavram (ADR-020).
+
 `rmk finish` üretir. Okuyucusu bir sonraki **agent**, o yüzden format
 markdown; makine alanları frontmatter'da.
 
