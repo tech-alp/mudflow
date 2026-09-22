@@ -5,3 +5,4 @@
 /.runmark/handoffs/
 /CMakeUserPresets.json
 /tools/release/node_modules/
+!/tools/release/package-lock.json
