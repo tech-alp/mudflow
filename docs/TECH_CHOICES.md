@@ -286,6 +286,9 @@ libs/domain/src/rules.cpp              SAF — facts alır, finding döndürür,
 libs/domain/src/project_config.cpp     SAF — JSON nesnesini doğrular, dosya açmaz
 libs/application/src/workflow.cpp      yalnız orkestrasyon, TİPLİ sonuç döner
 apps/cli/src/json.cpp                  SAF — tipli sonuç → JSON / Markdown
+libs/ui-shell/src/StatusViewModel.cpp  use case → model; iş kuralı yok
+libs/ui-shell/src/FindingModel.cpp     QAbstractListModel, rol eşlemesi
+apps/desktop/src/main.cpp              QGuiApplication + QQmlApplicationEngine
 ```
 
 Config okuma ile doğrulama RM-1'de ayrıldı: `ProjectConfig::parse` saf ve
@@ -626,6 +629,18 @@ arayüz donar. ViewModel işi worker'a atar (`QtConcurrent::run` +
 `QFutureWatcher`) ve `busy` / `error` state'ini yayınlar. Bu, CLI'de hiç var
 olmayan tek gereksinimdir; application API'si senkron kalır, eşzamansızlık
 ui-shell'in işidir.
+
+RM-7'de üç şey ölçülerek öğrenildi:
+
+- `qt_add_qml_module` modül taramasını kapatıyor; `runmark.domain`'i import eden
+  hedefte `CXX_SCAN_FOR_MODULES ON` gerekiyor.
+- ADR-019'un "MOC header'ı module tiplerine bağımlı olmasın" kuralı teorik
+  değil: `FindingModel.h` `runmark/finding.h`'ı dahil edince moc derlemesi
+  `module 'runmark.domain' not found` ile düşüyor. Model bu yüzden kendi
+  düz `Row` tipini taşır, çeviri `.cpp`'de yapılır.
+- `qt_standard_project_setup()` çağrılmadığında QML kaynak prefix'i `/` olur
+  ama engine yalnız `qrc:/qt/qml` altına bakar. Çözüm global helper değil,
+  modüle `RESOURCE_PREFIX "/qt/qml"` vermek (TC-011).
 
 **Domain'de `Q_OBJECT` / `Q_GADGET` yok.** `domain_purity` testi (RM-4)
 `libs/domain` kaynaklarını tarar ve `QFile|QProcess|QDir|QTextStream|

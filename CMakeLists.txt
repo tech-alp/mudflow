@@ -22,6 +22,11 @@ add_subdirectory(libs/application)
 if(RUNMARK_BUILD_CLI)
     add_subdirectory(apps/cli)
 endif()
+# The UI is optional on purpose: a CLI-only build must not require Qt Quick.
+if(RUNMARK_BUILD_UI)
+    add_subdirectory(libs/ui-shell)
+    add_subdirectory(apps/desktop)
+endif()
 
 set(CPACK_GENERATOR TGZ)
 set(CPACK_PACKAGE_NAME runmark)
