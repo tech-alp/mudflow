@@ -75,17 +75,24 @@ garantisi değildir. Geçici build/test dizinleri tanı için korunur.
 
 ## İlk gerçek yayın öncesi gerekenler
 
+2026-09-22 kapsam kararı: RM-5 CI/paketleme altyapısı olarak kapandı;
+aşağıdaki yayın hazırlıkları RM-9 altında izlenir. Main `29c6c95` için
+[CI 35736952337](https://github.com/tech-alp/runmark/actions/runs/35736952337)
+tamamen geçti. Gerçek yayın yapılmadı. Kullanıcı lisansı erteledi ve geçmiş
+yayın olmadığını doğruladı; ilk sürüm/bootstrap kararı henüz verilmedi.
+
 1. Yayınlanacak main commit'i için hosted macOS CI sonucunu doğrula.
-2. GitHub'da `release` environment için onay ve yalnız main deployment kuralı
-   tanımla; main branch protection'a macOS CI kontrolünü ekle. YAML tek başına
-   repository protection kurmaz. Bu ayarlar otomatik değiştirilmedi.
+2. `release` environment kuruldu: yalnız main, gerekli onaylayıcı tech-alp,
+   self-review açık. Admin bypass varsayılanı açık kaldı. Main branch
+   protection'a macOS CI kontrolü henüz eklenmedi; YAML bunu kurmaz.
 3. Runmark için lisans kararını ver ve köke `LICENSE` ekle. Kullanılan Qt ve
    diğer runtime bileşenlerinin tam lisans/bildirim metinlerini gözden geçirip
    `THIRD_PARTY_NOTICES/` içine koy. Otomasyon yalnız dosya varlığını doğrular;
    içerik doğruluğunun/lisans uyumluluğunun yerine geçmez.
-4. Önceki gerçek yayın sürümünü ve commit'ini doğrulayıp uygun `vX.Y.Z` tag'ini
-   oluştur. Mevcut depoda tag yok; 0.3.0 kod sabiti tek başına yayın kanıtı
-   değildir. Baseline otomatik uydurulmaz ve yanlışlıkla 1.0.0 başlatılmaz.
+4. İlk sürüm/bootstrap politikasını kararlaştır ve mevcut baseline gerektiren
+   yayın kapısını bu karara göre test ederek düzenle. Geçmiş yayın yok;
+   0.3.0 kod sabiti yayın kanıtı değildir. Tarihsel baseline uydurulmaz ve
+   yanlışlıkla 1.0.0 başlatılmaz.
 5. `publish=false` dry-run, sonra onaylı `publish=true` çalıştır.
 
 Dry-run `prepare`/paketlemeyi çalıştırmaz; paket smoke testi CI'da ve gerçek

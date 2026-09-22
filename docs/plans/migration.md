@@ -56,12 +56,23 @@ Format `project.json` içindeki `task_id_pattern` ile eşleşmezse `rmk status`
   TC-011'deki FetchContent bloğu, `Merce::*` hedefleri, statik linkleme.
   Sürüm SHA ile sabit. Kiosk profili değişmez.
 
-- [ ] RM-5 — macOS CI ve manuel semantic-release
+- [x] RM-5 — macOS CI, paketleme ve manuel release altyapısı
 
   Sabit toolchain, build/test/hook gates, taşınabilir CLI arşivi ve paket
   smoke testi. Sürüm semantic-release tarafından build'e aktarılır.
   Yayın yalnız manuel main workflow'undan; Linux/Windows ve desktop imzalama sonra.
 
-  Uygulama ve yerel doğrulama mevcut. İlk hosted CI, lisans/bildirim kararı,
-  başlangıç release tag'i ve release environment ayarları bekliyor.
+  Kullanıcı onayıyla kapsam 2026-09-22'de kapatıldı: CI ve paketleme tamamlandı,
+  yayın yapılmadı. Main `29c6c95` için [hosted CI](https://github.com/tech-alp/runmark/actions/runs/35736952337)
+  tamamen geçti. Release environment yalnız main, onaylayıcı tech-alp;
+  self-review açık, admin bypass varsayılanı açık. Yayın hazırlığı RM-9'a taşındı.
   Ayrıntılar: [release rehberi](../RELEASING.md).
+
+- [ ] RM-9 — İlk yayın hazırlığı ve release doğrulaması
+
+  Main branch protection ve zorunlu macOS CI kontrolünü yapılandır.
+  Lisans kararı kullanıcı tarafından ertelendi; LICENSE ve gözden geçirilmiş
+  THIRD_PARTY_NOTICES yayın öncesi tamamlanmalı. Daha önce yayın yok;
+  ilk sürüm/bootstrap politikası ayrıca kararlaştırılmalı, 0.3.0 kod sabitinden
+  geçmiş yayın tag'i uydurulmamalı. Ardından onaylı dry-run ve gerçek release
+  doğrulaması yap. Bu görev RM-8 desktop çalışmasını engellemez.
