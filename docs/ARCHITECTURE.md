@@ -209,7 +209,7 @@ Merce ortak tasarım sistemi olarak kullanılır; Runmark için kompakt `desktop
 profili hazırlanır. Mevcut kiosk profilleri değiştirilmez. Merce ve Qt sürümleri
 sabitlenir.
 
-Merce ayrı bir depodur (`tech-alp/Merce`, v1.1.0) ve gömülmek üzere
+Merce ayrı bir depodur (`tech-alp/Merce`, v1.2.0) ve gömülmek üzere
 tasarlanmıştır: `Merce::*` ALIAS hedefleri, `PROJECT_IS_TOP_LEVEL`'a bağlı
 test/playground seçenekleri, yalnız top-level'da install. Qt 6.11 ve
 `Qt6::LabsStyleKit` ister. Tüketim yolu [TC-011](TECH_CHOICES.md)'de.

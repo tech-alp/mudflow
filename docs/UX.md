@@ -2,6 +2,12 @@
 
 Hedef desktop tasarımıdır; shell ve plugin runtime henüz uygulanmadı.
 
+2026-09-22: Yeni etkileşimli prototip için
+[Runmark tasarım sözleşmesi](superpowers/specs/2026-09-22-desktop-prototype-design.md)
+kullanıcı incelemesindedir. Aşağıdaki eski navigasyon ve örnekler tarihsel
+taslaktır; yeni prototipe doğrudan taşınmaz. Onaylanan kapsam tam demo akışı,
+native PoC ise salt-okunur Overview + Findings dilimidir.
+
 ## Tasarım sistemi ve shell
 
 Merce kullanılır. Runmark'a özel kompakt `desktop` profili; semantic renk,
