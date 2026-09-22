@@ -50,6 +50,28 @@ kind, with concrete text and a durable `--ref` when available:
 rmk note "$EXEC" --kind unresolved --text "<open question and next action>"
 ```
 
+Close an execution with `rmk finish "$EXEC" --outcome finished` (or
+`interrupted` when work stops mid-way). This writes the handoff the next
+session reads, so finishing without recording evidence first produces a
+handoff that says nothing was measured.
+
+Finishing does **not** remove the execution's worktree, and that is deliberate:
+Runmark never deletes work on its own, because an uncommitted change or an
+unmerged branch would disappear with no record that it existed. Instead
+`status` keeps reporting `git.orphaned_worktree` with the exact removal
+command until someone acts on it.
+
+After finishing, clean up only when both checks pass:
+
+```sh
+git -C "$WORKTREE" status --short          # must be empty
+git merge-base --is-ancestor "$BRANCH" "$BASE"   # branch must be merged
+```
+
+Then run the finding's `suggested_action`. If either check fails, leave the
+worktree in place and record why with an `unresolved` note. A worktree kept on
+purpose is a decision; one kept by accident is a finding nobody read.
+
 These are deliberate agent CLI calls. The SessionStart hook never records
 evidence, notes or hook events. Do not create or finish an execution merely
 because a session starts. Report CLI errors; do not claim a failed write succeeded.
