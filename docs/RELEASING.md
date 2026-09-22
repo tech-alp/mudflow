@@ -75,7 +75,7 @@ garantisi değildir. Geçici build/test dizinleri tanı için korunur.
 
 ## İlk gerçek yayın öncesi gerekenler
 
-1. Bu workflow'ları push edip hosted macOS CI sonucunu doğrula.
+1. Yayınlanacak main commit'i için hosted macOS CI sonucunu doğrula.
 2. GitHub'da `release` environment için onay ve yalnız main deployment kuralı
    tanımla; main branch protection'a macOS CI kontrolünü ekle. YAML tek başına
    repository protection kurmaz. Bu ayarlar otomatik değiştirilmedi.
@@ -95,7 +95,14 @@ yalnız release job'undadır. Ek PAT veya npm token gerekmez.
 
 İlk hosted CI (`35728139807`, `7d3aa96`) setup aşamasında başarısız oldu:
 Homebrew LLVM 23.1.0 kurdu, sürüm kapısı 23.1.1 bekledi; build/test/paket
-adımları atlandı. Sabit resmi arşiv kurulumu bu sapmayı giderir; yeşil hosted
-sonuç ayrıca kaydedilmelidir. GitHub token akışı ve gerçek yayın doğrulanmadı.
+adımları atlandı. Sabit resmi arşiv kurulumu bu sapmayı giderdi. Sonraki
+`35734931715` çalışmasında kurulum geçti; release testinin bare Git deposunda
+varsayılan branch bağımlılığı bulundu ve explicit `main` ile düzeltildi.
+
+[Hosted CI 35735808373](https://github.com/tech-alp/runmark/actions/runs/35735808373)
+`fix/rm5-toolchain` branch'inde `82d8825` için tamamen geçti: toolchain,
+release-tool testleri/audit, Debug build/test, module/QML köprüsü ve Release
+paket smoke testi. Bu sonuç main'e entegrasyon veya gerçek yayın değildir.
+GitHub release token akışı ve gerçek yayın doğrulanmadı.
 Başarısız bir yayında mevcut tag'i silip yeniden yazma;
 önce tag/release/artifact durumunu incele, düzeltmeyi yeni sürümle yayınla.
