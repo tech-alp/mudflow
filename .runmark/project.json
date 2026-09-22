@@ -13,8 +13,8 @@
     }
   ],
   "plan": {
-    "path": "docs/plans/poc.md"
+    "path": "docs/plans/migration.md"
   },
-  "task_id_pattern": "MF-\\d+",
+  "task_id_pattern": "RM-\\d+",
   "hooks_expected": true
 }
