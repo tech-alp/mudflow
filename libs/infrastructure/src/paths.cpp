@@ -1,6 +1,6 @@
 #include "paths.h"
 
-#include "error.h"
+#include "runmark/error.h"
 
 #include <QCryptographicHash>
 #include <QDateTime>

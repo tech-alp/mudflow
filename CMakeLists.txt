@@ -7,9 +7,15 @@ option(RUNMARK_BUILD_UI "Build the Runmark UI" OFF)
 
 include(CTest)
 
-add_subdirectory(core)
+find_package(Qt6 6.11 REQUIRED COMPONENTS Core)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Bagimlilik yonu: application -> infrastructure -> domain. Ters yon yok.
+add_subdirectory(libs/domain)
+add_subdirectory(libs/infrastructure)
+add_subdirectory(libs/application)
 if(RUNMARK_BUILD_CLI)
-    add_subdirectory(cli)
+    add_subdirectory(apps/cli)
 endif()
 
 include(CPack)

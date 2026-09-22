@@ -1,6 +1,6 @@
 #include "git.h"
 
-#include "error.h"
+#include "runmark/error.h"
 
 #include <QDir>
 #include <QFile>

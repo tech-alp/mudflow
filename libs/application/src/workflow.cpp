@@ -2,9 +2,11 @@
 
 #include "runmark/project_config.h"
 #include "runmark/rules.h"
-#include "error.h"
+#include "runmark/error.h"
+#include "config_io.h"
 #include "git.h"
 #include "handoff.h"
+#include "resume_view.h"
 #include "ledger.h"
 #include "paths.h"
 #include "plan.h"
@@ -77,12 +79,12 @@ StatusFacts observe(const ProjectConfig& config, const Paths& paths)
 
 QJsonObject inspectProject(const QString& configPath)
 {
-    return ProjectConfig::load(configPath).toJson();
+    return loadProjectConfig(configPath).toJson();
 }
 
 QJsonObject projectStatus(const QString& configPath)
 {
-    const ProjectConfig config = ProjectConfig::load(configPath);
+    const ProjectConfig config = loadProjectConfig(configPath);
     const Paths paths = pathsFor(configPath);
     prepareState(paths);
 
@@ -99,7 +101,7 @@ QJsonObject projectStatus(const QString& configPath)
 
 QJsonObject resumeExecution(const QString& configPath, const QString& taskOrExecution, bool observedByHook)
 {
-    const ProjectConfig config = ProjectConfig::load(configPath);
+    const ProjectConfig config = loadProjectConfig(configPath);
     const Paths paths = pathsFor(configPath);
     // Hook'un calistigini baska hicbir sey kanitlamaz: bir oturum acilir, hook
     // sessizce patlar ve status bunu temiz bir proje sanir. Yazim basarisiz
@@ -116,7 +118,7 @@ QJsonObject resumeExecution(const QString& configPath, const QString& taskOrExec
 
 QJsonObject startExecution(const QString& configPath, const QString& task, const QString& agent, const QString& repositoryName, const QStringList& instructions)
 {
-    const ProjectConfig config = ProjectConfig::load(configPath);
+    const ProjectConfig config = loadProjectConfig(configPath);
     const Paths paths = pathsFor(configPath);
     prepareState(paths);
 
@@ -214,7 +216,7 @@ QJsonObject finishExecution(const QString& configPath, const QString& executionI
         fail(QStringLiteral("Outcome must be finished, interrupted, or abandoned"));
     }
     const Paths paths = pathsFor(configPath);
-    ProjectConfig::load(configPath);
+    loadProjectConfig(configPath);
     prepareState(paths);
     const QVector<QJsonObject> events = readEvents(paths);
     const QJsonObject started = startedEvent(events, executionId);

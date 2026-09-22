@@ -7,7 +7,7 @@ Görevler `- [ ]` / `- [x]` checklist maddesi olarak yazılır ve task ID taşı
 Format `project.json` içindeki `task_id_pattern` ile eşleşmezse `rmk status`
 `plan.no_parsable_tasks` uyarısı verir — kurallar sessizce kör kalmaz.
 
-- [ ] RM-1 — apps/cli ve libs sınırları
+- [x] RM-1 — apps/cli ve libs sınırları
 
   `cli/` → `apps/cli/`; `core/` → `libs/domain`, `libs/application`,
   `libs/infrastructure`. CLI JSON/exit sözleşmesini ve mevcut veri

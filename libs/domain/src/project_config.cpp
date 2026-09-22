@@ -1,9 +1,6 @@
 #include "runmark/project_config.h"
 
-#include <QFile>
 #include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonParseError>
 #include <QJsonValue>
 #include <QRegularExpression>
 
@@ -28,20 +25,10 @@ QString requiredString(const QJsonObject& object, const char* key, const QString
 
 } // namespace
 
-ProjectConfig ProjectConfig::load(const QString& path)
+// SAF: dosya acmaz. Okuma infrastructure'daki loadProjectConfig'in isidir;
+// boylece domain QFile'a bagimli olmaz (TC-009).
+ProjectConfig ProjectConfig::parse(const QJsonObject& root)
 {
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly)) {
-        fail(QStringLiteral("Cannot read %1: %2").arg(path, file.errorString()));
-    }
-
-    QJsonParseError parseError;
-    const QJsonDocument document = QJsonDocument::fromJson(file.readAll(), &parseError);
-    if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
-        fail(QStringLiteral("Invalid project config %1: %2").arg(path, parseError.errorString()));
-    }
-
-    const QJsonObject root = document.object();
     const QJsonValue version = root.value(QStringLiteral("version"));
     if (!version.isDouble() || version.toInt() != 1) {
         fail(QStringLiteral("version must be 1"));

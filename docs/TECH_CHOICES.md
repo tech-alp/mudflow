@@ -222,15 +222,23 @@ Geri dönüş maliyeti: **düşük.** Tek fonksiyon (`emitError`).
 
 ## TC-008 — Bileşen dizinleri ve CMake bağımlılıkları
 
-Mevcut build düzeni. Hedef adlandırma ve dizinler TC-010'da tanımlanır.
+Mevcut build düzeni. Tek `core` hedefi RM-1'de üçe bölündü.
 
-Dizin adları proje öneki taşımaz: `core/`, `cli/`, `docs/`, `cmake/`.
-Core testleri `core/tests/`, CLI sözleşme testi `cli/tests/` altında tutulur.
-Henüz uygulanmayan `ui/` ve `agent/` dizinleri oluşturulmaz.
+Dizin adları proje öneki taşımaz: `apps/`, `libs/`, `docs/`, `cmake/`.
+Her kütüphanenin testi kendi `tests/` dizininde, CLI sözleşme testi
+`apps/cli/tests/` altındadır. Henüz uygulanmayan `ui/` dizini oluşturulmaz.
 
-Header'lar `core/include/runmark/` altında kalır; include yolu
-`<runmark/...>` olarak korunur. Statik core hedefi `runmark_core`, alias'ı
-`runmark::core` olur.
+```text
+libs/domain          runmark::domain           Qt6::Core disinda bagimlilik yok
+libs/infrastructure  runmark::infrastructure  → runmark::domain
+libs/application     runmark::application     → runmark::infrastructure
+apps/cli (rmk)                                → runmark::application
+```
+
+Bağımlılık tek yönlüdür; ters bir kenar yoktur. `domain` public header'ları
+`libs/domain/include/runmark/`; include yolu `<runmark/...>` korunur.
+`infrastructure` kendi `src/` dizinini PUBLIC yapar — bu dışa açılan bir API
+değil, yalnız üst katmanın gördüğü iç başlıklardır.
 
 Her bileşen doğrudan kullandığı dış bağımlılığı kendi `find_package` çağrısıyla
 bulur. Core, `Qt6::Core` bağımlılığını `PUBLIC` aktarır; CLI yalnız
@@ -268,17 +276,25 @@ ORKESTRASYON     komutlar: inspect · status · start · finish · resume · evi
 Dosya karşılığı:
 
 ```text
-core/src/git.cpp       taşıma (run/git/gitRequired) + ölçüm → RepoFacts
-core/src/plan.cpp      ölçüm → PlanFacts
-core/src/ledger.cpp    olay yaz/oku, evidence
-core/src/paths.cpp     .runmark yerleşimi, expandPath, sha1
-core/src/handoff.cpp   handoff oku/yaz, resume JSON/Markdown sunumu
-core/src/rules.cpp     SAF — facts alır, finding döndürür, I/O yok
-core/src/workflow.cpp  yalnız orkestrasyon
+libs/infrastructure/src/git.cpp        taşıma (run/git/gitRequired) + ölçüm → RepoFacts
+libs/infrastructure/src/plan.cpp       ölçüm → PlanFacts
+libs/infrastructure/src/ledger.cpp     olay yaz/oku, evidence
+libs/infrastructure/src/paths.cpp      .runmark yerleşimi, expandPath, sha1
+libs/infrastructure/src/handoff.cpp    handoff oku/yaz — yalnız disk
+libs/infrastructure/src/config_io.cpp  project.json'u oku, ProjectConfig::parse'a ver
+libs/domain/src/rules.cpp              SAF — facts alır, finding döndürür, I/O yok
+libs/domain/src/project_config.cpp     SAF — JSON nesnesini doğrular, dosya açmaz
+libs/application/src/workflow.cpp      yalnız orkestrasyon
+libs/application/src/resume_view.cpp   SAF — facts → JSON paketi → Markdown
 ```
 
-`facts.h` ve `rules.h` public (`core/include/runmark/`); geri kalan başlıklar
-`core/src/` altında çekirdeğe özeldir.
+Config okuma ile doğrulama RM-1'de ayrıldı: `ProjectConfig::parse` saf ve
+domain'de, dosyayı açan `loadProjectConfig` infrastructure'da. Aksi halde
+domain `QFile`'a bağımlı kalırdı ve bu ayrımın kendisi bozulurdu.
+
+Aynı gerekçeyle `handoff.cpp` ikiye bölündü: `resumePackage` ve
+`resumeMarkdown` saf sunum olduğu için application'a geçti, dosya yazan
+`writeHandoff`/`readHandoff` infrastructure'da kaldı.
 
 ### Neden
 
@@ -330,16 +346,14 @@ Durum: hedef karar; implementation bekliyor.
   PoC sürecinde geriye uyumluluk aranmadı; eski dizin ve ref'ler korunmaz.
   CLI adı değişti, JSON/exit sözleşmesi değişmedi — bunu cli_contract testi tutar.
 
-Tek hedef ağaç [ARCHITECTURE.md](ARCHITECTURE.md) içindedir. Mevcut kod eşlemesi:
+Tek hedef ağaç [ARCHITECTURE.md](ARCHITECTURE.md) içindedir. RM-1'de
+uygulanan eşleme (ayrıntısı TC-008'de):
 
-| Bugünkü kod | Hedef sorumluluk |
+| Durum | Taşıma |
 |---|---|
-| `cli/` | `apps/cli/` |
-| `core/include/runmark/facts.h`, `core/src/rules.cpp` | `libs/domain/` |
-| `core/src/workflow.cpp` | `libs/application/` |
-| `core/src/git.cpp`, `ledger.cpp`, `paths.cpp` | `libs/infrastructure/` |
-| `core/src/plan.cpp`, `handoff.cpp`, `project_config.cpp` | Saf tip/kurallar domain; I/O infrastructure; akış application |
-| `plugins/runmark-agent/` | `integrations/agent-clients/runmark/` |
+| ✅ RM-1 | `cli/` → `apps/cli/`; `core/` → `libs/{domain,application,infrastructure}` |
+| ✅ RM-1 | `project_config` parse/load ve `handoff` sunum/disk ayrımı |
+| Bekliyor | `plugins/runmark-agent/` → `integrations/agent-clients/runmark/` |
 
 Geri dönüş maliyeti: **orta/yüksek.** Dizin taşıma tek başına düşük maliyetlidir;
 module toolchain, plugin lifecycle ve veri migration sözleşmeleri değildir.

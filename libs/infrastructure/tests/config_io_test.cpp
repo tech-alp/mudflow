@@ -1,4 +1,4 @@
-#include "runmark/project_config.h"
+#include "config_io.h"
 
 #include <QFile>
 #include <QJsonArray>
@@ -30,7 +30,7 @@ int main()
     file.close();
 
     try {
-        const runmark::ProjectConfig config = runmark::ProjectConfig::load(path);
+        const runmark::ProjectConfig config = runmark::loadProjectConfig(path);
         if (config.name != QLatin1String("runmark")
                 || config.repositories.size() != 1
                 || !config.instructions.isEmpty()
@@ -43,7 +43,7 @@ int main()
     }
 
     // Optional instructions must be a list of non-empty paths.
-    const QJsonObject valid = runmark::ProjectConfig::load(path).toJson();
+    const QJsonObject valid = runmark::loadProjectConfig(path).toJson();
     for (const QJsonValue& instructions : {QJsonValue("AGENTS.md"), QJsonValue(QJsonValue::Null),
             QJsonValue(QJsonArray{42}), QJsonValue(QJsonArray{""})}) {
         QJsonObject invalid = valid;
@@ -52,7 +52,7 @@ int main()
         file.write(QJsonDocument(invalid).toJson());
         file.close();
         try {
-            runmark::ProjectConfig::load(path);
+            runmark::loadProjectConfig(path);
             return 1;
         } catch (const std::exception&) {
         }
@@ -62,7 +62,7 @@ int main()
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) return 1;
     file.write(QJsonDocument(valid).toJson());
     file.close();
-    if (runmark::ProjectConfig::load(path).hooksExpected) return 1;
+    if (runmark::loadProjectConfig(path).hooksExpected) return 1;
     for (const QJsonValue& hooks : {QJsonValue(true), QJsonValue("yes"), QJsonValue(1)}) {
         QJsonObject candidate = valid;
         candidate.insert(QStringLiteral("hooks_expected"), hooks);
@@ -70,7 +70,7 @@ int main()
         file.write(QJsonDocument(candidate).toJson());
         file.close();
         try {
-            if (runmark::ProjectConfig::load(path).hooksExpected != hooks.toBool()) return 1;
+            if (runmark::loadProjectConfig(path).hooksExpected != hooks.toBool()) return 1;
             if (!hooks.isBool()) return 1;
         } catch (const std::exception&) {
             if (hooks.isBool()) return 1;
@@ -83,7 +83,7 @@ int main()
     }
     file.close();
     try {
-        runmark::ProjectConfig::load(file.fileName());
+        runmark::loadProjectConfig(file.fileName());
         return 1;
     } catch (const std::exception&) {
     }
@@ -94,7 +94,7 @@ int main()
     }
     file.close();
     try {
-        runmark::ProjectConfig::load(file.fileName());
+        runmark::loadProjectConfig(file.fileName());
         return 1;
     } catch (const std::exception& error) {
         return QString::fromUtf8(error.what()).contains(QStringLiteral("project.repos[].base must be an object with non-empty remote and branch")) ? 0 : 1;

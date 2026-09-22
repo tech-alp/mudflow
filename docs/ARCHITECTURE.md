@@ -35,8 +35,8 @@ Bir ekran kapatıldığında verisi silinmez ve ilgili ürün servisi durmaz.
 | Plugin ID | `com.runmark.findings` |
 | Route | `runmark://com.runmark.findings/list` |
 
-Tablodaki adlar koda uygulandı. Bekleyen tek şey dizin düzeni: bugün hâlâ
-`core/` ve `cli/` var, hedef `apps/` + `libs/`.
+Tablodaki adlar ve dizin düzeni koda uygulandı: `apps/cli` ile
+`libs/{domain,application,infrastructure}` ayrımı RM-1'de yapıldı.
 
 PoC sürecinde geriye uyumluluk aranmadı: önceki ad, veri dizini ve Git
 ref'leri hiçbir yerde tutulmaz, migration kodu yazılmaz.

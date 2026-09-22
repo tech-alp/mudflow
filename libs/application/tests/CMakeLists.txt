@@ -1,0 +1,5 @@
+foreach(name workflow state_exclude base_ref preserved_worktree plan_rules)
+    add_executable(${name}_test ${name}_test.cpp)
+    target_link_libraries(${name}_test PRIVATE runmark::application Qt6::Core)
+    add_test(NAME ${name} COMMAND ${name}_test)
+endforeach()
