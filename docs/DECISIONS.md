@@ -187,16 +187,13 @@ kullanır; QGravityUI ikinci bir runtime tasarım bağımlılığı olarak eklen
 
 Gerekçe: merkezi token/style yönetimi ve mevcut tasarım altyapısının kullanımı.
 Veri ekranlarının model/view davranışları Runmark'ta geliştirilir.
-Bedeli: Qt/Merce sürümleri sabitlenir; yükseltmede focus, tema, DPI ve veri
+Bedeli: Merce `Qt6::LabsStyleKit` (Technology Preview) ve Qt 6.11 ister, bu
+yüzden Qt/Merce sürümleri sabitlenir; yükseltmede focus, tema, DPI ve veri
 ekranları doğrulanır. Merce CLI/headless bağımlılığı olmaz.
 
-Merce bugün tüketilebilir bir paket değil (export yok, namespace'li hedef yok,
-global CMake ayarları, koşulsuz `example`, monorepo alt dizini). Import
-koşulları TC-011'dedir; karşılanana kadar Runmark Merce'yi eklemez.
-
-Düzeltme 2026-09-22: bu ADR önce Merce'nin `Qt.labs.StyleKit` Technology
-Preview'a bağlı olduğunu yazıyordu. Merce'nin kodunda ve dokümanında StyleKit
-geçmiyor; iddia kaldırıldı.
+Tüketim yolu TC-011'dedir: Merce ayrı bir depo (`tech-alp/Merce`) ve gömülmek
+üzere tasarlanmış; referans tüketici `cart/app` submodule + `add_subdirectory`
+kullanıyor.
 
 ## ADR-018 — İnce runtime, korumalı ürün servisleri, değiştirilebilir pluginler
 
@@ -225,9 +222,8 @@ header/source dosyalarında kalır. BMI public plugin ABI'si değildir.
 
 Gerekçe: açık export yüzeyi ve döngüsüz bağımlılıklar. Bedeli: compiler/BMI,
 dependency scanning ve MOC entegrasyonu; build hızlanması garanti değildir.
-CMake tabanı 4.4'e çekildi — `FILE_SET CXX_MODULES` 3.28'de geldi ve 4.4 yerel
-derlemede doğrulanan sürümdür. (Merce'nin 3.30 istediği gerekçesi yanlıştı:
-`CMakeLists.txt` 3.24 diyor. Sonuç değişmedi, gerekçe düzeltildi.) C++23, Ninja ve LLVM Clang/MSVC kombinasyonu adaydır; macOS, Linux ve
+CMake tabanı 4.4'e çekildi — `FILE_SET CXX_MODULES` 3.28'de geldi, Merce v1.1.0
+3.30 ister ve 4.4 yerel derlemede doğrulanan sürümdür. C++23, Ninja ve LLVM Clang/MSVC kombinasyonu adaydır; macOS, Linux ve
 Windows clean/incremental build doğrulaması sonrası seçilir.
 Mevcut C++20 build değiştirilmedi. `import std`, header units, Conan ve özel
 MOC helper'ı bu kararla otomatik eklenmez.

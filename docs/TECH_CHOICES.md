@@ -336,7 +336,7 @@ Durum: hedef karar; implementation bekliyor.
   integration pluginleri ayrı tutulur. İç bağımlılıklar açıkça verilir.
 - Named modules dahili API sınırıdır; public plugin ABI'si değildir.
   QObject/QML köprüleri başlangıçta `.h/.cpp`; module import `.cpp` içindedir.
-- C++20 korunur; CMake tabanı 4.4'tür (`FILE_SET CXX_MODULES` 3.28+). C++23 / Ninja / LLVM Clang ve Windows MSVC hattı modules
+- C++20 korunur; CMake tabanı 4.4'tür (`FILE_SET CXX_MODULES` 3.28+, Merce 3.30+). C++23 / Ninja / LLVM Clang ve Windows MSVC hattı modules
   doğrulamasında değerlendirilir. Üç OS sonucu olmadan yeni baseline ilan edilmez.
 - Merce yalnız desktop katmanında eklenir; Qt/Merce sürümleri sabitlenir.
   CLI için Qt Core bağımlılık sınırı korunur. TC-002'nin yeni bağımlılığı
@@ -416,31 +416,62 @@ tükettiğimiz tek şey import edilmiş hedeflerdir.
 - **Sürüm sabitlenir.** Tag veya sürüm aralığı; `main` takip edilmez.
 - **Sistem paket yöneticisi zorunlu kılınmaz.** Conan/vcpkg tek bir
   bağımlılık için eklenmez; gerekirse ayrı bir kararla gelir.
+- **`add_subdirectory` ile gelen bağımlılığın seçenekleri önce ve FORCE ile
+  yazılır, `block(SCOPE_FOR VARIABLES)` içinde.** Sonra yazılırsa bağımlılık
+  kendi varsayılanını cache'e kilitlemiş olur; `block()` olmadan ise
+  `BUILD_SHARED_LIBS` gibi ezmeler ana projeye sızar.
 
-### Merce'nin durumu
+### Merce nasıl alınır
 
-Merce (ADR-017) 3. basamaktadır — kaynağı bizim, ama bugün tüketilemez:
+Merce ayrı bir depodur: `https://github.com/tech-alp/Merce.git`, v1.1.0,
+`cmake_minimum_required(VERSION 3.30)`, `Qt6::LabsStyleKit` (Technology
+Preview) ister.
 
-```text
-export set yok            find_package(Merce) çalışmaz
-Merce::Core ALIAS yok     namespace'li hedef yok
-CMAKE_CXX_STANDARD global bizim hedef bazlı ayarımızı ezer
-AUTOMOC/AUTORCC global    aynı sızıntı
-add_subdirectory(example) koşulsuz; kütüphaneyle birlikte örnek uygulama derlenir
-scs-labs/workspace alt dizini  submodule tüm monorepo'yu getirir
+Gömülmek üzere tasarlanmış — 3. basamağın nasıl görünmesi gerektiğinin örneği:
+
+```cmake
+# Merce/CMakeLists.txt
+add_library(Merce::Controls ALIAS MerceControls)   # ve Core/Theme/Style/...
+option(MERCE_BUILD_TESTS "" ${PROJECT_IS_TOP_LEVEL})
+option(BUILD_MERCE_PLAYGROUND "" OFF)
+if(PROJECT_IS_TOP_LEVEL)
+    include(cmake/InstallMerce.cmake)
+endif()
+block(SCOPE_FOR VARIABLES)          # FetchContent seçenek ezmeleri sızmasın
+    set(BUILD_PLAYGROUND OFF)
+    FetchContent_MakeAvailable(QtToastify)
+endblock()
 ```
 
-Import koşulları — hepsi Merce tarafında ve küçük:
+Kaynaktaki yorum niyeti söylüyor: *"Keep the public target names identical for
+FetchContent/add_subdirectory and installed find_package consumers."* Aynı
+hedef adı iki tüketim yolunda da geçerli; tüketici hangi yolu seçtiğini
+`target_link_libraries` satırında göstermek zorunda kalmıyor.
 
-1. `Merce::Core` / `Merce::Tokens` ALIAS hedefleri.
-2. `install(TARGETS ... EXPORT MerceTargets)` + `MerceConfig.cmake`
-   (içinde Qt6 Core/Qml/Quick için `find_dependency`).
-3. Global `CMAKE_CXX_STANDARD` → `target_compile_features(... PUBLIC cxx_std_20)`.
-4. `example` yalnız `PROJECT_IS_TOP_LEVEL` iken eklensin.
+**Referans tüketici: `cart/app`.** QML modüllerini uygulamanın içine gömdüğü
+için `find_package` değil submodule + `add_subdirectory` kullanıyor:
 
-Bunlar karşılanana kadar Runmark Merce'yi import etmez. Desktop henüz
-yazılmadığı için bu bir engel değil; erken import etmek Merce'nin CMake
-hatalarını bizim ağacımıza taşırdı.
+```cmake
+set(MERCE_BUILD_NOTIFICATIONS ON  CACHE BOOL "" FORCE)
+set(MERCE_BUILD_TESTS         OFF CACHE BOOL "" FORCE)
+set(BUILD_MERCE_PLAYGROUND    OFF CACHE BOOL "" FORCE)
+block(SCOPE_FOR VARIABLES)
+    set(BUILD_SHARED_LIBS OFF)
+    add_subdirectory(3rdparty/Merce)
+endblock()
+```
+
+Submodule sürümü sabitliyor (`v1.1.0-38-gb16812e`), `block()` `BUILD_SHARED_LIBS`
+ezmesinin ana projeye sızmasını engelliyor, seçenekler `add_subdirectory`'den
+**önce** FORCE ile yazılıyor — sonra yazılırsa Merce kendi varsayılanını
+kilitlemiş olur.
+
+**Runmark için:** desktop geldiğinde aynı yol seçilir. Gerekçe mimari değil
+dağıtım: QML modülleri uygulamanın yanında ayrı plugin olarak değil, ikilinin
+içinde taşınır. `find_package(Merce CONFIG)` de çalışır ve Merce onu
+destekliyor; ama o yol Merce'nin ayrıca kurulmasını gerektirir.
+
+Desktop yazılana kadar bağımlılık eklenmez.
 
 ### Neden
 
