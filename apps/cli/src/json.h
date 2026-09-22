@@ -16,6 +16,7 @@ QJsonObject toJson(const Finding& finding);
 QJsonObject toJson(const RepoFacts& facts);
 QJsonObject toJson(const StatusResult& result);
 QJsonObject toJson(const StartResult& result);
+QJsonObject toJson(const WorktreeCleanupFacts& facts);
 QJsonObject toJson(const FinishResult& result);
 QJsonObject toJson(const ResumeResult& result);
 

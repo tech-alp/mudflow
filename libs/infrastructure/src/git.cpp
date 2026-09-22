@@ -200,6 +200,39 @@ void observeResumeGit(const ProjectConfig& config, const Paths& paths, ResumeFac
     }
 }
 
+WorktreeCleanupFacts observeWorktreeCleanup(const QString& worktree, const QString& branch, const QString& base)
+{
+    WorktreeCleanupFacts facts;
+    facts.path = worktree;
+    if (worktree.isEmpty()) {
+        facts.error = QStringLiteral("No worktree was recorded for this execution");
+        return facts;
+    }
+    if (!QFileInfo::exists(worktree)) {
+        return facts;   // already gone; nothing to suggest
+    }
+    facts.exists = true;
+
+    const ProcessResult dirty = git(worktree, {QStringLiteral("status"), QStringLiteral("--porcelain")});
+    if (dirty.exitCode != 0) {
+        facts.error = QStringLiteral("Cannot read worktree status: ") + dirty.error;
+        return facts;
+    }
+    facts.clean = dirty.output.trimmed().isEmpty();
+
+    if (branch.isEmpty() || base.isEmpty()) {
+        facts.error = QStringLiteral("Branch or base was not recorded; merge state is unknown");
+        return facts;
+    }
+    const ProcessResult merged = git(worktree, {QStringLiteral("merge-base"), QStringLiteral("--is-ancestor"), branch, base});
+    if (merged.exitCode != 0 && merged.exitCode != 1) {
+        facts.error = QStringLiteral("Cannot compare ") + branch + QStringLiteral(" with ") + base;
+        return facts;
+    }
+    facts.merged = merged.exitCode == 0;
+    return facts;
+}
+
 QString preserveWorktree(const QString& worktree, const QString& executionId, const QString& previousRef)
 {
     if (gitRequired(worktree, {QStringLiteral("status"), QStringLiteral("--porcelain")}).isEmpty()) return {};

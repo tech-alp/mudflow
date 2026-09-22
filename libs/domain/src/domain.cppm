@@ -66,6 +66,18 @@ struct ExecutionFacts {
     bool worktreeExists = false;
 };
 
+// Measured state of a finished execution's worktree. Runmark never removes a
+// worktree on its own -- an uncommitted change or an unmerged branch would be
+// gone with no record of it -- so it reports what it measured and leaves the
+// decision outside.
+struct WorktreeCleanupFacts {
+    QString path;
+    bool exists = false;
+    bool clean = false;        // no uncommitted change
+    bool merged = false;       // branch is an ancestor of the base
+    QString error;             // non-empty when a check could not run at all
+};
+
 struct PlanFacts {
     bool readable = false;
     int checklistCount = 0;    // number of "- [ ]" / "- [x]" lines

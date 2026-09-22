@@ -136,7 +136,14 @@ void resumeContract(const QString& executable)
     cli({"note", exec, "--kind", "unresolved", "--text", "No ref"});
     cli({"note", exec, "--kind", "unresolved", "--text", "Has ref", "--ref", "plan.md#L1"});
     check(writeFile(worktree + "/uncommitted.txt", "preserved\n"), "preserved file");
-    cli({"finish", exec});
+    const QJsonObject finished = cli({"finish", exec});
+    // finish reports the worktree at the moment the decision is made, but the
+    // command appears only when removing it is actually safe. Here the tree is
+    // dirty, so no suggestion: handing one over would offer a way to lose work.
+    const QJsonObject finishedWorktree = finished.value("worktree").toObject();
+    check(finishedWorktree.value("path") == worktree && finishedWorktree.value("exists") == true
+        && finishedWorktree.value("clean") == false
+        && !finishedWorktree.contains("suggested_action"), "dirty worktree gets no removal suggestion");
     const QByteArray before = readFile(ledger);
     const QJsonObject package = cli({"resume", "MF-1"});
     check(package.value("exec") == exec && package.value("task") == "MF-1", "task selects execution");
@@ -203,6 +210,7 @@ void resumeContract(const QString& executable)
     check(writeFile(configPath, QJsonDocument(config).toJson()), "no instructions config");
     const QJsonObject second = cli({"start", "MF-2"});
     const QString secondExec = second.value("exec").toString();
+
     const QJsonValue emptyInstructions = cli({"resume", secondExec}).value("instructions");
     check(emptyInstructions.isArray() && emptyInstructions.toArray().isEmpty(), "empty instruction list");
     git({"-C", repo, "worktree", "remove", second.value("worktree").toString()});
@@ -226,6 +234,19 @@ void resumeContract(const QString& executable)
     const QJsonObject rewritten = cli({"resume", adopted.value("exec").toString()});
     check(hasGap(rewritten, "git.base_unknown") && rewritten.value("workspace").toObject().value("base_advanced").isNull(), "rewritten base not forward advancement");
     git({"-C", remote, "update-ref", "refs/heads/main", baseBeforeRewrite});
+
+    {
+        // The safe case: an adopted worktree sitting on an ancestor of the base
+        // with nothing written to it. Both checks pass, so the command appears.
+        const QString idlePath = root + "/worktrees/MF-9";
+        git({"-C", repo, "worktree", "add", "-b", "external/MF-9", idlePath, started.value("base_sha").toString()});
+        const QJsonObject idleStart = cli({"start", "MF-9"});
+        const QJsonObject idle = cli({"finish", idleStart.value("exec").toString(), "--outcome", "abandoned"})
+            .value("worktree").toObject();
+        check(idle.value("exists") == true && idle.value("clean") == true && idle.value("merged") == true
+            && idle.value("suggested_action").toString() == QStringLiteral("git worktree remove ") + idlePath,
+            "clean merged worktree is offered for removal");
+    }
 
     // Synthetic legacy entries check selection independently of one-second IDs.
     const QString oldExec = "20000101T000000Z-MF-7";

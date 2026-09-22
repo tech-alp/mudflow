@@ -266,7 +266,10 @@ FinishResult finishExecution(const QString& configPath, const QString& execution
         {QStringLiteral("files_ref"), input.filesRef}, {QStringLiteral("preserved_ref"), orNull(input.preservedRef)},
         {QStringLiteral("handoff_sha1"), handoffFacts.handoff.sha1}});
     return {executionId, outcome, input.headSha, input.preservedRef,
-        QStringLiteral("handoffs/") + executionId + QStringLiteral(".md")};
+        QStringLiteral("handoffs/") + executionId + QStringLiteral(".md"),
+        observeWorktreeCleanup(input.worktree,
+            started.value(QStringLiteral("branch")).toString(),
+            started.value(QStringLiteral("base")).toString())};
 }
 
 void recordEvidence(const QString& configPath, const QString& executionId, const QString& kind, const QString& summary, const QString& reference)

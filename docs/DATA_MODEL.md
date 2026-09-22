@@ -170,6 +170,29 @@ eleman atılmaz: `sha1: null` kaydedilir ve start sonucunun `warnings` dizisine
 
 `rmk finish` yazar.
 
+`finish` **stdout'una** ayrıca `worktree` alanı koyar; bu ledger'a yazılmaz,
+yalnızca çağırana o anki durumu bildirir:
+
+```json
+"worktree": {
+  "path": "/worktrees/SCMS-042",
+  "exists": true,
+  "clean": true,
+  "merged": true,
+  "suggested_action": "git worktree remove /worktrees/SCMS-042"
+}
+```
+
+`suggested_action` **yalnız** `clean` ve `merged` birlikte doğruyken çıkar.
+Kirli veya merge edilmemiş bir worktree için komut vermek, iş kaybetmenin
+yolunu uzatmak yerine kısaltırdı. Kontrollerden biri hiç çalışamazsa
+`error` dolar ve `clean`/`merged` hiç yazılmaz — bilinmeyen, güvenliyle
+karıştırılmaz.
+
+Runmark worktree'yi kendi silmez (ARCHITECTURE "Güvenlik"). Bu alan, ayakta
+duran `git.orphaned_worktree` bulgusunu kimsenin araması gerekmesin diye
+kararın verildiği ana taşır.
+
 ```json
 {
   "ts": "2026-09-18T16:04:02Z",

@@ -26,6 +26,11 @@ QString baseRef(const RepositoryConfig& repository);
 RepoFacts observeRepo(const RepositoryConfig& repository, const QString& repositoryPath);
 void observeResumeGit(const ProjectConfig& config, const Paths& paths, ResumeFacts& facts);
 
+// Measures whether a finished execution's worktree can be removed safely.
+// Reports; never removes. A check that cannot run leaves `error` set rather
+// than reporting a clean-and-merged worktree that was never inspected.
+WorktreeCleanupFacts observeWorktreeCleanup(const QString& worktree, const QString& branch, const QString& base);
+
 // Captures uncommitted work under refs/runmark/preserved/<exec>. Touches
 // neither the working tree nor the global stash stack. Empty when clean.
 QString preserveWorktree(const QString& worktree, const QString& executionId, const QString& previousRef = {});

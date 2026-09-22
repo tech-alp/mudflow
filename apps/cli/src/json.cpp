@@ -81,11 +81,35 @@ QJsonObject toJson(const StartResult& result)
         {QStringLiteral("warnings"), toJsonArray(result.warnings)}};
 }
 
+QJsonObject toJson(const WorktreeCleanupFacts& facts)
+{
+    QJsonObject value{{QStringLiteral("path"), orNull(facts.path)},
+        {QStringLiteral("exists"), facts.exists}};
+    if (!facts.error.isEmpty()) {
+        // Unknown is not the same as unsafe, and neither is the same as safe.
+        value.insert(QStringLiteral("error"), facts.error);
+        return value;
+    }
+    if (!facts.exists) {
+        return value;
+    }
+    value.insert(QStringLiteral("clean"), facts.clean);
+    value.insert(QStringLiteral("merged"), facts.merged);
+    // The command appears only when both checks passed. Suggesting removal of
+    // a dirty or unmerged worktree would hand someone a way to lose work.
+    if (facts.clean && facts.merged) {
+        value.insert(QStringLiteral("suggested_action"),
+            QStringLiteral("git worktree remove ") + facts.path);
+    }
+    return value;
+}
+
 QJsonObject toJson(const FinishResult& result)
 {
     return {{QStringLiteral("exec"), result.exec}, {QStringLiteral("outcome"), result.outcome},
         {QStringLiteral("head_sha"), result.headSha}, {QStringLiteral("preserved_ref"), orNull(result.preservedRef)},
-        {QStringLiteral("handoff"), result.handoff}};
+        {QStringLiteral("handoff"), result.handoff},
+        {QStringLiteral("worktree"), toJson(result.worktree)}};
 }
 
 QJsonObject toJson(const ResumeResult& result)

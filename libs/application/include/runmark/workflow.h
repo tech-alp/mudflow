@@ -36,6 +36,10 @@ struct FinishResult {
     QString headSha;
     QString preservedRef;
     QString handoff;           // relative to the .runmark root
+    // What the worktree looks like now that the execution is closed. Reported
+    // at the moment the decision is made, so nobody has to go looking for the
+    // standing git.orphaned_worktree finding.
+    WorktreeCleanupFacts worktree;
 };
 
 struct ResumeResult {
