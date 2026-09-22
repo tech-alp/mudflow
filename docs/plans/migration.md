@@ -38,6 +38,24 @@ Format `project.json` içindeki `task_id_pattern` ile eşleşmezse `rmk status`
   `runmark.domain` uygulandı; mevcut header yolları import köprüsüdür.
   Üretim macOS baseline'ı C++23 + LLVM + Ninja oldu.
 
+- [x] RM-6 — Plan task kimliği tam token olmalı
+
+  `plan.ambiguous_task_id`: pattern yalnız daha uzun bir kimliğin parçasına
+  uyuyorsa satır hiçbir task'a bağlanmaz. Tahmini eşleme kanıtı yanlış task'a
+  bağlıyordu.
+
+- [x] RM-7 — Desktop iskeleti: ui-shell ve salt okunur Findings
+
+  `libs/ui-shell` (FindingModel + StatusViewModel, `Runmark.Shell` QML modülü)
+  ve `apps/desktop`. Gerçek `projectStatus()` sonucunu gösterir, JSON parse
+  etmez (TC-012). `apps/cli` GUI bağımlılığı kazanmamalı — mekanik kontrol.
+  Merce bu adımda yok; düz Qt Quick Controls ile yapılır.
+
+- [ ] RM-8 — Merce entegrasyonu ve kompakt desktop profili
+
+  TC-011'deki FetchContent bloğu, `Merce::*` hedefleri, statik linkleme.
+  Sürüm SHA ile sabit. Kiosk profili değişmez.
+
 - [ ] RM-5 — macOS CI ve manuel semantic-release
 
   Sabit toolchain, build/test/hook gates, taşınabilir CLI arşivi ve paket
