@@ -1,5 +1,5 @@
-// evaluate() saf olduğu için bu test git reposu, dosya sistemi veya saat
-// kurmaz. Facts elle inşa edilir, finding'ler doğrudan kontrol edilir.
+// evaluate() is pure, so this test sets up no git repo, no filesystem and no
+// clock. Facts are built by hand and findings are checked directly.
 
 #include "runmark/rules.h"
 
@@ -41,7 +41,7 @@ int main()
 {
     const QDateTime now = QDateTime::fromString(QStringLiteral("2026-09-20T12:00:00Z"), Qt::ISODate);
 
-    // 1. Git: fetch patlasa bile offline hesaplanabilenler susmaz.
+    // 1. Git: even when fetch fails, what can be computed offline still speaks.
     {
         runmark::StatusFacts f;
         f.now = now;
@@ -61,7 +61,7 @@ int main()
                 || !has(findings, QStringLiteral("git.remote_ahead"))) return 1;
     }
 
-    // 2. Ölçüm yarıda kaldıysa ölçüme dayalı kural üretilmez.
+    // 2. If measurement did not complete, no measurement-based rule fires.
     {
         runmark::StatusFacts f;
         f.now = now;
@@ -70,12 +70,12 @@ int main()
         runmark::RepoFacts repo;
         repo.name = QStringLiteral("r");
         repo.measurementError = QStringLiteral("boom");
-        repo.dirty = true;   // ölçülmediği için kullanılmamalı
+        repo.dirty = true;   // must be ignored: it was never measured
         f.repos.append(repo);
         if (has(runmark::evaluate(config(), f), QStringLiteral("git.dirty_workspace"))) return 1;
     }
 
-    // 3. 24 saat sınırı — "şimdi" fact olduğu için ledger tarihi geri alınmadan test edilir.
+    // 3. The 24-hour threshold -- "now" is a fact, so no ledger date is rewound.
     {
         runmark::StatusFacts f;
         f.now = now;
@@ -96,7 +96,7 @@ int main()
         if (!has(runmark::evaluate(config(), f), QStringLiteral("context.invalid_ledger_timestamp"))) return 1;
     }
 
-    // 4. Plan körlüğü: okunabilir ama task yok → uyarmalı.
+    // 4. Plan blindness: readable but no tasks -> must warn.
     {
         runmark::StatusFacts f;
         f.now = now;
@@ -109,7 +109,7 @@ int main()
         if (!has(runmark::evaluate(config(), f), QStringLiteral("plan.unreadable"))) return 1;
     }
 
-    // 5. done_without_evidence, kanıt varsa susmalı.
+    // 5. done_without_evidence stays quiet when evidence exists.
     {
         runmark::StatusFacts f;
         f.now = now;
@@ -123,7 +123,7 @@ int main()
                          {QStringLiteral("kind"), QStringLiteral("test")}});
         if (has(runmark::evaluate(config(), f), QStringLiteral("plan.done_without_evidence"))) return 1;
 
-        // manual_note en zayıf kanıt: tek başına "done"u doğrulamaz.
+        // manual_note is the weakest evidence: alone it does not justify "done".
         f.events[0] = QJsonObject{{QStringLiteral("type"), QStringLiteral("evidence.recorded")},
                                   {QStringLiteral("task"), QStringLiteral("MF-1")},
                                   {QStringLiteral("kind"), QStringLiteral("manual_note")}};
@@ -146,7 +146,8 @@ int main()
         f.planSha1 = QStringLiteral("plan");
         f.finished.insert(QStringLiteral("handoff_sha1"), QStringLiteral("handoff"));
         f.handoff.sha1 = QStringLiteral("handoff");
-        // Yollar gercekten dolu gelir; bos birakmak bos explanation uretirdi.
+        // These paths are always populated in practice; leaving them empty
+        // would produce an empty explanation.
         f.handoff.path = QStringLiteral("/p/.runmark/handoffs/E1.md");
         f.worktree.path = QStringLiteral("/w/MF-1");
         f.handoff.exists = true;
@@ -165,7 +166,8 @@ int main()
                 QStringLiteral("git.base_advanced"), QStringLiteral("plan.changed_during_execution")}) {
             if (!has(missing, id)) return 1;
         }
-        // Alanlarin varligini artik tip garanti ediyor; kalan risk bos birakmak.
+        // The type now guarantees the fields exist; the remaining risk is
+        // leaving one empty.
         for (const runmark::Finding& gap : missing) {
             if (gap.id.isEmpty() || gap.severity.isEmpty() || gap.domain.isEmpty()
                     || gap.title.isEmpty() || gap.explanation.isEmpty()) return 1;
@@ -195,9 +197,9 @@ int main()
         if (!has(runmark::evaluateResume(f), QStringLiteral("context.instruction_unreadable"))) return 1;
     }
 
-    // 6. Hook körlüğü: beklenti yazıldıysa gözlem yokluğu bulgudur; beklenti
-    //    yoksa sessiz kalmalı, aksi halde CLI'yi tek başına kullanan proje
-    //    kapatamayacağı bir uyarı görür.
+    // 6. Hook blindness: once the expectation is declared, absence of an
+    //    observation is a finding; without it the rule stays quiet, or a
+    //    CLI-only project would see a warning it cannot turn off.
     {
         runmark::StatusFacts f;
         f.now = now;
@@ -209,7 +211,8 @@ int main()
         if (!has(runmark::evaluate(expects, f), QStringLiteral("context.hooks_not_observed"))) return 1;
         f.lastHookObserved = now.addSecs(-3600);
         if (has(runmark::evaluate(expects, f), QStringLiteral("context.hooks_not_observed"))) return 1;
-        // Bozuk kayıt "görüldü" sayılmamalı; sebep açıklamada durmalı.
+        // A corrupt record must not count as "seen"; the reason belongs in
+        // the explanation.
         f.lastHookObserved.reset();
         f.hookError = QStringLiteral("Invalid ts: soon");
         const QVector<runmark::Finding> broken = runmark::evaluate(expects, f);

@@ -6,8 +6,8 @@
 
 namespace runmark {
 
-// project.json'u okur ve ProjectConfig::parse ile dogrular. Dosya sistemi
-// burada; dogrulama kurallari domain'de (TC-009).
+// Reads project.json and validates it through ProjectConfig::parse. The
+// filesystem lives here; the validation rules live in the domain (TC-009).
 ProjectConfig loadProjectConfig(const QString& path);
 
 } // namespace runmark

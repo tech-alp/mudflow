@@ -24,7 +24,7 @@ struct ProjectConfig {
     bool hooksExpected = false;   // proje bir ajan hook'u bekliyor mu
     QStringList instructions;
 
-    // Saf dogrulama. Dosyadan okumak icin infrastructure'daki loadProjectConfig.
+    // Pure validation. To read from disk, use loadProjectConfig in infrastructure.
     static ProjectConfig parse(const QJsonObject& root);
     QJsonObject toJson() const;
 };

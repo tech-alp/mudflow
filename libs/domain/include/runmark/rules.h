@@ -8,12 +8,12 @@
 
 namespace runmark {
 
-// Finding üretir. SAF: dosya sistemi, git veya saat okumaz.
-// Aynı facts her zaman aynı finding dizisini verir — testi düz fonksiyon çağrısı.
+// Produces findings. PURE: reads no filesystem, no git, no clock.
+// The same facts always yield the same findings, so a test is a plain call.
 QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts);
 QVector<Finding> evaluateResume(const ResumeFacts& facts);
 
-// Finding şeması tek yerde (TRUST_MODEL.md). start uyarıları da bunu kullanır.
+// One place owns the finding shape (TRUST_MODEL.md); start warnings use it too.
 Finding finding(const QString& id, const QString& severity, const QString& domain,
                 const QString& title, const QString& explanation, const QString& action = {});
 

@@ -1,10 +1,10 @@
 #!/bin/sh
-# Hook'lar dar bir PATH ile calisabiliyor: Codex'te `env node` bulunamayip
-# exit 127 verdi, `rmk` de gorunmuyordu. Kurulum yerlerini PATH'e ekle.
-# ponytail: sabit liste; node baska yere kuruluysa buraya eklenir.
+# Hooks can run with a narrow PATH: under Codex `env node` was not found and
+# exited 127, and `rmk` was invisible too. Add the usual install locations.
+# ponytail: fixed list; if node lives elsewhere, add it here.
 PATH="$PATH:/usr/bin:/bin:/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin"
 export PATH
-# Dis komut yok: dar PATH'te `dirname` de bulunamayabiliyor.
+# No external commands: under a narrow PATH even `dirname` can be missing.
 case "$0" in */*) dir=${0%/*} ;; *) dir=. ;; esac
 node=$(command -v node) || exit 0
 [ -n "$node" ] || exit 0

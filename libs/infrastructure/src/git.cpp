@@ -90,8 +90,8 @@ RepoFacts observeRepo(const RepositoryConfig& repository, const QString& reposit
     facts.path = repositoryPath;
     facts.base = baseRef(repository);
 
-    // Fetch ayrı sarılır: başarısızlığı diğer ölçümleri iptal etmemeli.
-    // Dirty state ve yerel base geriliği ağ gerektirmez.
+    // Fetch is wrapped separately: its failure must not cancel the other
+    // measurements. Dirty state and local base lag need no network.
     const ProcessResult fetchResult = git(repositoryPath, {QStringLiteral("fetch"), QStringLiteral("--quiet"), repository.remote});
     if (fetchResult.exitCode != 0) {
         facts.fetchError = fetchResult.error;

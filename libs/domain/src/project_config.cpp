@@ -25,8 +25,8 @@ QString requiredString(const QJsonObject& object, const char* key, const QString
 
 } // namespace
 
-// SAF: dosya acmaz. Okuma infrastructure'daki loadProjectConfig'in isidir;
-// boylece domain QFile'a bagimli olmaz (TC-009).
+// PURE: opens no file. Reading is loadProjectConfig's job in infrastructure,
+// which is what keeps the domain free of QFile (TC-009).
 ProjectConfig ProjectConfig::parse(const QJsonObject& root)
 {
     const QJsonValue version = root.value(QStringLiteral("version"));

@@ -1,8 +1,8 @@
 #pragma once
 
-// Değerlendirmenin ürünü. Ölçülen facts'ten türer ve yorum taşır — bu yüzden
-// facts.h'ta değil. JSON'a çevrilmesi CLI'nin işidir (TC-007), o yüzden
-// burada serileştirme yok.
+// The product of evaluation. Derived from measured facts and carrying a
+// judgement -- which is why it does not live in facts.h. Turning it into JSON
+// is the CLI's job (TC-007), so there is no serialisation here.
 
 #include <QString>
 
@@ -14,7 +14,7 @@ struct Finding {
     QString domain;            // git | plan | context
     QString title;
     QString explanation;
-    QString suggestedAction;   // boş olabilir
+    QString suggestedAction;   // may be empty
 };
 
 } // namespace runmark

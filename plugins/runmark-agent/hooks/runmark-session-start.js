@@ -46,9 +46,9 @@ try {
     maxBuffer: 1024 * 1024,
     windowsHide: true,
   });
-  // Duz stdout iki runtime'da da baglam olarak alinir. Claude'un JSON bicimi
-  // (hookSpecificOutput.additionalContext) da calisir ama Codex onu almaz;
-  // tek bicim tutmak ayrismayi kaldiriyor.
+  // Plain stdout is taken as context by both runtimes. Claude's JSON form
+  // (hookSpecificOutput.additionalContext) also works, but Codex does not read
+  // it; keeping one format removes the divergence.
   if (context.trim()) {
     process.stdout.write(context);
   }

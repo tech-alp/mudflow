@@ -16,7 +16,7 @@
 
 namespace {
 
-// stdout = sonuc, stderr = hata. Ikisi de JSON; sinyal exit kodu.
+// stdout = result, stderr = error. Both JSON; the signal is the exit code.
 int emitError(const QString& code, const QString& message, int exitCode)
 {
     const QJsonObject payload{{QStringLiteral("error"), QJsonObject{
@@ -71,8 +71,9 @@ int main(int argc, char* argv[])
         } else if (arguments.size() == 2 && arguments.constFirst() == QLatin1String("start")) {
             result = toJson(runmark::startExecution(configPath, arguments.constLast(), parser.value(agentOption), parser.value(repositoryOption), parser.values(instructionOption)));
         } else if ((arguments.size() == 1 || arguments.size() == 2) && arguments.constFirst() == QLatin1String("resume")) {
-            // Argumansiz resume = en son execution. SessionStart hook'u hangi
-            // task'ta oldugunu bilmez; secici vermeden cagirabilmeli.
+            // resume without an argument means the latest execution. The
+            // SessionStart hook does not know which task it is on, so it must
+            // be able to call this without a selector.
             result = toJson(runmark::resumeExecution(configPath, arguments.size() == 2 ? arguments.constLast() : QString(), parser.isSet(hookOption)));
             if (parser.isSet(markdownOption)) {
                 QTextStream(stdout) << runmark::resumeMarkdown(result);

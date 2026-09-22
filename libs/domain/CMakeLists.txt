@@ -1,5 +1,5 @@
-# Saf kurallar ve veri. Qt6::Core disinda bagimlilik yok; ozellikle
-# infrastructure'a bagimli DEGIL — bagimlilik yonu tek taraflidir (TC-009).
+# Pure rules and data. No dependency beyond Qt6::Core and, in particular, NOT
+# on infrastructure -- the dependency direction is one-way (TC-009).
 add_library(runmark_domain STATIC
     src/project_config.cpp
     src/rules.cpp

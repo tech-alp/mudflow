@@ -6,7 +6,8 @@
 
 namespace runmark {
 
-// Tek hata sözleşmesi. std::expected'a geçilirse değişecek tek yer burası.
+// The single failure contract. If this ever moves to std::expected, this is
+// the only place that changes.
 [[noreturn]] inline void fail(const QString& message)
 {
     throw std::runtime_error(message.toStdString());

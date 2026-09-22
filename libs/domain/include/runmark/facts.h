@@ -1,8 +1,8 @@
 #pragma once
 
-// Gözlem aşamasının ürettiği saf veri. Buradaki hiçbir alan yorum içermez;
-// yalnızca ölçülen gerçekler durur. Kural değerlendirmesi (rules.h) yalnızca
-// bunlara bakar, git'e veya dosya sistemine dokunmaz.
+// Plain data produced by the observation phase. No field here carries a
+// judgement -- only what was measured. Rule evaluation (rules.h) reads these
+// and nothing else: it never touches git or the filesystem.
 
 #include <QDateTime>
 #include <QJsonObject>
@@ -16,18 +16,18 @@ namespace runmark {
 struct RepoFacts {
     QString name;
     QString path;
-    QString base;              // remote/branch, gösterim için
+    QString base;              // remote/branch, for display only
     QString branch;
     QString head;
     QString baseSha;
     int behind = 0;
     int ahead = 0;
     bool dirty = false;
-    QString localBase;         // yerel base branch adı
+    QString localBase;         // name of the local base branch
     bool localBaseExists = false;
     int localBehind = 0;
-    QString fetchError;        // boş değilse fetch başarısız — teşhis, kanıt değil
-    QString measurementError;  // boş değilse ölçüm yarıda kaldı
+    QString fetchError;        // non-empty means fetch failed: a diagnosis, not evidence
+    QString measurementError;  // non-empty means measurement stopped halfway
     bool measured = false;
 };
 
@@ -39,22 +39,22 @@ struct ExecutionFacts {
 
 struct PlanFacts {
     bool readable = false;
-    int checklistCount = 0;    // "- [ ]" / "- [x]" satır sayısı
-    int taskCount = 0;         // bunlardan task_id_pattern eşleşenler
-    QStringList doneTasks;     // "- [x]" işaretli task ID'leri, dosya sırasında
+    int checklistCount = 0;    // number of "- [ ]" / "- [x]" lines
+    int taskCount = 0;         // of those, the ones matching task_id_pattern
+    QStringList doneTasks;     // task IDs marked "- [x]", in file order
     QString sha1;
 };
 
 struct StatusFacts {
-    // "Şimdi" de bir gözlemdir. Fact olarak taşınınca rules saf kalır ve
-    // 24 saat sınırı ledger tarihini geri almadan test edilebilir.
+    // "Now" is an observation too. Carrying it as a fact keeps the rules pure
+    // and lets the 24-hour threshold be tested without rewinding ledger dates.
     QDateTime now;
     QVector<RepoFacts> repos;
     QVector<QJsonObject> events;
     QVector<ExecutionFacts> executions;
     PlanFacts plan;
-    // Hook'un son calistigi an. Yoksa nullopt: "hic gorulmedi" ile "okunamadi"
-    // ayrimini hookError tasir.
+    // When the hook last ran. Absent means nullopt; hookError separates
+    // "never observed" from "could not be read".
     std::optional<QDateTime> lastHookObserved;
     QString hookError;
 };

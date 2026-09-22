@@ -16,21 +16,22 @@ struct ProcessResult {
     QString error;
 };
 
-// --- taşıma katmanı: ne taşıdığını bilmez (TC-006) ---
+// --- transport: unaware of what it carries (TC-006) ---
 ProcessResult git(const QString& repository, const QStringList& arguments);
 QString gitRequired(const QString& repository, const QStringList& arguments);
 QString gitCommonDir(const QString& repository);
 
-// --- ölçüm ---
+// --- measurement ---
 QString baseRef(const RepositoryConfig& repository);
 RepoFacts observeRepo(const RepositoryConfig& repository, const QString& repositoryPath);
 void observeResumeGit(const ProjectConfig& config, const Paths& paths, ResumeFacts& facts);
 
-// Commit'lenmemiş işi refs/runmark/preserved/<exec> altına yakalar.
-// Working tree'ye ve global stash yığınına dokunmaz. Temizse boş döner.
+// Captures uncommitted work under refs/runmark/preserved/<exec>. Touches
+// neither the working tree nor the global stash stack. Empty when clean.
 QString preserveWorktree(const QString& worktree, const QString& executionId, const QString& previousRef = {});
 
-// Runmark'un ürettiği dizinleri .git/info/exclude'a yazar, .gitignore'a değil.
+// Writes the directories Runmark produces to .git/info/exclude, never to
+// the shared .gitignore.
 void ensureGitExcludes(const Paths& paths);
 
 } // namespace runmark

@@ -103,7 +103,8 @@ QString readHookObservation(const Paths& paths, std::optional<QDateTime>& lastSe
 
 void writeHookObservation(const Paths& paths)
 {
-    // Sessizce vazgec: hook'un asil isi baglam uretmek, bu kayit yan urun.
+    // Give up quietly: producing context is the hook's real job; this record
+    // is a by-product.
     if (!QDir().mkpath(paths.state)) return;
     QFile file(paths.hookObserved);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) return;

@@ -37,9 +37,9 @@ check('single SessionStart hook and manifest contracts', () => {
   assert.deepEqual(Object.keys(claude).sort(), ['author', 'description', 'name', 'version']);
   assert.equal(claude.name, 'runmark-agent');
   assert.equal(codex.name, claude.name);
-  // Codex `hooks` alanini dosya yolu olarak istiyor. Bos nesne yazilinca
-  // plugin'in hook'lari hic kesfedilmiyor (Codex desktop "From Plugins"
-  // listesinde gorunmuyor); calisan ornekler de yol yaziyor.
+  // Codex wants the `hooks` field to be a file path. With an empty object the
+  // plugin's hooks are never discovered (it does not appear under "From
+  // Plugins" in Codex desktop); the working examples all write a path.
   assert.equal(codex.hooks, './hooks/hooks.json');
   for (const field of ['displayName', 'shortDescription', 'longDescription', 'developerName', 'category']) {
     assert.equal(typeof codex.interface[field], 'string');
@@ -57,9 +57,9 @@ check('single SessionStart hook and manifest contracts', () => {
   assert.equal(session.hooks.length, 1);
   assert.equal(session.hooks[0].type, 'command');
   assert.equal(session.hooks[0].timeout, 10);
-  // Hook'lar dar PATH ile calisabiliyor (Codex'te node bulunamayip exit 127).
-  // Giris noktasi bu yuzden PATH'i genisleten bir sh sarmalayici; shebang,
-  // +x biti ve kurulum dizinleri sozlesmenin parcasi.
+  // Hooks can run with a narrow PATH (under Codex node was missing, exit 127).
+  // The entry point is therefore an sh wrapper that widens PATH; the shebang,
+  // the +x bit and the install directories are all part of the contract.
   assert.equal(session.hooks[0].command, '${CLAUDE_PLUGIN_ROOT}/hooks/runmark-session-start.sh');
   assert.equal(session.hooks[0].commandWindows, 'node "${CLAUDE_PLUGIN_ROOT}/hooks/runmark-session-start.js"');
   const entry = path.join(plugin, 'hooks/runmark-session-start.sh');
@@ -113,9 +113,9 @@ else if (process.argv.includes('--version')) console.log(process.env.FAKE_VERSIO
 else process.stdout.write(process.env.FAKE_RESUME || '');
 `, { mode: 0o755 });
   const valid = JSON.stringify({ cwd: repo, session_id: 'x' });
-  // Betigi degil, manifest'te YAZAN komutu calistir. Betik dogrudan
-  // cagrildiginda calisiyordu ama hooks.json'daki komut Codex'te exit 127
-  // veriyordu: dogru sey test edilmezse yesil, yanlis seyi kanitlar.
+  // Run the command the manifest DECLARES, not the script. Calling the script
+  // directly worked while the command in hooks.json exited 127 under Codex:
+  // a test that checks the wrong thing is green about the wrong thing.
   const command = json(path.join(plugin, 'hooks/hooks.json'))
     .hooks.SessionStart[0].hooks[0].command;
   function run(input = valid, env = {}) {
@@ -147,11 +147,11 @@ else process.stdout.write(process.env.FAKE_RESUME || '');
     for (const version of ['0.3.0', '0.3.0+build.1', '0.10.0', '1.0.0', '0.4.0-rc.1']) {
       const result = run(valid, { FAKE_VERSION: `rmk ${version}`, FAKE_RESUME: '# Runmark resume: MF-1\n' });
       assert.equal(result.stderr, '');
-      // Hook yalnizca cagirir; secici vermez, karar vermez (TC-006).
+      // The hook only calls; it passes no selector and makes no decision (TC-006).
       assert.deepEqual(result.calls, [['--version'], ['resume', '--markdown', '--hook']]);
-      // hookEventName olmadan Claude Code ciktiyi yonlendirmiyor: hook
-      // calisir, JSON uretir, ajana hicbir sey ulasmaz.
-      // Duz metin: her iki runtime da stdout'u dogrudan baglam sayiyor.
+      // Without hookEventName Claude Code does not route the output: the hook
+      // runs, produces JSON, and nothing reaches the agent.
+      // Plain text: both runtimes take stdout as context directly.
       assert.equal(result.stdout, '# Runmark resume: MF-1\n');
     }
   });

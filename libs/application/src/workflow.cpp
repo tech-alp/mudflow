@@ -19,8 +19,8 @@
 namespace runmark {
 namespace {
 
-// Orkestrasyon: iki ayrı sorumluluğu birleştirir. Dizin açmak paths'in,
-// exclude yazmak git'in işi; ikisini birlikte çağırmak komutun işi.
+// Orchestration joins two separate duties: creating directories belongs to
+// paths, writing excludes to git. Calling both together is the command's job.
 void prepareState(const Paths& paths)
 {
     ensureDirectories(paths);
@@ -45,8 +45,8 @@ QJsonValue orNull(const QString& value)
     return value.isEmpty() ? QJsonValue::Null : QJsonValue(value);
 }
 
-// GÖZLEM: git'i çalıştır, planı oku, ledger'ı oku, dosya varlığını ölç.
-// Değerlendirme buraya karışmaz.
+// OBSERVE: run git, read the plan, read the ledger, measure what exists on
+// disk. No evaluation happens here.
 StatusFacts observe(const ProjectConfig& config, const Paths& paths)
 {
     StatusFacts facts;
@@ -96,9 +96,9 @@ ResumeResult resumeExecution(const QString& configPath, const QString& taskOrExe
 {
     const ProjectConfig config = loadProjectConfig(configPath);
     const Paths paths = pathsFor(configPath);
-    // Hook'un calistigini baska hicbir sey kanitlamaz: bir oturum acilir, hook
-    // sessizce patlar ve status bunu temiz bir proje sanir. Yazim basarisiz
-    // olursa gormezden gel; o zaman bulgu "gorulmedi" der, guvenli yon budur.
+    // Nothing else proves the hook ran: a session opens, the hook fails
+    // silently, and status reads that as a clean project. If the write fails,
+    // ignore it -- the finding then says "never observed", the safe direction.
     if (observedByHook) writeHookObservation(paths);
     ResumeFacts facts = observeResumeLedger(paths, taskOrExecution);
     if (!facts.started.isEmpty()) {
@@ -128,10 +128,11 @@ StartResult startExecution(const QString& configPath, const QString& task, const
     const QString repositoryPath = expandPath(repository.path, paths.root);
     const QString remoteBase = baseRef(repository);
     gitRequired(repositoryPath, {QStringLiteral("fetch"), QStringLiteral("--quiet"), repository.remote});
-    // ADR-014: ana repo'nun kirliligi baslatmayi engellemez. Base uzak ref'ten
-    // cozuldugu icin teknik engel yok; durum kaydedilir ve uyarilir.
-    // Worktree'nin kendi kirliligi preserved ref'e yakalanir; aksi halde
-    // merge-base..HEAD diff muhasebesinde gorunmez kanit olur.
+    // ADR-014: a dirty main repo does not block start. The base resolves from
+    // a remote ref, so there is no technical obstacle; the state is recorded
+    // and warned about. The worktree's own dirt is captured into a preserved
+    // ref -- otherwise it would be evidence invisible to the merge-base..HEAD
+    // diff accounting.
     const bool repositoryDirty = !gitRequired(repositoryPath, {QStringLiteral("status"), QStringLiteral("--porcelain")}).isEmpty();
     QVector<Finding> warnings;
     if (repositoryDirty) {

@@ -1,6 +1,6 @@
-// Saf sunum: tipli sonuc -> JSON / markdown. Dosya sistemi, git veya saat
-// okumaz; girdisi zaten olculmus facts'tir. Handoff'un DISK tarafi
-// infrastructure'da kalir (handoff.cpp), cunku o yaziyor.
+// Pure presentation: typed result -> JSON / markdown. Reads no filesystem,
+// no git, no clock; its input is already-measured facts. The DISK side of a
+// handoff stays in infrastructure (handoff.cpp), because that one writes.
 #include "json.h"
 
 #include <QJsonArray>
@@ -151,15 +151,16 @@ static QJsonObject resumePackage(const ResumeFacts& facts, const QJsonArray& gap
 
 QString resumeMarkdown(const QJsonObject& package)
 {
-    // Bu cikti ajana yapistirilmak icin. JSON isteyen varsayilani kullanir;
-    // burada handoff.md ile ayni dil konusulur, yoksa iki format ayrisir.
+    // This output is meant to be handed to an agent. Whoever wants JSON uses
+    // the default; here we speak the same language as handoff.md, otherwise
+    // the two formats drift apart.
     QString text;
     QTextStream out(&text);
 
     const auto str = [](const QJsonValue& value, const QString& fallback = QStringLiteral("—")) {
         return value.isString() ? value.toString() : fallback;
     };
-    // Bilinmiyor ile hayir ayri seyler: null "—" kalir, false acikca yazilir.
+    // Unknown and no are different: null stays "—", false is stated outright.
     const auto tri = [](const QJsonValue& value, const QString& yes, const QString& no) {
         return value.isBool() ? (value.toBool() ? yes : no) : QStringLiteral("bilinmiyor");
     };

@@ -1,5 +1,4 @@
-# Orkestrasyon: inspect/status/start/finish/resume akislari ve CLI'ye
-# donen paketin sekillendirilmesi.
+# Orchestration: the inspect/status/start/finish/resume flows.
 add_library(runmark_application STATIC
     src/workflow.cpp
 )

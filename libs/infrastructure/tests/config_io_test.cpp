@@ -58,7 +58,8 @@ int main()
         }
     }
 
-    // hooks_expected isteğe bağlı, varsayılanı false, ama yazıldıysa boolean.
+    // hooks_expected is optional and defaults to false, but must be a boolean
+    // when present.
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) return 1;
     file.write(QJsonDocument(valid).toJson());
     file.close();

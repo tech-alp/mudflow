@@ -137,7 +137,7 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
         remoteBaseShas.insert(repository.name, repository.baseSha);
     }
 
-    // --- Ledger taraması ---
+    // --- Ledger scan ---
     QSet<QString> evidencedTasks;
     QSet<QString> completedExecutions;
     QSet<QString> executionsWithCommits;
@@ -158,7 +158,7 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
         }
     }
 
-    // --- Execution başına ---
+    // --- Per execution ---
     for (const QJsonObject& event : facts.events) {
         if (event.value(QStringLiteral("type")).toString() != QLatin1String("execution.started")) {
             continue;
@@ -180,8 +180,9 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
                 QStringLiteral("Completed execution has no handoff"), executionId));
         }
         const QString executionWorktree = event.value(QStringLiteral("worktree")).toString();
-        // Bitmis execution'in worktree'si diskte kalirsa aktif is sanilabilir.
-        // Silme otomatik degil (ARCHITECTURE.md "Guvenlik"); yalnizca gorunur yapilir.
+        // A finished execution whose worktree survives on disk reads as active
+        // work. Removal is never automatic (ARCHITECTURE.md "Security"); this
+        // only makes it visible.
         if (completed && !executionWorktree.isEmpty() && execution && execution->worktreeExists) {
             findings.append(finding(QStringLiteral("git.orphaned_worktree"), QStringLiteral("info"), QStringLiteral("git"),
                 QStringLiteral("Completed execution still has a worktree"),
@@ -231,7 +232,8 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
                     QStringLiteral("Done plan task has no evidence"), task));
             }
         }
-        // Sessizce hicbir sey olcmemek, temiz cikmakla ayni seye benzer. Ayirt et.
+        // Measuring nothing silently looks exactly like measuring a clean
+        // result. Tell the two apart.
         if (facts.plan.taskCount == 0) {
             findings.append(finding(QStringLiteral("plan.no_parsable_tasks"), QStringLiteral("warning"), QStringLiteral("plan"),
                 QStringLiteral("Plan yields no task candidates"),
@@ -243,8 +245,8 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
     }
 
     // --- Hook ---
-    // Kurulu sanilan ama hic calismamis bir hook, temiz bir projeden ayirt
-    // edilemez. Beklenti yazildiysa gozlem yoklugu bulgudur.
+    // A hook believed to be installed but never run is indistinguishable from
+    // a clean project. Once the expectation is declared, absence is a finding.
     if (config.hooksExpected && !facts.lastHookObserved.has_value()) {
         findings.append(finding(QStringLiteral("context.hooks_not_observed"), QStringLiteral("warning"), QStringLiteral("context"),
             QStringLiteral("No agent hook has been observed"),

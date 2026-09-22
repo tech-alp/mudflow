@@ -7,7 +7,7 @@
 
 namespace runmark {
 
-// .runmark durum dizininin yerleşimi.
+// Layout of the .runmark state directory.
 struct Paths {
     QString root;
     QString state;
@@ -24,8 +24,8 @@ QString sha1File(const QString& path);
 FileFacts observePath(const QString& path);
 QJsonArray observeInstructions(const QStringList& instructions, const QString& root);
 
-// .runmark/hook-observed.json: ajan hook'unun son calistigi an. Ledger olayi
-// degil; bir execution'a ait degil ve okuma yolunda yazilir.
+// .runmark/hook-observed.json: when the agent hook last ran. Not a ledger
+// event -- it belongs to no execution and is written on a read path.
 QString readHookObservation(const Paths& paths, std::optional<QDateTime>& lastSeen);
 void writeHookObservation(const Paths& paths);
 

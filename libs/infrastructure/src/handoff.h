@@ -9,8 +9,9 @@
 
 namespace runmark {
 
-// Handoff'un ölçülen kısmı. Agent iddiası buraya girmez — o, ledger'daki
-// agent_summary olaylarından ayrı başlıkta yazılır (ADR-002 / ADR-013).
+// The measured half of a handoff. An agent's claim never enters here; it is
+// written under its own heading from the ledger's agent_summary events
+// (ADR-002 / ADR-013).
 struct HandoffInput {
     QString executionId;
     QString outcome;
@@ -27,7 +28,7 @@ struct HandoffInput {
     QString preservedRef;
 };
 
-// Üç başlık ADR-002'yi formatın içine gömer: ölçülen, iddia edilen, açık kalan.
+// Three headings put ADR-002 inside the format: measured, claimed, open.
 void writeHandoff(const Paths& paths, const HandoffInput& input, const QVector<QJsonObject>& events);
 void readHandoff(const Paths& paths, ResumeFacts& facts);
 

@@ -1,7 +1,8 @@
 #pragma once
 
-// Use case'ler. Sonuçlar TİPLİ döner; JSON'a çevirmek CLI'nin, model'e
-// çevirmek UI'nin işidir (TC-012). Application bir sunum biçimine bağlı değil.
+// Use cases. Results come back TYPED: turning them into JSON is the CLI's
+// job, into a model the UI's (TC-012). The application layer is not bound to
+// any one presentation.
 
 #include "runmark/facts.h"
 #include "runmark/finding.h"
@@ -25,7 +26,7 @@ struct StartResult {
     QString branch;
     QString workspaceSource;
     QString baseSha;
-    QString preservedRef;      // boşsa kaydedilecek iş yoktu
+    QString preservedRef;      // empty when there was nothing to preserve
     QVector<Finding> warnings;
 };
 
@@ -34,7 +35,7 @@ struct FinishResult {
     QString outcome;
     QString headSha;
     QString preservedRef;
-    QString handoff;           // .runmark köküne göre
+    QString handoff;           // relative to the .runmark root
 };
 
 struct ResumeResult {

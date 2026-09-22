@@ -162,8 +162,8 @@ void resumeContract(const QString& executable)
         && markdown.contains(QStringLiteral("Agent notu (zayıf evidence — doğrulanmadı)").toUtf8()) && markdown.contains(handoff.value("sha1").toString().toUtf8()), "markdown contract");
     check(readFile(ledger) == before, "resume never appends delivery event");
 
-    // --hook: hook'un calistigi ledger'a degil ayri bir dosyaya yazilir; bu
-    // olmadan hic calismamis bir hook temiz projeden ayirt edilemez.
+    // --hook: that the hook ran is written to a separate file, not the ledger.
+    // Without it, a hook that never ran looks like a clean project.
     const QString hookObserved = root + "/.runmark/hook-observed.json";
     check(!QFile::exists(hookObserved), "no observation before --hook");
     QJsonObject hooked = config;

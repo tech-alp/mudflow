@@ -81,8 +81,9 @@ ResumeFacts observeResumeLedger(const Paths& paths, const QString& taskOrExecuti
         return facts;
     }
     // IDs carry UTC time; lexical order is the ledger's documented chronology.
-    // Bos secici "en son execution" demektir: oturum baslangicinda hangi task'ta
-    // oldugunu bilmeyen bir cagiran icin tek anlamli varsayilan bu.
+    // An empty selector means "the latest execution": for a caller that does
+    // not know which task it is on at session start, that is the only
+    // meaningful default.
     for (const QJsonObject& event : events) {
         const QString exec = event.value(QStringLiteral("exec")).toString();
         if (!taskOrExecution.isEmpty() && exec == taskOrExecution) {

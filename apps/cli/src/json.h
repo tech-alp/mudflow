@@ -1,8 +1,9 @@
 #pragma once
 
-// TC-007'nin çıktı sözleşmesi. Application tipli döner; JSON'a çevirmek
-// CLI'nin işidir — başka bir yüzey (desktop) aynı sonuçtan başka bir şey
-// üretir ve application ikisini de bilmez (TC-012).
+// The output contract of TC-007. The application layer returns typed results;
+// turning them into JSON is the CLI's job -- another surface (the desktop)
+// makes something else from the same result, and the application knows about
+// neither (TC-012).
 
 #include "runmark/workflow.h"
 
@@ -18,7 +19,7 @@ QJsonObject toJson(const StartResult& result);
 QJsonObject toJson(const FinishResult& result);
 QJsonObject toJson(const ResumeResult& result);
 
-// Aynı sonucun ikinci sunumu: agent'ın okuyacağı markdown.
+// The second presentation of the same result: markdown for an agent to read.
 QString resumeMarkdown(const QJsonObject& package);
 
 } // namespace runmark
