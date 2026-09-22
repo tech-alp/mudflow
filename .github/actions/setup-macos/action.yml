@@ -12,11 +12,15 @@ runs:
       with:
         version: '6.11.1'
         cache: true
+    - name: Install pinned LLVM
+      shell: bash
+      run: |
+        node --test tools/ci/check-toolchain.test.mjs
+        bash tools/ci/install-llvm.sh
     - name: Install and verify build tools
       shell: bash
       run: |
-        brew install llvm cmake ninja
-        export LLVM_ROOT="$(brew --prefix llvm)"
+        brew install cmake ninja
         export QT6_ROOT="$QT_ROOT_DIR"
         bash tools/ci/check-toolchain.sh
         echo "LLVM_ROOT=$LLVM_ROOT" >> "$GITHUB_ENV"

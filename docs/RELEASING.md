@@ -27,10 +27,14 @@ CI runner `macos-15`; minimum deployment target macOS 14.0. Minimum OS'ta
 çalışma ayrıca ölçülmedi. Release araçları Node 24 CI üzerinde çalışır;
 npm sürümleri `tools/release/package-lock.json` ile sabittir.
 
-Homebrew kurulumunun sürümleri zamanla değişebilir: `check-toolchain.sh`
-farklı sürümü sessizce kabul etmez, işi durdurur. Bu eski Homebrew
-paketlerinin arşivlenmesi değildir; sürüm değişiminde yeniden doğrulama
-ve bilinçli baseline güncellemesi gerekir. Qt cache'i action tarafından yönetilir;
+LLVM, resmi `llvmorg-23.1.1` macOS ARM64 arşivinden kurulur; URL ve SHA-256
+`tools/ci/install-llvm.sh` içinde sabittir. Hash doğrulanmadan arşiv açılmaz.
+`clang-scan-deps` aynı arşivden gelir. Kurulum runner geçici dizinindedir;
+yerel Homebrew LLVM değiştirilmez. Arşiv yaklaşık 1.57 GB'dir.
+CMake/Ninja hâlâ Homebrew'den gelir; `check-toolchain.sh` farklı sürümü
+beklenen/gerçek sürüm mesajıyla reddeder. Bunların kurulumları henüz arşivle
+sabitlenmiş değildir; sürüm değişiminde yeniden doğrulama gerekir.
+Qt cache'i action tarafından yönetilir;
 BMI/build dizinleri compiler'lar arasında cache'lenmez.
 
 ## Yerel doğrulama (yayın yapmaz)
@@ -89,6 +93,9 @@ yayının prepare aşamasındadır. Dry-run da GitHub yetkisi ve yayın önkoşu
 doğrular. Token yalnız semantic-release adımına verilir; `contents: write`
 yalnız release job'undadır. Ek PAT veya npm token gerekmez.
 
-İlk hosted CI, GitHub token akışı ve gerçek yayın bu yerel uygulama sırasında
-çalıştırılmadı. Başarısız bir yayında mevcut tag'i silip yeniden yazma;
+İlk hosted CI (`35728139807`, `7d3aa96`) setup aşamasında başarısız oldu:
+Homebrew LLVM 23.1.0 kurdu, sürüm kapısı 23.1.1 bekledi; build/test/paket
+adımları atlandı. Sabit resmi arşiv kurulumu bu sapmayı giderir; yeşil hosted
+sonuç ayrıca kaydedilmelidir. GitHub token akışı ve gerçek yayın doğrulanmadı.
+Başarısız bir yayında mevcut tag'i silip yeniden yazma;
 önce tag/release/artifact durumunu incele, düzeltmeyi yeni sürümle yayınla.
