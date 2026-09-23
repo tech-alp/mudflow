@@ -4,7 +4,7 @@ import Qt.labs.StyleKit
 import Merce.Style
 import Runmark.Shell
 
-RowLayout {
+ColumnLayout {
     id: workspace
     StyleKit.style: MerceStyle {}
     property string projectName: ""
@@ -13,26 +13,16 @@ RowLayout {
     signal projectRequested()
     signal themeRequested()
     spacing: 0
-    Sidebar {
-        visible: workspace.width >= 1000
-        Layout.preferredWidth: 208
-        Layout.fillHeight: true
+    ProjectHeader {
+        Layout.fillWidth: true
+        projectName: workspace.projectName
+        busy: workspace.busy
+        onProjectRequested: workspace.projectRequested()
+        onThemeRequested: workspace.themeRequested()
     }
-    ColumnLayout {
+    Item {
+        id: pageHost
         Layout.fillWidth: true
         Layout.fillHeight: true
-        spacing: 0
-        ProjectHeader {
-            Layout.fillWidth: true
-            projectName: workspace.projectName
-            busy: workspace.busy
-            onProjectRequested: workspace.projectRequested()
-            onThemeRequested: workspace.themeRequested()
-        }
-        Item {
-            id: pageHost
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-        }
     }
 }

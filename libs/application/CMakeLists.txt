@@ -1,6 +1,7 @@
 # Orchestration: the inspect/status/start/finish/resume flows.
 add_library(runmark_application STATIC
     src/workflow.cpp
+    src/project_setup.cpp
 )
 add_library(runmark::application ALIAS runmark_application)
 

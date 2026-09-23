@@ -17,6 +17,7 @@ ColumnLayout {
         id: filtered
         objectName: "findingFilter"
         sourceModel: page.viewModel.findings
+        showInfo: false
     }
     Shortcut {
         sequences: [StandardKey.Find]
@@ -27,13 +28,13 @@ ColumnLayout {
         ColumnLayout {
             Layout.fillWidth: true
             Label {
-                text: qsTr("Bulgular")
+                text: qsTr("Proje durumu")
                 font.pixelSize: Theme.typography.size3XLarge
                 font.bold: true
             }
             Label {
                 text: page.viewModel.busy ? qsTr("Proje durumu ölçülüyor…")
-                    : qsTr("Plan, Git ve çalışma kayıtlarından gözlenen durumlar.")
+                    : qsTr("Önce uyarıları inceleyin; bilgi kayıtları aşağıda ayrı tutulur.")
                 color: Theme.colors.content.secondary
                 wrapMode: Text.Wrap
                 Layout.fillWidth: true
@@ -56,6 +57,31 @@ ColumnLayout {
         wrapMode: Text.Wrap
         Layout.fillWidth: true
     }
+    Flow {
+        id: summaryBar
+        visible: page.viewModel.configPath.length > 0 && page.viewModel.error.length === 0
+        Layout.fillWidth: true
+        spacing: Theme.spacing.md
+        Label {
+            text: qsTr("%1 kritik").arg(filtered.criticalCount)
+            visible: filtered.criticalCount > 0
+            color: Theme.colors.status.error.content
+            font.bold: true
+        }
+        Label {
+            text: qsTr("%1 uyarı").arg(filtered.warningCount)
+            color: filtered.warningCount > 0 ? Theme.colors.status.warning.content : Theme.colors.content.secondary
+            font.bold: true
+        }
+        Label { text: qsTr("%1 bilgi kaydı").arg(filtered.infoCount); color: Theme.colors.content.secondary }
+        Label {
+            text: page.viewModel.measuredAt && !isNaN(page.viewModel.measuredAt.getTime())
+                ? qsTr("Son ölçüm: %1").arg(Qt.formatDateTime(page.viewModel.measuredAt, "dd.MM HH:mm")) : ""
+            width: Math.min(implicitWidth, summaryBar.width)
+            elide: Text.ElideRight
+            color: Theme.colors.content.secondary
+        }
+    }
     FindingsFilterBar {
         id: filters
         Layout.fillWidth: true
@@ -66,7 +92,19 @@ ColumnLayout {
         onDomainRequested: value => filtered.domain = value
         onQueryEdited: value => filtered.query = value
     }
+    MButton {
+        visible: filtered.infoCount > 0
+        text: filtered.query.length > 0 || filtered.domain.length > 0
+            ? qsTr("Arama ve alan filtreleri bilgi kayıtlarını da kapsar")
+            : filtered.showInfo ? qsTr("Bilgi kayıtlarını gizle (%1)").arg(filtered.infoCount)
+                                : qsTr("Bilgi kayıtlarını göster (%1)").arg(filtered.infoCount)
+        enabled: filtered.query.length === 0 && filtered.domain.length === 0
+        variant: MButton.Ghost
+        size: MButton.Small
+        onClicked: filtered.showInfo = !filtered.showInfo
+    }
     RowLayout {
+        id: contentRow
         Layout.fillWidth: true
         Layout.fillHeight: true
         spacing: Theme.spacing.lg
@@ -88,10 +126,10 @@ ColumnLayout {
                 keyNavigationEnabled: true
                 currentIndex: -1
                 Basic.ScrollBar.vertical: Basic.ScrollBar { palette.mid: Theme.colors.outline.strong }
-                section.property: "domainLabel"
+                section.property: "sectionLabel"
                 section.delegate: Label {
                     required property string section
-                    text: section.toUpperCase()
+                    text: section
                     color: Theme.colors.content.secondary
                     font.bold: true
                     topPadding: Theme.spacing.md
@@ -120,9 +158,11 @@ ColumnLayout {
                 visible: filtered.count === 0 && !page.viewModel.busy
                 title: page.viewModel.configPath.length === 0 ? qsTr("Bir proje seçin")
                     : page.viewModel.error.length > 0 ? qsTr("Proje ölçülemedi")
+                    : !filtered.showInfo && filtered.query.length === 0 && filtered.domain.length === 0 && filtered.infoCount > 0 ? qsTr("Ölçülen uyarı yok")
                     : filtered.totalCount > 0 ? qsTr("Eşleşen bulgu yok") : qsTr("Ölçülen bulgu yok")
-                description: page.viewModel.configPath.length === 0 ? qsTr("Üstteki proje seçiciden project.json dosyasını açın.")
+                description: page.viewModel.configPath.length === 0 ? qsTr("Üstteki proje seçiciden proje klasörünü açın.")
                     : page.viewModel.error.length > 0 ? qsTr("Yeniden deneyin veya başka bir proje seçin.")
+                    : !filtered.showInfo && filtered.query.length === 0 && filtered.domain.length === 0 && filtered.infoCount > 0 ? qsTr("Bilgi kayıtlarını üstteki düğmeyle açabilirsiniz.")
                     : filtered.totalCount > 0 ? qsTr("Aramayı temizleyin veya başka bir alan seçin.") : ""
             }
         }
@@ -132,7 +172,8 @@ ColumnLayout {
             visible: filtered.selectedKey.length > 0
             Layout.fillWidth: page.compact
             Layout.preferredWidth: page.compact ? -1 : Math.min(440, page.width * 0.42)
-            Layout.fillHeight: true
+            Layout.alignment: Qt.AlignTop
+            Layout.preferredHeight: Math.min(implicitHeight, contentRow.height)
             finding: filtered.selectedFinding
             compact: page.compact
             onBackRequested: {

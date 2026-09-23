@@ -6,7 +6,7 @@
 namespace runmark {
 FindingFilterModel::FindingFilterModel(QObject* parent) : QSortFilterProxyModel(parent)
 {
-    setSortRole(FindingModel::DomainRole);
+    setSortRole(FindingModel::PriorityRole);
     sort(0);
     connect(this, &QAbstractItemModel::modelReset, this, &FindingFilterModel::reconcileSelection);
     connect(this, &QAbstractItemModel::rowsInserted, this, &FindingFilterModel::reconcileSelection);
@@ -17,13 +17,40 @@ FindingFilterModel::FindingFilterModel(QObject* parent) : QSortFilterProxyModel(
 bool FindingFilterModel::filterAcceptsRow(int row, const QModelIndex& parent) const
 {
     const auto item = sourceModel()->index(row, 0, parent);
+    if (!m_showInfo && m_query.isEmpty() && m_domain.isEmpty()
+            && item.data(FindingModel::PriorityRole).toInt() == 2) return false;
     if (!m_domain.isEmpty() && item.data(FindingModel::DomainRole).toString() != m_domain)
         return false;
     for (const int role : {FindingModel::IdRole, FindingModel::TitleRole,
-             FindingModel::ExplanationRole, FindingModel::DomainRole, FindingModel::SuggestedActionRole}) {
+             FindingModel::ExplanationRole, FindingModel::DomainRole, FindingModel::DomainLabelRole, FindingModel::SuggestedActionRole,
+             FindingModel::DisplayTitleRole, FindingModel::SummaryRole, FindingModel::NextStepRole}) {
         if (item.data(role).toString().contains(m_query, Qt::CaseInsensitive)) return true;
     }
     return false;
+}
+
+int FindingFilterModel::countSeverity(int priority) const
+{
+    int count = 0;
+    if (!sourceModel()) return count;
+    for (int row = 0; row < sourceModel()->rowCount(); ++row) {
+        const auto item = sourceModel()->index(row, 0);
+        if (priority < 0 || item.data(FindingModel::PriorityRole).toInt() == priority)
+            count += item.data(FindingModel::OccurrencesRole).toInt();
+    }
+    return count;
+}
+int FindingFilterModel::totalCount() const { return countSeverity(-1); }
+int FindingFilterModel::infoCount() const { return countSeverity(2); }
+int FindingFilterModel::warningCount() const { return countSeverity(1); }
+int FindingFilterModel::criticalCount() const { return countSeverity(0); }
+void FindingFilterModel::setShowInfo(bool value)
+{
+    if (m_showInfo == value) return;
+    beginFilterChange();
+    m_showInfo = value;
+    endFilterChange(Direction::Rows);
+    reconcileSelection();
 }
 
 void FindingFilterModel::setQuery(const QString& value)
@@ -74,7 +101,7 @@ QVariantList FindingFilterModel::domains() const
     QMap<QString, int> counts;
     if (sourceModel()) {
         for (int row = 0; row < sourceModel()->rowCount(); ++row)
-            ++counts[sourceModel()->index(row, 0).data(FindingModel::DomainRole).toString()];
+            counts[sourceModel()->index(row, 0).data(FindingModel::DomainRole).toString()] += sourceModel()->index(row, 0).data(FindingModel::OccurrencesRole).toInt();
     }
     QVariantList result;
     for (auto it = counts.cbegin(); it != counts.cend(); ++it)

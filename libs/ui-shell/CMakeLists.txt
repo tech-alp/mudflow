@@ -43,8 +43,8 @@ qt_add_qml_module(runmark_ui_shell
         features/findings/qml/FindingListItem.qml
         features/findings/qml/FindingDetails.qml
         shell/WorkspaceLayout.qml
-        shell/Sidebar.qml
         shell/ProjectHeader.qml
+        shell/ProjectSetupDialog.qml
         components/StatusBadge.qml
         components/EmptyState.qml
 )

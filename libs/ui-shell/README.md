@@ -75,3 +75,28 @@ The desktop profile loads before the workspace style is constructed, avoiding
 cached kiosk font sizes. Light/dark switching keeps the same desktop metrics.
 Stock Basic scroll controls avoid the always-visible StyleKit scroll indicators.
 The GUI test writes fixture-based previews to `build/dev/Testing/desktop-captures/`.
+
+## Project folder setup
+
+The native folder picker opens `<folder>/.runmark/project.json` automatically.
+If absent, `ProjectSetupDialog` collects a project name, existing Git remote,
+base branch, readable plan file and task prefix (e.g. `PROJ` for `PROJ-1`).
+Initialization validates the repository root and config, then creates the file
+exclusively; existing or malformed configurations are never overwritten.
+Cancelling creates nothing. The selected folder must already be a Git repository;
+the setup does not create a remote or plan. Worktrees default to
+`~/worktrees/<folder-name>`. Existing `AGENTS.md` is registered automatically.
+The initialization use case runs off the UI thread, and success opens the project.
+
+## Findings presentation
+
+The domain and CLI retain the original rules and text. The desktop model adds
+Turkish presentation roles (title, summary, impact, next step), preserves the raw
+record in an expandable technical section, and groups reference-less notes
+without discarding their original text. Counts represent underlying findings,
+not grouped rows. Critical and warning findings sort before information.
+Information starts collapsed, but explicit search/domain filters include it.
+The last successful measurement time is shown; a failed refresh still displays
+its error and does not advance that time. Plan links open the current readable
+plan, not a claimed historical evidence source; Git links open the project folder.
+No action silently modifies Git or marks a historical note resolved.

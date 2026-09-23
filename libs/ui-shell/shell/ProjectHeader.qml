@@ -17,10 +17,16 @@ ToolBar {
         anchors.leftMargin: Theme.spacing.lg
         anchors.rightMargin: Theme.spacing.lg
         spacing: Theme.spacing.md
+        Label {
+            visible: header.width > 640
+            text: "Runmark"
+            font.bold: true
+            font.pixelSize: Theme.typography.sizeLarge
+        }
         MButton {
             text: header.projectName || qsTr("Proje seç")
             iconName: "material:folder_open"
-            variant: MButton.Secondary
+            variant: MButton.Ghost
             enabled: !header.busy
             Layout.maximumWidth: 220
             onClicked: header.projectRequested()

@@ -11,6 +11,8 @@
 #include <QAbstractListModel>
 #include <QString>
 #include <QVector>
+#include <QStringList>
+#include <QUrl>
 #include <QtQmlIntegration>
 
 namespace runmark {
@@ -29,9 +31,10 @@ public:
         QString title;
         QString explanation;
         QString suggestedAction;
+        QStringList notes = {};
     };
 
-    enum Role { IdRole = Qt::UserRole + 1, SeverityRole, DomainRole, TitleRole, ExplanationRole, SuggestedActionRole, KeyRole, DomainLabelRole };
+    enum Role { IdRole = Qt::UserRole + 1, SeverityRole, DomainRole, TitleRole, ExplanationRole, SuggestedActionRole, KeyRole, DomainLabelRole, DisplayTitleRole, SummaryRole, ImpactRole, NextStepRole, NotesRole, OccurrencesRole, PriorityRole, SectionRole, SourceUrlRole, SourceLabelRole };
 
     using QAbstractListModel::QAbstractListModel;
 
@@ -41,10 +44,13 @@ public:
 
     static QString domainLabel(const QString& domain);
 
+    void setSourceLocations(const QUrl& projectFolder, const QUrl& plan);
     void reset(const QVector<Row>& rows);
 
 private:
     QVector<Row> m_rows;
+    QUrl m_projectFolder;
+    QUrl m_plan;
 };
 
 } // namespace runmark

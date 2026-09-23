@@ -7,16 +7,19 @@ import Runmark.Shell
 
 ItemDelegate {
     id: row
+    required property string displayTitle
+    required property string summary
+    required property string domainLabel
     required property string title
     required property string severity
     required property string domain
     required property string explanation
     property bool selected: false
-    text: title
+    text: displayTitle
     padding: Theme.spacing.md
-    implicitHeight: Math.max(88, contentItem.implicitHeight + 2 * padding)
+    implicitHeight: Math.max(72, contentItem.implicitHeight + 2 * padding)
     Accessible.selected: selected
-    Accessible.name: qsTr("%1: %2").arg(severity).arg(title)
+    Accessible.name: qsTr("%1: %2").arg(severity).arg(displayTitle)
     background: Surface {
         surfaceType: Surface.Default
         backgroundColor: row.selected ? Theme.colors.surface.containerRaised : Theme.colors.surface.container
@@ -28,7 +31,7 @@ ItemDelegate {
         RowLayout {
             Layout.fillWidth: true
             Label {
-                text: row.title
+                text: row.displayTitle
                 textFormat: Text.PlainText
                 font.bold: true
                 wrapMode: Text.Wrap
@@ -37,7 +40,7 @@ ItemDelegate {
             StatusBadge { severity: row.severity }
         }
         Label {
-            text: row.explanation
+            text: row.domainLabel + " · " + row.summary
             textFormat: Text.PlainText
             color: Theme.colors.content.secondary
             elide: Text.ElideRight

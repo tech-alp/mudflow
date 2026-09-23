@@ -1,6 +1,10 @@
 #include "StatusViewModel.h"
 #include "FindingFilterModel.h"
 #include <QQuickWindow>
+#include <QProcess>
+#include <QSignalSpy>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 #include <QDir>
 #include <QFile>
@@ -18,6 +22,99 @@ class DesktopTest : public QObject
 {
     Q_OBJECT
 private slots:
+    void projectSetup()
+    {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        qputenv("RUNMARK_SMOKE", "1");
+        const auto resetSmoke = qScopeGuard([] { qunsetenv("RUNMARK_SMOKE"); });
+        const auto wait = qScopeGuard([] { QThreadPool::globalInstance()->waitForDone(); });
+        const auto git = [&](const QStringList& args) {
+            QProcess process;
+            process.setWorkingDirectory(directory.path());
+            process.start("git", args);
+            return process.waitForFinished(5000) && process.exitCode() == 0;
+        };
+        QVERIFY(git({"init", "-b", "main"}));
+        QVERIFY(git({"remote", "add", "origin", directory.path()}));
+        QFile plan(directory.filePath("plan.md"));
+        QVERIFY(plan.open(QIODevice::WriteOnly));
+        plan.write("- [ ] PROJ-1 First task\n");
+        plan.close();
+        runmark::StatusViewModel view;
+        QSignalSpy requested(&view, &runmark::StatusViewModel::setupRequested);
+        QSignalSpy failed(&view, &runmark::StatusViewModel::setupFailed);
+        QSignalSpy created(&view, &runmark::StatusViewModel::setupCreated);
+        const auto folder = QUrl::fromLocalFile(directory.path());
+        const QString path = directory.filePath(".runmark/project.json");
+        view.openFolder(folder);
+        QCOMPARE(requested.count(), 1);
+        QVERIFY(!QFileInfo::exists(path)); // Opening/cancelling never initializes.
+        view.createProject(folder, "Test", "origin", "main", "missing.md", "PROJ");
+        QTRY_COMPARE(failed.count(), 1);
+        QVERIFY(!QFileInfo::exists(path));
+        view.createProject(folder, "Test", "origin", "main", "plan.md", "PROJ");
+        QTRY_COMPARE(created.count(), 1);
+        QTRY_VERIFY_WITH_TIMEOUT(!view.busy(), 10000);
+        QCOMPARE(view.project(), QString("Test"));
+        QFile config(path);
+        QVERIFY(config.open(QIODevice::ReadOnly));
+        const auto original = config.readAll();
+        config.close();
+        QCOMPARE(QJsonDocument::fromJson(original).object().value("task_id_pattern").toString(), QString("PROJ-\\d+"));
+        view.createProject(folder, "Replacement", "origin", "main", "plan.md", "PROJ");
+        QTRY_COMPARE(failed.count(), 2);
+        QVERIFY(config.open(QIODevice::ReadOnly));
+        QCOMPARE(config.readAll(), original);
+        config.close();
+        view.openFolder(folder);
+        QTRY_VERIFY_WITH_TIMEOUT(!view.busy(), 10000);
+        QCOMPARE(requested.count(), 1);
+        QCOMPARE(view.project(), QString("Test"));
+        QVERIFY(config.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        config.write("invalid json");
+        config.close();
+        view.openFolder(folder);
+        QTRY_VERIFY(!view.busy());
+        QVERIFY(!view.error().isEmpty());
+        QCOMPARE(requested.count(), 1); // Invalid existing configs are not replaced.
+    }
+    void findingPresentation()
+    {
+        runmark::FindingModel model;
+        model.reset({
+            {"context.unresolved_without_ref", "info", "context", "Unresolved note has no reference", "First original note", ""},
+            {"context.unresolved_without_ref", "info", "context", "Unresolved note has no reference", "Second original note", ""},
+            {"plan.execution_without_plan_link", "info", "plan", "Execution has no plan link", "20260922T123129Z-RM-6 has no matching task in plan", ""},
+            {"git.dirty_workspace", "warning", "git", "Workspace has uncommitted changes", "runmark is dirty", ""}});
+        QCOMPARE(model.rowCount(), 3);
+        runmark::FindingFilterModel filter;
+        filter.setSourceModel(&model);
+        QCOMPARE(filter.totalCount(), 4);
+        QCOMPARE(filter.warningCount(), 1);
+        QCOMPARE(filter.infoCount(), 3);
+        QCOMPARE(filter.index(0, 0).data(runmark::FindingModel::IdRole).toString(), QString("git.dirty_workspace"));
+        filter.setShowInfo(false);
+        QCOMPARE(filter.count(), 1);
+        filter.setQuery("Second original");
+        QCOMPARE(filter.count(), 1);
+        filter.setSelectedKey(filter.keyAt(0));
+        auto finding = filter.selectedFinding();
+        QCOMPARE(finding.value("notes").toStringList().size(), 2);
+        QCOMPARE(finding.value("displayTitle").toString(), QString::fromUtf8("2 notta kaynak bağlantısı eksik"));
+        filter.setQuery("RM-6");
+        QCOMPARE(filter.count(), 1);
+        filter.setSelectedKey(filter.keyAt(0));
+        finding = filter.selectedFinding();
+        QVERIFY(finding.value("displayTitle").toString().startsWith("RM-6:"));
+        QVERIFY(finding.value("impact").toString().contains(QString::fromUtf8("bugün planda olmadığı anlamına gelmez")));
+        filter.setQuery("");
+        QCOMPARE(filter.count(), 1);
+        QVERIFY(filter.selectedKey().isEmpty());
+        filter.setDomain("context");
+        QCOMPARE(filter.count(), 1); // Domain selection explicitly includes info.
+        QCOMPARE(filter.totalCount(), 4);
+    }
     void filtering()
     {
         runmark::FindingModel model;
@@ -158,12 +255,31 @@ private slots:
         auto* details = root->findChild<QQuickItem*>("findingDetails");
         auto* list = root->findChild<QQuickItem*>("findingsList");
         QVERIFY(window && status && filter && search && details && list);
+        QTemporaryDir newProject;
+        auto* setup = root->findChild<QObject*>("projectSetupDialog");
+        QVERIFY(setup);
+        status->openFolder(QUrl::fromLocalFile(newProject.path()));
+        QTRY_VERIFY(setup->property("visible").toBool());
+        QDir().mkpath(QStringLiteral(DESKTOP_CAPTURE_DIR));
+        QTest::qWait(150);
+        QVERIFY(window->grabWindow().save(QStringLiteral(DESKTOP_CAPTURE_DIR "/project-setup.png")));
+        const int previousHeight = window->height();
+        window->setHeight(320);
+        QTest::qWait(100);
+        QVERIFY(setup->property("height").toDouble() <= 288);
+        auto* createButton = root->findChild<QQuickItem*>("setupCreate");
+        QVERIFY(createButton && createButton->isVisible());
+        QVERIFY(createButton->mapToScene(QPointF(0, createButton->height())).y() <= 320);
+        window->setHeight(previousHeight);
+        QVERIFY(QMetaObject::invokeMethod(setup, "reject"));
+        QTRY_VERIFY(!setup->property("visible").toBool());
+        QVERIFY(!QFileInfo::exists(newProject.filePath(".runmark/project.json")));
         status->openProject(QUrl::fromLocalFile(config));
         QTRY_VERIFY_WITH_TIMEOUT(!status->busy(), 5000);
         QVERIFY(status->error().isEmpty());
         status->findings()->reset({
-            {"plan.no_tests", "warning", "plan", "Test kanıtı eksik", "Plan maddesi için henüz test sonucu kaydedilmedi.", "Testleri çalıştırın ve sonucu kaydedin."},
-            {"git.behind", "warning", "git", "Çalışma dalı geride", "Repo A ana dalın gerisinde.", "Değişiklikleri inceleyin."},
+            {"plan.done_without_evidence", "warning", "plan", "Done plan task has no evidence", "RM-8", ""},
+            {"git.dirty_workspace", "warning", "git", "Workspace has uncommitted changes", "Repo A is dirty", ""},
             {"git.behind", "info", "git", "İkinci çalışma alanı", "Repo B ölçümü.", ""}});
         root->setProperty("width", 1440);
         root->setProperty("height", 900);
@@ -171,7 +287,7 @@ private slots:
         search->setProperty("text", "Repo B");
         QTRY_COMPARE(filter->count(), 1);
         search->setProperty("text", "");
-        QTRY_COMPARE(filter->count(), 3);
+        QTRY_COMPARE(filter->count(), 2);
         filter->setSelectedKey(filter->keyAt(0));
         QTRY_VERIFY(details->isVisible());
         QDir().mkpath(QStringLiteral(DESKTOP_CAPTURE_DIR));
@@ -196,6 +312,34 @@ private slots:
         QTRY_VERIFY(!filter->selectedKey().isEmpty());
         QTest::keyClick(window, Qt::Key_Escape);
         QTRY_VERIFY(filter->selectedKey().isEmpty());
+        status->findings()->reset({
+            {"context.unresolved_without_ref", "info", "context", "Unresolved note has no reference", "CI sonucunun bağlantısı takip notuna eklenecek.", ""},
+            {"context.unresolved_without_ref", "info", "context", "Unresolved note has no reference", "Ana dal değişiklikleri çalışma dalıyla karşılaştırılacak.", ""},
+            {"context.unresolved_without_ref", "info", "context", "Unresolved note has no reference", "Açık oturum kontrolünün kaynağı belirtilmemiş.", ""},
+            {"context.unresolved_without_ref", "info", "context", "Unresolved note has no reference", "Devir kaydına ilişkin kararın kaynağı eklenecek.", ""},
+            {"context.unresolved_without_ref", "info", "context", "Unresolved note has no reference", "Önceki test raporunun konumu doğrulanacak.", ""},
+            {"git.dirty_workspace", "warning", "git", "Workspace has uncommitted changes", "runmark is dirty", ""},
+            {"plan.execution_without_plan_link", "info", "plan", "Execution has no plan link", "20260922T123129Z-RM-6 has no matching task in plan", ""},
+            {"plan.execution_without_plan_link", "info", "plan", "Execution has no plan link", "20260922T174528Z-RM-10 has no matching task in plan", ""},
+            {"plan.execution_without_plan_link", "info", "plan", "Execution has no plan link", "20260922T182629Z-RM-12 has no matching task in plan", ""}});
+        QCOMPARE(filter->totalCount(), 9);
+        QCOMPARE(filter->warningCount(), 1);
+        QCOMPARE(filter->infoCount(), 8);
+        QCOMPARE(filter->count(), 1);
+        root->setProperty("width", 1440);
+        root->setProperty("height", 900);
+        filter->setSelectedKey(filter->keyAt(0));
+        QTest::qWait(150);
+        QVERIFY(window->grabWindow().save(QStringLiteral(DESKTOP_CAPTURE_DIR "/findings-priority.png")));
+        filter->setShowInfo(true);
+        QCOMPARE(filter->count(), 5);
+        filter->setSelectedKey(filter->keyAt(2));
+        QTest::qWait(150);
+        QVERIFY(window->grabWindow().save(QStringLiteral(DESKTOP_CAPTURE_DIR "/findings-expanded.png")));
+        filter->setSelectedKey(filter->keyAt(1));
+        QTest::qWait(150);
+        QVERIFY(window->grabWindow().save(QStringLiteral(DESKTOP_CAPTURE_DIR "/findings-notes.png")));
+
     }
 };
 

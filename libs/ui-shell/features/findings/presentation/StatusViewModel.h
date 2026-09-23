@@ -6,6 +6,7 @@
 #include "FindingModel.h"
 
 #include <QObject>
+#include <QDateTime>
 #include <QString>
 #include <QUrl>
 #include <QtQmlIntegration>
@@ -16,6 +17,7 @@ class StatusViewModel : public QObject
 {
     Q_OBJECT
     QML_ELEMENT
+    Q_PROPERTY(QDateTime measuredAt READ measuredAt NOTIFY changed)
     Q_PROPERTY(QString configPath READ configPath NOTIFY configPathChanged)
     Q_PROPERTY(QString project READ project NOTIFY changed)
     Q_PROPERTY(bool busy READ busy NOTIFY changed)
@@ -25,6 +27,7 @@ class StatusViewModel : public QObject
 public:
     explicit StatusViewModel(QObject* parent = nullptr);
 
+    QDateTime measuredAt() const { return m_measuredAt; }
     QString configPath() const { return m_configPath; }
     QString project() const { return m_project; }
     bool busy() const { return m_busy; }
@@ -33,6 +36,9 @@ public:
 
     // Project changes are rejected while a measurement is running.
     Q_INVOKABLE void restoreProject(const QString& explicitPath = {});
+    Q_INVOKABLE void openFolder(const QUrl& folder);
+    Q_INVOKABLE void createProject(const QUrl& folder, const QString& name, const QString& remote,
+        const QString& branch, const QString& plan, const QString& taskPrefix);
     Q_INVOKABLE void openProject(const QUrl& url);
     Q_INVOKABLE void setConfigPath(const QString& path);
     // Runs off the GUI thread: status shells out to git fetch, which can take
@@ -40,12 +46,16 @@ public:
     Q_INVOKABLE void refresh();
 
 signals:
+    void setupRequested(const QUrl& folder, const QString& name);
+    void setupFailed(const QString& message);
+    void setupCreated();
     void changed();
     void configPathChanged();
 
 private:
     void apply(const QString& project, const QVector<FindingModel::Row>& rows, const QString& error);
 
+    QDateTime m_measuredAt;
     QString m_configPath;
     QString m_project;
     QString m_error;

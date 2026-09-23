@@ -15,6 +15,10 @@ class FindingFilterModel : public QSortFilterProxyModel
     Q_PROPERTY(QString selectedKey READ selectedKey WRITE setSelectedKey NOTIFY changed)
     Q_PROPERTY(QVariantMap selectedFinding READ selectedFinding NOTIFY changed)
     Q_PROPERTY(QVariantList domains READ domains NOTIFY changed)
+    Q_PROPERTY(bool showInfo READ showInfo WRITE setShowInfo NOTIFY changed)
+    Q_PROPERTY(int infoCount READ infoCount NOTIFY changed)
+    Q_PROPERTY(int warningCount READ warningCount NOTIFY changed)
+    Q_PROPERTY(int criticalCount READ criticalCount NOTIFY changed)
     Q_PROPERTY(int count READ count NOTIFY changed)
     Q_PROPERTY(int totalCount READ totalCount NOTIFY changed)
 public:
@@ -23,7 +27,12 @@ public:
     QString domain() const { return m_domain; }
     QString selectedKey() const { return m_selectedKey; }
     int count() const { return rowCount(); }
-    int totalCount() const { return sourceModel() ? sourceModel()->rowCount() : 0; }
+    int totalCount() const;
+    int infoCount() const;
+    int warningCount() const;
+    int criticalCount() const;
+    bool showInfo() const { return m_showInfo; }
+    void setShowInfo(bool value);
     QVariantMap selectedFinding() const;
     QVariantList domains() const;
     void setQuery(const QString& value);
@@ -35,7 +44,9 @@ signals:
 protected:
     bool filterAcceptsRow(int row, const QModelIndex& parent) const override;
 private:
+    int countSeverity(int priority) const;
     void reconcileSelection();
+    bool m_showInfo = true;
     QString m_query;
     QString m_domain;
     QString m_selectedKey;

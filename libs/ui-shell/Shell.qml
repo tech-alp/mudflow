@@ -60,11 +60,15 @@ ApplicationWindow {
         status.restoreProject(shell.configPath)
     }
 
-    FileDialog {
+    FolderDialog {
         id: projectPicker
-        title: qsTr("Runmark proje dosyasını seçin")
-        nameFilters: [qsTr("Runmark projesi (project.json)"), qsTr("JSON dosyaları (*.json)")]
-        onAccepted: status.openProject(selectedFile)
+        title: qsTr("Proje klasörünü seçin")
+        onAccepted: status.openFolder(selectedFolder)
+    }
+
+    ProjectSetupDialog {
+        id: setupDialog
+        viewModel: status
     }
 
     // StyleKit resolves control fonts when the style is created. Load the

@@ -47,6 +47,8 @@ struct ResumeResult {
     QVector<Finding> gaps;
 };
 
+QString initializeProject(const QString& folder, const QString& name, const QString& remote,
+    const QString& branch, const QString& plan, const QString& taskPrefix);
 ProjectConfig inspectProject(const QString& configPath);
 StatusResult projectStatus(const QString& configPath);
 StartResult startExecution(const QString& configPath, const QString& task, const QString& agent, const QString& repositoryName, const QStringList& instructions = {});
