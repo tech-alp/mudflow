@@ -2,7 +2,6 @@
 
 #include "paths.h"
 
-#include <QJsonObject>
 #include <QString>
 #include <QStringList>
 #include <QVector>
@@ -15,7 +14,7 @@ namespace runmark {
 struct HandoffInput {
     QString executionId;
     QString outcome;
-    QJsonObject started;
+    ExecutionStarted started;
     QString worktree;
     QString baseSha;
     QString headSha;
@@ -29,7 +28,7 @@ struct HandoffInput {
 };
 
 // Three headings put ADR-002 inside the format: measured, claimed, open.
-void writeHandoff(const Paths& paths, const HandoffInput& input, const QVector<QJsonObject>& events);
+void writeHandoff(const Paths& paths, const HandoffInput& input, const Ledger& ledger);
 void readHandoff(const Paths& paths, ResumeFacts& facts);
 
 } // namespace runmark

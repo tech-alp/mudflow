@@ -1,7 +1,7 @@
 module;
 
+#include <QDateTime>
 #include <QHash>
-#include <QJsonArray>
 #include <QMap>
 #include <QSet>
 
@@ -59,11 +59,12 @@ QVector<Finding> evaluateResume(const ResumeFacts& facts)
             facts.task.isEmpty() ? QStringLiteral("no execution recorded in this project") : facts.task);
         return gaps;
     }
-    if (facts.started.isEmpty()) {
+    if (!facts.started) {
         gap(QStringLiteral("context.missing_start"), QStringLiteral("context"), QStringLiteral("Execution has no start event"), facts.exec);
         return gaps;
     }
-    if (!QDateTime::fromString(facts.started.value(QStringLiteral("ts")).toString(), Qt::ISODate).isValid()) {
+    const ExecutionStarted& started = *facts.started;
+    if (!started.at.isValid()) {
         gap(QStringLiteral("context.invalid_ledger_timestamp"), QStringLiteral("context"), QStringLiteral("Invalid start timestamp"), facts.exec);
     }
     if (facts.handoff.exists == false) {
@@ -71,7 +72,7 @@ QVector<Finding> evaluateResume(const ResumeFacts& facts)
     } else if (facts.handoff.sha1.isEmpty()) {
         gap(QStringLiteral("context.handoff_unreadable"), QStringLiteral("context"), QStringLiteral("Handoff cannot be read"), facts.handoff.path + QStringLiteral(": ") + facts.handoff.error);
     } else {
-        const QString recorded = facts.finished.value(QStringLiteral("handoff_sha1")).toString();
+        const QString recorded = facts.finished ? facts.finished->handoffSha1 : QString();
         if (recorded.isEmpty()) {
             gap(QStringLiteral("context.handoff_unverified"), QStringLiteral("context"), QStringLiteral("Original handoff hash is unknown"), facts.exec);
         } else if (recorded != facts.handoff.sha1) {
@@ -92,33 +93,31 @@ QVector<Finding> evaluateResume(const ResumeFacts& facts)
     } else if (*facts.baseAdvanced) {
         gap(QStringLiteral("git.base_advanced"), QStringLiteral("git"), QStringLiteral("Base advanced since execution start"), facts.currentBaseSha);
     }
-    const QString recordedPlan = facts.started.value(QStringLiteral("plan_sha1")).toString();
+    const QString& recordedPlan = started.planSha1;
     if (recordedPlan.isEmpty() || facts.planSha1.isEmpty()) {
         gap(QStringLiteral("plan.comparison_unknown"), QStringLiteral("plan"), QStringLiteral("Plan change is unknown"), QStringLiteral("Recorded or current plan SHA1 is unavailable"));
     } else if (recordedPlan != facts.planSha1) {
         gap(QStringLiteral("plan.changed_during_execution"), QStringLiteral("plan"), QStringLiteral("Plan changed since execution start"), facts.task);
     }
-    if (facts.started.value(QStringLiteral("plan_ref")).toString().isEmpty()) {
+    if (started.planRef.isEmpty()) {
         gap(QStringLiteral("plan.execution_without_plan_link"), QStringLiteral("plan"), QStringLiteral("Execution has no plan link"), facts.exec);
     }
     if (!facts.measurementError.isEmpty()) {
         gap(QStringLiteral("git.measurement_unavailable"), QStringLiteral("git"), QStringLiteral("Commit or file measurement is unavailable"), facts.measurementError);
     }
-    const QJsonValue instructions = facts.started.value(QStringLiteral("instructions"));
-    if (!instructions.isArray()) {
+    if (!started.instructions) {
         gap(QStringLiteral("context.instructions_unknown"), QStringLiteral("context"), QStringLiteral("Instruction provenance was not recorded"), facts.exec);
     } else {
-        for (const QJsonValue& instruction : instructions.toArray()) {
-            if (instruction.toObject().value(QStringLiteral("sha1")).toString().isEmpty()) {
-                gap(QStringLiteral("context.instruction_unreadable"), QStringLiteral("context"), QStringLiteral("Instruction hash was not recorded"), instruction.toObject().value(QStringLiteral("path")).toString());
+        for (const Instruction& instruction : *started.instructions) {
+            if (instruction.sha1.isEmpty()) {
+                gap(QStringLiteral("context.instruction_unreadable"), QStringLiteral("context"), QStringLiteral("Instruction hash was not recorded"), instruction.path);
             }
         }
     }
-    for (const QJsonObject& event : facts.events) {
-        if (event.value(QStringLiteral("type")) == QLatin1String("note") && event.value(QStringLiteral("kind")) == QLatin1String("unresolved")
-                && event.value(QStringLiteral("ref")).toString().isEmpty()) {
+    for (const NoteRecorded& note : facts.notes) {
+        if (note.kind == QLatin1String("unresolved") && note.ref.isEmpty()) {
             gaps.append(finding(QStringLiteral("context.unresolved_without_ref"), QStringLiteral("info"), QStringLiteral("context"),
-                QStringLiteral("Unresolved note has no reference"), event.value(QStringLiteral("text")).toString()));
+                QStringLiteral("Unresolved note has no reference"), note.text));
         }
     }
     return gaps;
@@ -158,71 +157,67 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
     }
 
     // --- Ledger scan ---
+    const Ledger& ledger = facts.ledger;
+    for (const QString& line : ledger.unrecognised) {
+        findings.append(finding(QStringLiteral("context.unrecognised_ledger_event"), QStringLiteral("warning"), QStringLiteral("context"),
+            QStringLiteral("Ledger has an event of unknown type"), line,
+            QStringLiteral("Upgrade rmk if another version wrote it; otherwise inspect the ledger line.")));
+    }
     QSet<QString> evidencedTasks;
     // A test result counts as measured only when the agent runtime recorded
     // it; the agent's own `rmk evidence --kind test` is a claim (ADR-002).
     QSet<QString> runtimeTestedTasks;
     QSet<QString> claimedTestTasks;
-    QMap<QString, QJsonObject> lastRuntimeTest;
+    QMap<QString, EvidenceRecorded> lastRuntimeTest;
     QSet<QString> completedExecutions;
     QSet<QString> executionsWithCommits;
-    for (const QJsonObject& event : facts.events) {
-        const QString type = event.value(QStringLiteral("type")).toString();
-        if (type == QLatin1String("execution.finished")) {
-            completedExecutions.insert(event.value(QStringLiteral("exec")).toString());
-            if (!event.value(QStringLiteral("commits")).toArray().isEmpty()) {
-                executionsWithCommits.insert(event.value(QStringLiteral("exec")).toString());
-            }
-        }
-        if (type == QLatin1String("evidence.recorded") && event.value(QStringLiteral("kind")).toString() != QLatin1String("manual_note")) {
-            evidencedTasks.insert(event.value(QStringLiteral("task")).toString());
-        }
-        if (type == QLatin1String("evidence.recorded") && event.value(QStringLiteral("kind")).toString() == QLatin1String("test")) {
-            const QString task = event.value(QStringLiteral("task")).toString();
-            if (event.value(QStringLiteral("source")).toString() == QLatin1String("runtime")) {
-                runtimeTestedTasks.insert(task);
-                lastRuntimeTest.insert(event.value(QStringLiteral("exec")).toString(), event);
-            } else {
-                claimedTestTasks.insert(task);
-            }
-        }
+    for (const ExecutionFinished& finished : ledger.finished) {
+        completedExecutions.insert(finished.exec);
+        if (finished.commits && !finished.commits->isEmpty()) executionsWithCommits.insert(finished.exec);
         // A transcript that could not be read is unknown, not "no tests ran".
-        const QJsonObject transcript = event.value(QStringLiteral("transcript")).toObject();
-        if (type == QLatin1String("execution.finished") && transcript.value(QStringLiteral("status")).toString() == QLatin1String("unavailable")) {
+        if (finished.transcript.status == QLatin1String("unavailable")) {
             findings.append(finding(QStringLiteral("context.transcript_unavailable"), QStringLiteral("warning"), QStringLiteral("context"),
                 QStringLiteral("Agent transcript could not be read"),
-                event.value(QStringLiteral("exec")).toString() + QStringLiteral(": ") + transcript.value(QStringLiteral("error")).toString(),
+                finished.exec + QStringLiteral(": ") + finished.transcript.error,
                 QStringLiteral("Test runs of this execution are unknown; check them before trusting its result.")));
         }
-        if (type == QLatin1String("note") && event.value(QStringLiteral("kind")).toString() == QLatin1String("unresolved") && event.value(QStringLiteral("ref")).isNull()) {
+    }
+    for (const EvidenceRecorded& evidence : ledger.evidence) {
+        if (evidence.kind != QLatin1String("manual_note")) evidencedTasks.insert(evidence.task);
+        if (evidence.kind != QLatin1String("test")) continue;
+        if (evidence.fromRuntime) {
+            runtimeTestedTasks.insert(evidence.task);
+            lastRuntimeTest.insert(evidence.exec, evidence);
+        } else {
+            claimedTestTasks.insert(evidence.task);
+        }
+    }
+    for (const NoteRecorded& note : ledger.notes) {
+        if (note.kind == QLatin1String("unresolved") && note.ref.isEmpty()) {
             findings.append(finding(QStringLiteral("context.unresolved_without_ref"), QStringLiteral("info"), QStringLiteral("context"),
-                QStringLiteral("Unresolved note has no reference"), event.value(QStringLiteral("text")).toString()));
+                QStringLiteral("Unresolved note has no reference"), note.text));
         }
     }
 
     for (auto it = lastRuntimeTest.cbegin(); it != lastRuntimeTest.cend(); ++it) {
-        if (it.value().value(QStringLiteral("exit_code")).toInt() != 0) {
+        if (it.value().exitCode.value_or(-1) != 0) {
             findings.append(finding(QStringLiteral("context.last_test_failed"), QStringLiteral("warning"), QStringLiteral("context"),
                 QStringLiteral("Last recorded test run failed"),
-                it.key() + QStringLiteral(": ") + it.value().value(QStringLiteral("summary")).toString(),
+                it.key() + QStringLiteral(": ") + it.value().summary,
                 QStringLiteral("Fix the failure before marking the task done, or record why it is expected.")));
         }
     }
 
     // --- Per execution ---
-    for (const QJsonObject& event : facts.events) {
-        if (event.value(QStringLiteral("type")).toString() != QLatin1String("execution.started")) {
-            continue;
-        }
-        const QString executionId = event.value(QStringLiteral("exec")).toString();
-        const QString task = event.value(QStringLiteral("task")).toString();
+    for (const ExecutionStarted& started : ledger.started) {
+        const QString& executionId = started.exec;
         const bool completed = completedExecutions.contains(executionId);
         const ExecutionFacts* execution = executionFor(facts, executionId);
         const bool hasHandoff = execution && execution->hasHandoff;
         if (executionsWithCommits.contains(executionId)) {
-            evidencedTasks.insert(task);
+            evidencedTasks.insert(started.task);
         }
-        if (event.value(QStringLiteral("plan_ref")).toString().isEmpty()) {
+        if (started.planRef.isEmpty()) {
             findings.append(finding(QStringLiteral("plan.execution_without_plan_link"), QStringLiteral("info"), QStringLiteral("plan"),
                 QStringLiteral("Execution has no plan link"), executionId + QStringLiteral(" has no matching task in plan")));
         }
@@ -230,25 +225,23 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
             findings.append(finding(QStringLiteral("context.no_handoff"), QStringLiteral("warning"), QStringLiteral("context"),
                 QStringLiteral("Completed execution has no handoff"), executionId));
         }
-        const QString executionWorktree = event.value(QStringLiteral("worktree")).toString();
         // A finished execution whose worktree survives on disk reads as active
         // work. Removal is never automatic (ARCHITECTURE.md "Security"); this
         // only makes it visible.
-        if (completed && !executionWorktree.isEmpty() && execution && execution->worktreeExists) {
+        if (completed && !started.worktree.isEmpty() && execution && execution->worktreeExists) {
             findings.append(finding(QStringLiteral("git.orphaned_worktree"), QStringLiteral("info"), QStringLiteral("git"),
                 QStringLiteral("Completed execution still has a worktree"),
-                executionWorktree + QStringLiteral(" remains on disk after ") + executionId + QStringLiteral(" (")
-                    + event.value(QStringLiteral("workspace_source")).toString() + QStringLiteral(")"),
-                QStringLiteral("git worktree remove ") + executionWorktree));
+                started.worktree + QStringLiteral(" remains on disk after ") + executionId + QStringLiteral(" (")
+                    + started.workspaceSource + QStringLiteral(")"),
+                QStringLiteral("git worktree remove ") + started.worktree));
         }
         if (!completed && !hasHandoff) {
-            const QDateTime startedAt = QDateTime::fromString(event.value(QStringLiteral("ts")).toString(), Qt::ISODate);
-            if (!startedAt.isValid()) {
+            if (!started.at.isValid()) {
                 findings.append(finding(QStringLiteral("context.invalid_ledger_timestamp"), QStringLiteral("warning"), QStringLiteral("context"),
                     QStringLiteral("Execution has an invalid ledger timestamp"),
-                    executionId + QStringLiteral(" has invalid ts: ") + event.value(QStringLiteral("ts")).toString()));
-            } else if (startedAt.secsTo(facts.now) >= 24 * 60 * 60) {
-                const qint64 ageSeconds = startedAt.secsTo(facts.now);
+                    executionId + QStringLiteral(" has invalid ts: ") + started.ts));
+            } else if (started.at.secsTo(facts.now) >= 24 * 60 * 60) {
+                const qint64 ageSeconds = started.at.secsTo(facts.now);
                 findings.append(finding(QStringLiteral("context.orphaned_execution"), QStringLiteral("warning"), QStringLiteral("context"),
                     QStringLiteral("Execution appears abandoned"),
                     executionId + QStringLiteral(" started ") + QString::number(ageSeconds / 3600)
@@ -262,16 +255,15 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
                         + silenceFor(execution, facts.now)));
             }
         }
-        const QString recordedPlanSha = event.value(QStringLiteral("plan_sha1")).toString();
-        if (!completed && !recordedPlanSha.isEmpty() && recordedPlanSha != facts.plan.sha1) {
+        if (!completed && !started.planSha1.isEmpty() && started.planSha1 != facts.plan.sha1) {
             findings.append(finding(QStringLiteral("plan.changed_during_execution"), QStringLiteral("warning"), QStringLiteral("plan"),
-                QStringLiteral("Plan changed during execution"), task));
+                QStringLiteral("Plan changed during execution"), started.task));
         }
-        const QString currentBaseSha = remoteBaseShas.value(event.value(QStringLiteral("repo")).toString());
-        if (!completed && !currentBaseSha.isEmpty() && currentBaseSha != event.value(QStringLiteral("base_sha")).toString()) {
+        const QString currentBaseSha = remoteBaseShas.value(started.repo);
+        if (!completed && !currentBaseSha.isEmpty() && currentBaseSha != started.baseSha) {
             findings.append(finding(QStringLiteral("git.stale_worktree_base"), QStringLiteral("warning"), QStringLiteral("git"),
                 QStringLiteral("Worktree base is stale"),
-                executionId + QStringLiteral(" was recorded from an older ") + event.value(QStringLiteral("base")).toString()));
+                executionId + QStringLiteral(" was recorded from an older ") + started.base));
         }
     }
 

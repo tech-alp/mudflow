@@ -112,15 +112,12 @@ void writeHookObservation(const Paths& paths)
         QDateTime::currentDateTimeUtc().toString(Qt::ISODate)}}).toJson(QJsonDocument::Compact));
 }
 
-QJsonArray observeInstructions(const QStringList& instructions, const QString& root)
+QVector<Instruction> observeInstructions(const QStringList& instructions, const QString& root)
 {
-    QJsonArray result;
+    QVector<Instruction> result;
     for (const QString& instruction : instructions) {
         const QString path = expandPath(instruction, root);
-        const QString sha1 = sha1File(path);
-        result.append(QJsonObject{{QStringLiteral("name"), QFileInfo(path).fileName()},
-            {QStringLiteral("path"), path},
-            {QStringLiteral("sha1"), sha1.isEmpty() ? QJsonValue::Null : QJsonValue(sha1)}});
+        result.append({QFileInfo(path).fileName(), path, sha1File(path)});
     }
     return result;
 }

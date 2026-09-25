@@ -114,6 +114,14 @@ skill keşfi veya yönetimi yapılmaz; yalnız dosya adı, mutlak yol ve SHA1 ka
 
 Her satır bir olay. Dört tip var, fazlası yok.
 
+Anahtar isimlerini yalnız `libs/infrastructure/src/ledger.cpp` bilir: satırları
+domain'deki tipli olaylara (`ExecutionStarted`, `ExecutionFinished`,
+`EvidenceRecorded`, `NoteRecorded`) çevirir ve yazarken geri çevirir. Kurallar,
+application ve CLI yalnız bu tipleri görür. Bilinmeyen `type` taşıyan satır
+atlanmaz; `context.unrecognised_ledger_event` bulgusu olur — daha yeni veya
+bozuk bir ledger, daha sessiz bir ledger gibi okunmamalı. JSON olmayan satır
+okumayı durdurur.
+
 Ortak alanlar: `ts` (UTC ISO8601), `type`, `exec`.
 
 ### 3.1 execution.started
@@ -391,6 +399,8 @@ MVP.md §8'in birebir karşılığı. Dokuz kural, fazlası yok.
 | `context.last_test_failed` | warning |
 | `context.transcript_unavailable` | warning |
 | `plan.test_claim_unverified` | warning |
+| `context.unrecognised_ledger_event` | warning |
+| `git.orphaned_worktree` | info |
 
 Task kimliği plan satırında **tam token** olarak aranır: pattern yalnız daha
 uzun bir kimliğin parçasına uyuyorsa (`SCMS-\d+` ile `SCMS-42-W1`) satır
@@ -546,7 +556,7 @@ yan ürün. Başarısızlık "görülmedi" tarafına düşer, güvenli yön budu
     "source": "execution.finished",
     "commits": ["f9e8d7c6"],
     "files_changed": 12,
-    "evidence": ["<source: runtime olan tam evidence.recorded olayları>"]
+    "evidence": ["<source: runtime olan evidence.recorded olayları, ledger biçiminde>"]
   },
   "agent_claims": {
     "verification": "unverified",

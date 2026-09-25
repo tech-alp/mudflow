@@ -5,8 +5,6 @@
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
-#include <QJsonArray>
-#include <QJsonDocument>
 #include <QTextStream>
 
 namespace runmark {
@@ -33,7 +31,7 @@ void readHandoff(const Paths& paths, ResumeFacts& facts)
     facts.handoffContent = QString::fromUtf8(content);
 }
 
-void writeHandoff(const Paths& paths, const HandoffInput& input, const QVector<QJsonObject>& events)
+void writeHandoff(const Paths& paths, const HandoffInput& input, const Ledger& ledger)
 {
     QFile handoff(QDir(paths.handoffs).filePath(input.executionId + QStringLiteral(".md")));
     if (!handoff.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
@@ -41,38 +39,32 @@ void writeHandoff(const Paths& paths, const HandoffInput& input, const QVector<Q
     }
     QTextStream output(&handoff);
     output << "---\nexec: " << input.executionId
-           << "\ntask: " << input.started.value(QStringLiteral("task")).toString()
-           << "\nagent: " << input.started.value(QStringLiteral("agent")).toString()
+           << "\ntask: " << input.started.task
+           << "\nagent: " << input.started.agent
            << "\noutcome: " << input.outcome
-           << "\nrepo: " << input.started.value(QStringLiteral("repo")).toString()
+           << "\nrepo: " << input.started.repo
            << "\nworktree: " << input.worktree
-           << "\nbranch: " << input.started.value(QStringLiteral("branch")).toString()
-           << "\nbase: " << input.started.value(QStringLiteral("base")).toString() << "@" << input.baseSha
+           << "\nbranch: " << input.started.branch
+           << "\nbase: " << input.started.base << "@" << input.baseSha
            << "\nrange: " << input.baseSha << ".." << input.headSha
            << "\n---\n\n## Verified (produced by Runmark)\n\nCommits:\n";
     for (const QString& commit : input.commitLines) output << "- " << commit << '\n';
     output << "\nFiles changed: " << input.filesChanged << " (+" << input.insertions << " / -" << input.deletions << ")\n";
     for (const QString& file : input.files) output << "- " << file << '\n';
     output << "\nEvidence: " << input.filesRef << '\n';
-    for (const QJsonObject& event : events) {
-        if (event.value(QStringLiteral("type")).toString() == QLatin1String("evidence.recorded")
-                && event.value(QStringLiteral("exec")).toString() == input.executionId
-                && event.value(QStringLiteral("source")).toString() == QLatin1String("runtime")) {
-            output << "\nTests (from the " << event.value(QStringLiteral("runtime")).toString() << " transcript): "
-                   << event.value(QStringLiteral("summary")).toString() << '\n';
+    for (const EvidenceRecorded& evidence : ledger.evidence) {
+        if (evidence.exec == input.executionId && evidence.fromRuntime) {
+            output << "\nTests (from the " << evidence.runtime << " transcript): " << evidence.summary << '\n';
         }
     }
     if (!input.preservedRef.isEmpty()) output << "\nPreserved uncommitted snapshot: " << input.preservedRef << '\n';
 
     output << "\n## Agent note (weak evidence \u2014 unverified)\n\n";
     bool hasAgentSummary = false;
-    for (const QJsonObject& event : events) {
-        if (event.value(QStringLiteral("type")).toString() == QLatin1String("evidence.recorded")
-                && event.value(QStringLiteral("exec")).toString() == input.executionId
-                && event.value(QStringLiteral("source")).toString() != QLatin1String("runtime")) {
-            const QString kind = event.value(QStringLiteral("kind")).toString();
-            output << "- " << (kind == QLatin1String("agent_summary") ? QString() : QLatin1Char('[') + kind + QStringLiteral("] "))
-                   << event.value(QStringLiteral("summary")).toString() << '\n';
+    for (const EvidenceRecorded& evidence : ledger.evidence) {
+        if (evidence.exec == input.executionId && !evidence.fromRuntime) {
+            output << "- " << (evidence.kind == QLatin1String("agent_summary") ? QString() : QLatin1Char('[') + evidence.kind + QStringLiteral("] "))
+                   << evidence.summary << '\n';
             hasAgentSummary = true;
         }
     }
@@ -80,13 +72,10 @@ void writeHandoff(const Paths& paths, const HandoffInput& input, const QVector<Q
 
     output << "\n## Open items\n\n";
     bool hasUnresolved = false;
-    for (const QJsonObject& event : events) {
-        if (event.value(QStringLiteral("type")).toString() == QLatin1String("note")
-                && event.value(QStringLiteral("exec")).toString() == input.executionId
-                && event.value(QStringLiteral("kind")).toString() == QLatin1String("unresolved")) {
-            output << "- [ ] " << event.value(QStringLiteral("text")).toString();
-            const QJsonValue reference = event.value(QStringLiteral("ref"));
-            output << (reference.isNull() ? "  (no ref)" : "  (ref: " + reference.toString() + ")") << '\n';
+    for (const NoteRecorded& note : ledger.notes) {
+        if (note.exec == input.executionId && note.kind == QLatin1String("unresolved")) {
+            output << "- [ ] " << note.text;
+            output << (note.ref.isEmpty() ? QStringLiteral("  (no ref)") : QStringLiteral("  (ref: ") + note.ref + QStringLiteral(")")) << '\n';
             hasUnresolved = true;
         }
     }

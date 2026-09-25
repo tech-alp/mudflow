@@ -115,7 +115,7 @@ def architecture():
     for i, item in enumerate([("git", "fetch · merge-base · preserve"), ("ledger", "JSONL · kilitsiz"),
                               ("handoff · plan", "disk I/O · tam-token ID"), ("config_io · paths", ".runmark yerleşimi")]):
         s.box(IX + 18 + (i % 2) * (gw + 14), TOP + 72 + (i // 2) * (gh + 16), gw, gh, "infra", *item)
-    for i, item in enumerate([("Facts", "ölçülen, yorumsuz", False, "B1"), ("rules · evaluate", "Facts → Finding", False, "B3"),
+    for i, item in enumerate([("Facts", "ölçülen, yorumsuz · tipli olaylar"), ("rules · evaluate", "Facts → Finding", False, "B3"),
                               ("ProjectConfig::parse", "doğrulama"), ("domain_purity", "I/O · QObject yasak (CTest)")]):
         s.box(DX + 18 + (i % 2) * (gw + 14), TOP + 72 + (i // 2) * (gh + 16), gw, gh, "domain", *item)
 
@@ -161,7 +161,6 @@ def architecture():
     # Known debts, measured in the code on 2026-09-25.
     s.panel(L, 965, 830, 255, "debt", "Bilinen borçlar", "kodda doğrulandı · sıra = önerilen çözüm sırası", 20)
     debts = [
-        ("B1", "Domain ledger JSON şemasını biliyor (StatusFacts::events = QJsonObject)", "→ infrastructure tipli olay üretsin"),
         ("B2", "Application somut infrastructure'a bağlı, port yok", "→ testler gerçek git deposu kurmak zorunda"),
         ("B3", "Finding ID'leri rules.cpp'de dağınık, katalog DATA_MODEL.md'de elle", "→ kodda tek kural kaydı"),
         ("B4", "resumeMarkdown apps/cli içinde", "→ desktop aynı paketi gösteremez"),

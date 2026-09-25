@@ -7,17 +7,35 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonParseError>
+#include <QSet>
 
 namespace runmark {
+namespace {
 
-QString nowUtc()
+QJsonValue orNull(const QString& value)
 {
-    return QDateTime::currentDateTimeUtc().toString(Qt::ISODate);
+    return value.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(value);
 }
 
-void appendEvent(const Paths& paths, const QString& executionId, const QJsonObject& event)
+QString timestamp(const QDateTime& at)
+{
+    return at.toUTC().toString(Qt::ISODate);
+}
+
+QDateTime parseTime(const QJsonObject& object)
+{
+    return QDateTime::fromString(object.value(QStringLiteral("ts")).toString(), Qt::ISODate);
+}
+
+QString text(const QJsonObject& object, const char* key)
+{
+    return object.value(QLatin1String(key)).toString();
+}
+
+void append(const Paths& paths, const QString& executionId, const QJsonObject& event)
 {
     QFile file(QDir(paths.ledger).filePath(executionId + QStringLiteral(".jsonl")));
     if (!file.open(QIODevice::WriteOnly | QIODevice::Append)) {
@@ -27,9 +45,159 @@ void appendEvent(const Paths& paths, const QString& executionId, const QJsonObje
     file.write("\n");
 }
 
-QVector<QJsonObject> readEvents(const Paths& paths)
+ExecutionStarted parseStarted(const QJsonObject& o)
 {
-    QVector<QJsonObject> events;
+    ExecutionStarted e;
+    e.exec = text(o, "exec");
+    e.ts = text(o, "ts");
+    e.at = parseTime(o);
+    e.task = text(o, "task");
+    e.agent = text(o, "agent");
+    e.repo = text(o, "repo");
+    e.worktree = text(o, "worktree");
+    e.branch = text(o, "branch");
+    e.base = text(o, "base");
+    e.workspaceSource = text(o, "workspace_source");
+    e.repoDirty = o.value(QStringLiteral("repo_dirty")).toBool();
+    e.preservedRef = text(o, "preserved_ref");
+    e.baseSha = text(o, "base_sha");
+    e.headSha = text(o, "head_sha");
+    e.remoteBaseSha = text(o, "remote_base_sha");
+    e.sessionId = text(o, "session_id");
+    const QJsonValue instructions = o.value(QStringLiteral("instructions"));
+    if (instructions.isArray()) {
+        QVector<Instruction> list;
+        for (const QJsonValue& value : instructions.toArray()) {
+            const QJsonObject item = value.toObject();
+            list.append({text(item, "name"), text(item, "path"), text(item, "sha1")});
+        }
+        e.instructions = list;
+    }
+    e.planRef = text(o, "plan_ref");
+    e.planSha1 = text(o, "plan_sha1");
+    return e;
+}
+
+ExecutionFinished parseFinished(const QJsonObject& o)
+{
+    ExecutionFinished e;
+    e.exec = text(o, "exec");
+    e.at = parseTime(o);
+    e.outcome = text(o, "outcome");
+    e.headSha = text(o, "head_sha");
+    const QJsonValue commits = o.value(QStringLiteral("commits"));
+    if (commits.isArray()) {
+        QStringList list;
+        for (const QJsonValue& value : commits.toArray()) list.append(value.toString());
+        e.commits = list;
+    }
+    if (o.value(QStringLiteral("files_changed")).isDouble()) e.filesChanged = o.value(QStringLiteral("files_changed")).toInt();
+    e.insertions = o.value(QStringLiteral("insertions")).toInt();
+    e.deletions = o.value(QStringLiteral("deletions")).toInt();
+    e.filesRef = text(o, "files_ref");
+    e.preservedRef = text(o, "preserved_ref");
+    e.handoffSha1 = text(o, "handoff_sha1");
+    const QJsonObject transcript = o.value(QStringLiteral("transcript")).toObject();
+    e.transcript = {text(transcript, "status"), text(transcript, "path"), text(transcript, "error"),
+        transcript.value(QStringLiteral("commands")).toInt(), transcript.value(QStringLiteral("test_runs")).toInt()};
+    return e;
+}
+
+EvidenceRecorded parseEvidence(const QJsonObject& o)
+{
+    EvidenceRecorded e;
+    e.exec = text(o, "exec");
+    e.at = parseTime(o);
+    e.task = text(o, "task");
+    e.kind = text(o, "kind");
+    e.fromRuntime = text(o, "source") == QLatin1String("runtime");
+    e.runtime = text(o, "runtime");
+    if (o.value(QStringLiteral("exit_code")).isDouble()) e.exitCode = o.value(QStringLiteral("exit_code")).toInt();
+    e.ref = text(o, "ref");
+    e.summary = text(o, "summary");
+    return e;
+}
+
+NoteRecorded parseNote(const QJsonObject& o)
+{
+    return {text(o, "exec"), parseTime(o), text(o, "kind"), text(o, "text"), text(o, "source"), text(o, "ref")};
+}
+
+void parseInto(Ledger& ledger, const QJsonObject& event, const QString& file)
+{
+    const QString type = text(event, "type");
+    if (type == QLatin1String("execution.started")) ledger.started.append(parseStarted(event));
+    else if (type == QLatin1String("execution.finished")) ledger.finished.append(parseFinished(event));
+    else if (type == QLatin1String("evidence.recorded")) ledger.evidence.append(parseEvidence(event));
+    else if (type == QLatin1String("note")) ledger.notes.append(parseNote(event));
+    else ledger.unrecognised.append(file + QStringLiteral(": ") + (type.isEmpty() ? QStringLiteral("<no type>") : type));
+}
+
+} // namespace
+
+void appendEvent(const Paths& paths, const ExecutionStarted& e)
+{
+    QJsonArray instructions;
+    for (const Instruction& instruction : e.instructions.value_or(QVector<Instruction>{})) {
+        instructions.append(QJsonObject{{QStringLiteral("name"), instruction.name}, {QStringLiteral("path"), instruction.path},
+            {QStringLiteral("sha1"), orNull(instruction.sha1)}});
+    }
+    append(paths, e.exec, {
+        {QStringLiteral("ts"), timestamp(e.at)}, {QStringLiteral("type"), QStringLiteral("execution.started")}, {QStringLiteral("exec"), e.exec},
+        {QStringLiteral("task"), e.task}, {QStringLiteral("agent"), e.agent}, {QStringLiteral("repo"), e.repo},
+        {QStringLiteral("worktree"), e.worktree}, {QStringLiteral("branch"), e.branch}, {QStringLiteral("base"), e.base},
+        {QStringLiteral("workspace_source"), e.workspaceSource}, {QStringLiteral("repo_dirty"), e.repoDirty},
+        {QStringLiteral("preserved_ref"), orNull(e.preservedRef)},
+        {QStringLiteral("base_sha"), e.baseSha}, {QStringLiteral("head_sha"), e.headSha},
+        {QStringLiteral("remote_base_sha"), e.remoteBaseSha},
+        {QStringLiteral("session_id"), orNull(e.sessionId)},
+        {QStringLiteral("instructions"), instructions},
+        {QStringLiteral("plan_ref"), e.planRef},
+        {QStringLiteral("plan_sha1"), e.planSha1},
+    });
+}
+
+void appendEvent(const Paths& paths, const ExecutionFinished& e)
+{
+    QJsonObject transcript{{QStringLiteral("status"), e.transcript.status}};
+    if (e.transcript.status == QLatin1String("read")) {
+        transcript.insert(QStringLiteral("path"), e.transcript.path);
+        transcript.insert(QStringLiteral("commands"), e.transcript.commands);
+        transcript.insert(QStringLiteral("test_runs"), e.transcript.testRuns);
+    }
+    if (!e.transcript.error.isEmpty()) transcript.insert(QStringLiteral("error"), e.transcript.error);
+    append(paths, e.exec, {{QStringLiteral("ts"), timestamp(e.at)}, {QStringLiteral("type"), QStringLiteral("execution.finished")},
+        {QStringLiteral("exec"), e.exec}, {QStringLiteral("outcome"), e.outcome}, {QStringLiteral("head_sha"), e.headSha},
+        {QStringLiteral("commits"), QJsonArray::fromStringList(e.commits.value_or(QStringList{}))},
+        {QStringLiteral("files_changed"), e.filesChanged.value_or(0)},
+        {QStringLiteral("insertions"), e.insertions}, {QStringLiteral("deletions"), e.deletions},
+        {QStringLiteral("files_ref"), e.filesRef}, {QStringLiteral("preserved_ref"), orNull(e.preservedRef)},
+        {QStringLiteral("handoff_sha1"), e.handoffSha1}, {QStringLiteral("transcript"), transcript}});
+}
+
+void appendEvent(const Paths& paths, const EvidenceRecorded& e)
+{
+    QJsonObject event{{QStringLiteral("ts"), timestamp(e.at)}, {QStringLiteral("type"), QStringLiteral("evidence.recorded")},
+        {QStringLiteral("exec"), e.exec}, {QStringLiteral("task"), e.task}, {QStringLiteral("kind"), e.kind},
+        {QStringLiteral("source"), e.fromRuntime ? QStringLiteral("runtime") : QStringLiteral("agent")},
+        {QStringLiteral("ref"), orNull(e.ref)}, {QStringLiteral("summary"), e.summary}};
+    if (e.fromRuntime) {
+        event.insert(QStringLiteral("runtime"), e.runtime);
+        event.insert(QStringLiteral("exit_code"), e.exitCode.value_or(-1));
+    }
+    append(paths, e.exec, event);
+}
+
+void appendEvent(const Paths& paths, const NoteRecorded& e)
+{
+    append(paths, e.exec, {{QStringLiteral("ts"), timestamp(e.at)}, {QStringLiteral("type"), QStringLiteral("note")},
+        {QStringLiteral("exec"), e.exec}, {QStringLiteral("kind"), e.kind}, {QStringLiteral("text"), e.text},
+        {QStringLiteral("source"), e.source}, {QStringLiteral("ref"), orNull(e.ref)}});
+}
+
+Ledger readLedger(const Paths& paths)
+{
+    Ledger ledger;
     const QStringList files = QDir(paths.ledger).entryList({QStringLiteral("*.jsonl")}, QDir::Files, QDir::Name);
     for (const QString& name : files) {
         QFile file(QDir(paths.ledger).filePath(name));
@@ -46,19 +214,16 @@ QVector<QJsonObject> readEvents(const Paths& paths)
             if (error.error != QJsonParseError::NoError || !document.isObject()) {
                 fail(QStringLiteral("Invalid ledger event in %1").arg(file.fileName()));
             }
-            events.append(document.object());
+            parseInto(ledger, document.object(), name);
         }
     }
-    return events;
+    return ledger;
 }
 
-QJsonObject startedEvent(const QVector<QJsonObject>& events, const QString& executionId)
+const ExecutionStarted& startedEvent(const Ledger& ledger, const QString& executionId)
 {
-    for (const QJsonObject& event : events) {
-        if (event.value(QStringLiteral("type")) == QLatin1String("execution.started")
-                && event.value(QStringLiteral("exec")) == executionId) {
-            return event;
-        }
+    for (const ExecutionStarted& event : ledger.started) {
+        if (event.exec == executionId) return event;
     }
     fail(QStringLiteral("Unknown execution: %1").arg(executionId));
 }
@@ -67,50 +232,54 @@ ResumeFacts observeResumeLedger(const Paths& paths, const QString& taskOrExecuti
 {
     ResumeFacts facts;
     facts.task = taskOrExecution;
-    QVector<QJsonObject> events;
+    Ledger ledger;
     try {
-        const FileFacts ledger = observePath(paths.ledger);
-        if (!ledger.exists.has_value() || (ledger.exists == true
+        const FileFacts directory = observePath(paths.ledger);
+        if (!directory.exists.has_value() || (directory.exists == true
                 && (!QFileInfo(paths.ledger).isDir() || !QFileInfo(paths.ledger).isReadable()
                     || !QFileInfo(paths.ledger).isExecutable()))) {
             fail(QStringLiteral("Cannot list ledger directory: ") + paths.ledger);
         }
-        events = readEvents(paths);
+        ledger = readLedger(paths);
     } catch (const std::exception& error) {
         facts.ledgerError = QString::fromUtf8(error.what());
         return facts;
     }
-    // IDs carry UTC time; lexical order is the ledger's documented chronology.
-    // An empty selector means "the latest execution": for a caller that does
-    // not know which task it is on at session start, that is the only
-    // meaningful default.
-    for (const QJsonObject& event : events) {
-        const QString exec = event.value(QStringLiteral("exec")).toString();
-        if (!taskOrExecution.isEmpty() && exec == taskOrExecution) {
-            facts.exec = exec;
-            break;
-        }
-        if (event.value(QStringLiteral("type")) != QLatin1String("execution.started")) continue;
-        const bool matches = taskOrExecution.isEmpty()
-            || event.value(QStringLiteral("task")) == taskOrExecution;
-        if (matches && exec > facts.exec) {
-            facts.exec = exec;
+    // An execution ID selects itself, even when only its evidence or notes
+    // survived. Otherwise IDs carry UTC time and lexical order is the ledger's
+    // documented chronology. An empty selector means "the latest execution":
+    // for a caller that does not know which task it is on at session start,
+    // that is the only meaningful default.
+    QSet<QString> known;
+    for (const ExecutionStarted& e : ledger.started) known.insert(e.exec);
+    for (const ExecutionFinished& e : ledger.finished) known.insert(e.exec);
+    for (const EvidenceRecorded& e : ledger.evidence) known.insert(e.exec);
+    for (const NoteRecorded& e : ledger.notes) known.insert(e.exec);
+    if (!taskOrExecution.isEmpty() && known.contains(taskOrExecution)) {
+        facts.exec = taskOrExecution;
+    } else {
+        for (const ExecutionStarted& e : ledger.started) {
+            if ((taskOrExecution.isEmpty() || e.task == taskOrExecution) && e.exec > facts.exec) facts.exec = e.exec;
         }
     }
     if (facts.exec.isEmpty()) return facts;
-    for (const QJsonObject& event : events) {
-        if (event.value(QStringLiteral("exec")) != facts.exec) continue;
-        facts.events.append(event);
-        if (event.value(QStringLiteral("type")) == QLatin1String("execution.started")) facts.started = event;
-        if (event.value(QStringLiteral("type")) == QLatin1String("execution.finished")) facts.finished = event;
+
+    const auto touch = [&facts](const QDateTime& at) {
+        if (at.isValid() && (!facts.lastActivity.isValid() || at > facts.lastActivity)) facts.lastActivity = at;
+    };
+    for (const ExecutionStarted& e : ledger.started) {
+        if (e.exec == facts.exec) { facts.started = e; touch(e.at); }
     }
-    for (const QJsonObject& event : facts.events) {
-        const QDateTime stamp = QDateTime::fromString(event.value(QStringLiteral("ts")).toString(), Qt::ISODate);
-        if (stamp.isValid() && (!facts.lastActivity.isValid() || stamp > facts.lastActivity)) {
-            facts.lastActivity = stamp;
-        }
+    for (const ExecutionFinished& e : ledger.finished) {
+        if (e.exec == facts.exec) { facts.finished = e; touch(e.at); }
     }
-    if (!facts.started.isEmpty()) facts.task = facts.started.value(QStringLiteral("task")).toString();
+    for (const EvidenceRecorded& e : ledger.evidence) {
+        if (e.exec == facts.exec) { facts.evidence.append(e); touch(e.at); }
+    }
+    for (const NoteRecorded& e : ledger.notes) {
+        if (e.exec == facts.exec) { facts.notes.append(e); touch(e.at); }
+    }
+    if (facts.started) facts.task = facts.started->task;
     return facts;
 }
 

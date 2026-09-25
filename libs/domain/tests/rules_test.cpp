@@ -25,14 +25,26 @@ runmark::ProjectConfig config()
     return c;
 }
 
-QJsonObject startedEvent(const QString& exec, const QString& task, const QString& ts)
+runmark::ExecutionStarted startedEvent(const QString& exec, const QString& task, const QString& ts)
 {
-    return {{QStringLiteral("type"), QStringLiteral("execution.started")},
-            {QStringLiteral("exec"), exec}, {QStringLiteral("task"), task},
-            {QStringLiteral("ts"), ts}, {QStringLiteral("repo"), QStringLiteral("r")},
-            {QStringLiteral("plan_ref"), QStringLiteral("plan.md#L1")},
-            {QStringLiteral("base_sha"), QStringLiteral("aaa")},
-            {QStringLiteral("worktree"), QStringLiteral("/w/MF-1")}};
+    runmark::ExecutionStarted e;
+    e.exec = exec;
+    e.task = task;
+    e.ts = ts;
+    e.at = QDateTime::fromString(ts, Qt::ISODate);
+    e.repo = QStringLiteral("r");
+    e.planRef = QStringLiteral("plan.md#L1");
+    e.baseSha = QStringLiteral("aaa");
+    e.worktree = QStringLiteral("/w/MF-1");
+    return e;
+}
+
+runmark::EvidenceRecorded agentEvidence(const QString& task, const QString& kind)
+{
+    runmark::EvidenceRecorded e;
+    e.task = task;
+    e.kind = kind;
+    return e;
 }
 
 } // namespace
@@ -81,18 +93,18 @@ int main()
         f.now = now;
         f.plan.readable = true;
         f.plan.taskCount = 1;
-        f.events.append(startedEvent(QStringLiteral("E1"), QStringLiteral("MF-1"), QStringLiteral("2026-09-20T11:00:00Z")));
+        f.ledger.started.append(startedEvent(QStringLiteral("E1"), QStringLiteral("MF-1"), QStringLiteral("2026-09-20T11:00:00Z")));
         f.executions.append({QStringLiteral("E1"), false, false});
         const QVector<runmark::Finding> fresh = runmark::evaluate(config(), f);
         if (!has(fresh, QStringLiteral("context.active_execution"))
                 || has(fresh, QStringLiteral("context.orphaned_execution"))) return 1;
 
-        f.events[0] = startedEvent(QStringLiteral("E1"), QStringLiteral("MF-1"), QStringLiteral("2026-09-19T11:00:00Z"));
+        f.ledger.started[0] = startedEvent(QStringLiteral("E1"), QStringLiteral("MF-1"), QStringLiteral("2026-09-19T11:00:00Z"));
         const QVector<runmark::Finding> stale = runmark::evaluate(config(), f);
         if (!has(stale, QStringLiteral("context.orphaned_execution"))
                 || has(stale, QStringLiteral("context.active_execution"))) return 1;
 
-        f.events[0] = startedEvent(QStringLiteral("E1"), QStringLiteral("MF-1"), QStringLiteral("bozuk"));
+        f.ledger.started[0] = startedEvent(QStringLiteral("E1"), QStringLiteral("MF-1"), QStringLiteral("bozuk"));
         if (!has(runmark::evaluate(config(), f), QStringLiteral("context.invalid_ledger_timestamp"))) return 1;
     }
 
@@ -138,7 +150,7 @@ int main()
         f.now = now;
         f.plan.readable = true;
         f.plan.taskCount = 1;
-        f.events.append(startedEvent(QStringLiteral("E1"), QStringLiteral("MF-1"), QStringLiteral("2026-09-20T11:00:00Z")));
+        f.ledger.started.append(startedEvent(QStringLiteral("E1"), QStringLiteral("MF-1"), QStringLiteral("2026-09-20T11:00:00Z")));
         runmark::ExecutionFacts busy{QStringLiteral("E1"), false, false, QStringLiteral("codex"),
             QDateTime::fromString(QStringLiteral("2026-09-20T11:59:30Z"), Qt::ISODate)};
         f.executions.append(busy);
@@ -173,15 +185,11 @@ int main()
         f.plan.doneTasks = {QStringLiteral("MF-1")};
         if (!has(runmark::evaluate(config(), f), QStringLiteral("plan.done_without_evidence"))) return 1;
 
-        f.events.append({{QStringLiteral("type"), QStringLiteral("evidence.recorded")},
-                         {QStringLiteral("task"), QStringLiteral("MF-1")},
-                         {QStringLiteral("kind"), QStringLiteral("test")}});
+        f.ledger.evidence.append(agentEvidence(QStringLiteral("MF-1"), QStringLiteral("test")));
         if (has(runmark::evaluate(config(), f), QStringLiteral("plan.done_without_evidence"))) return 1;
 
         // manual_note is the weakest evidence: alone it does not justify "done".
-        f.events[0] = QJsonObject{{QStringLiteral("type"), QStringLiteral("evidence.recorded")},
-                                  {QStringLiteral("task"), QStringLiteral("MF-1")},
-                                  {QStringLiteral("kind"), QStringLiteral("manual_note")}};
+        f.ledger.evidence[0] = agentEvidence(QStringLiteral("MF-1"), QStringLiteral("manual_note"));
         if (!has(runmark::evaluate(config(), f), QStringLiteral("plan.done_without_evidence"))) return 1;
     }
 
@@ -196,10 +204,11 @@ int main()
         f.ledgerError.clear();
         f.exec = QStringLiteral("E1");
         f.started = startedEvent(f.exec, f.task, QStringLiteral("2026-09-20T11:00:00Z"));
-        f.started.insert(QStringLiteral("plan_sha1"), QStringLiteral("plan"));
-        f.started.insert(QStringLiteral("instructions"), QJsonArray{});
+        f.started->planSha1 = QStringLiteral("plan");
+        f.started->instructions = QVector<runmark::Instruction>{};
         f.planSha1 = QStringLiteral("plan");
-        f.finished.insert(QStringLiteral("handoff_sha1"), QStringLiteral("handoff"));
+        f.finished = runmark::ExecutionFinished{};
+        f.finished->handoffSha1 = QStringLiteral("handoff");
         f.handoff.sha1 = QStringLiteral("handoff");
         // These paths are always populated in practice; leaving them empty
         // would produce an empty explanation.
@@ -234,7 +243,7 @@ int main()
         f.planSha1.clear();
         f.fetchError = QStringLiteral("offline");
         f.measurementError = QStringLiteral("missing git objects");
-        f.started.remove(QStringLiteral("instructions"));
+        f.started->instructions.reset();
         const QVector<runmark::Finding> unknown = runmark::evaluateResume(f);
         for (const QString& id : {QStringLiteral("context.handoff_unreadable"), QStringLiteral("git.worktree_unknown"),
                 QStringLiteral("git.base_unknown"), QStringLiteral("git.fetch_failed"), QStringLiteral("plan.comparison_unknown"),
@@ -246,10 +255,22 @@ int main()
         f.handoff.exists = true;
         f.handoff.sha1 = QStringLiteral("edited");
         if (!has(runmark::evaluateResume(f), QStringLiteral("context.handoff_changed"))) return 1;
-        f.finished.remove(QStringLiteral("handoff_sha1"));
+        f.finished->handoffSha1.clear();
         if (!has(runmark::evaluateResume(f), QStringLiteral("context.handoff_unverified"))) return 1;
-        f.started.insert(QStringLiteral("instructions"), QJsonArray{QJsonObject{{QStringLiteral("path"), QStringLiteral("missing.md")}, {QStringLiteral("sha1"), QJsonValue::Null}}});
+        f.started->instructions = QVector<runmark::Instruction>{{QStringLiteral("missing.md"), QStringLiteral("missing.md"), QString()}};
         if (!has(runmark::evaluateResume(f), QStringLiteral("context.instruction_unreadable"))) return 1;
+    }
+
+    // 5c. An event of unknown type is reported, not skipped: a newer or
+    //     corrupted ledger must not read as a quieter one.
+    {
+        runmark::StatusFacts f;
+        f.now = now;
+        f.plan.readable = true;
+        f.plan.taskCount = 1;
+        if (has(runmark::evaluate(config(), f), QStringLiteral("context.unrecognised_ledger_event"))) return 1;
+        f.ledger.unrecognised = {QStringLiteral("E1.jsonl: execution.paused")};
+        if (!has(runmark::evaluate(config(), f), QStringLiteral("context.unrecognised_ledger_event"))) return 1;
     }
 
     // 6. Hook blindness: once the expectation is declared, absence of an

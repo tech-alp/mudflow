@@ -118,6 +118,28 @@ QJsonObject toJson(const ResumeResult& result)
     return resumePackage(result.facts, toJsonArray(result.gaps));
 }
 
+// The resume package quotes ledger events in their ledger shape, so a reader
+// sees the same record the handoff was built from (DATA_MODEL.md §8).
+static QJsonObject toJson(const EvidenceRecorded& event)
+{
+    QJsonObject value{{QStringLiteral("ts"), event.at.toString(Qt::ISODate)}, {QStringLiteral("type"), QStringLiteral("evidence.recorded")},
+        {QStringLiteral("exec"), event.exec}, {QStringLiteral("task"), event.task}, {QStringLiteral("kind"), event.kind},
+        {QStringLiteral("source"), event.fromRuntime ? QStringLiteral("runtime") : QStringLiteral("agent")},
+        {QStringLiteral("ref"), event.ref.isEmpty() ? QJsonValue::Null : QJsonValue(event.ref)}, {QStringLiteral("summary"), event.summary}};
+    if (event.fromRuntime) {
+        value.insert(QStringLiteral("runtime"), event.runtime);
+        value.insert(QStringLiteral("exit_code"), event.exitCode.value_or(-1));
+    }
+    return value;
+}
+
+static QJsonObject toJson(const NoteRecorded& note)
+{
+    return {{QStringLiteral("ts"), note.at.toString(Qt::ISODate)}, {QStringLiteral("type"), QStringLiteral("note")},
+        {QStringLiteral("exec"), note.exec}, {QStringLiteral("kind"), note.kind}, {QStringLiteral("text"), note.text},
+        {QStringLiteral("source"), note.source}, {QStringLiteral("ref"), note.ref.isEmpty() ? QJsonValue::Null : QJsonValue(note.ref)}};
+}
+
 static QJsonObject resumePackage(const ResumeFacts& facts, const QJsonArray& gaps)
 {
     const auto nullable = [](const QString& value) -> QJsonValue {
@@ -126,41 +148,48 @@ static QJsonObject resumePackage(const ResumeFacts& facts, const QJsonArray& gap
     const auto boolean = [](std::optional<bool> value) -> QJsonValue {
         return value.has_value() ? QJsonValue(*value) : QJsonValue::Null;
     };
-    const QString recordedPlan = facts.started.value(QStringLiteral("plan_sha1")).toString();
-    const QString recordedHandoff = facts.finished.value(QStringLiteral("handoff_sha1")).toString();
+    const ExecutionStarted started = facts.started.value_or(ExecutionStarted{});
+    const QString& recordedPlan = started.planSha1;
+    const QString recordedHandoff = facts.finished ? facts.finished->handoffSha1 : QString();
     QJsonArray evidence, claims, withRef, withoutRef;
-    for (const QJsonObject& event : facts.events) {
-        const QString kind = event.value(QStringLiteral("kind")).toString();
-        if (event.value(QStringLiteral("type")) == QLatin1String("evidence.recorded")) {
-            // Only what the runtime recorded is measured; the same kind written
-            // by the agent through `rmk evidence` stays a claim.
-            const bool runtime = event.value(QStringLiteral("source")) == QLatin1String("runtime");
-            if (runtime) evidence.append(event);
-            else if (kind == QLatin1String("test") || kind == QLatin1String("command") || kind == QLatin1String("agent_summary")) claims.append(event);
-        }
-        if (event.value(QStringLiteral("type")) == QLatin1String("note") && kind == QLatin1String("unresolved")) {
-            (event.value(QStringLiteral("ref")).toString().isEmpty() ? withoutRef : withRef).append(event);
-        }
+    for (const EvidenceRecorded& event : facts.evidence) {
+        // Only what the runtime recorded is measured; the same kind written
+        // by the agent through `rmk evidence` stays a claim.
+        if (event.fromRuntime) evidence.append(toJson(event));
+        else if (event.kind == QLatin1String("test") || event.kind == QLatin1String("command")
+                || event.kind == QLatin1String("agent_summary")) claims.append(toJson(event));
     }
-    QJsonObject measured = facts.measured;
-    for (const QString& key : {QStringLiteral("source"), QStringLiteral("commits"), QStringLiteral("files_changed")}) {
-        if (!measured.contains(key)) measured.insert(key, QJsonValue::Null);
+    for (const NoteRecorded& note : facts.notes) {
+        if (note.kind == QLatin1String("unresolved")) (note.ref.isEmpty() ? withoutRef : withRef).append(toJson(note));
     }
-    measured.insert(QStringLiteral("evidence"), evidence);
+    QJsonObject measured{{QStringLiteral("source"), nullable(facts.measured.source)},
+        {QStringLiteral("commits"), facts.measured.commits ? QJsonValue(QJsonArray::fromStringList(*facts.measured.commits)) : QJsonValue::Null},
+        {QStringLiteral("files_changed"), facts.measured.filesChanged ? QJsonValue(*facts.measured.filesChanged) : QJsonValue::Null},
+        {QStringLiteral("evidence"), evidence}};
+    if (!facts.measured.headSha.isEmpty()) measured.insert(QStringLiteral("head_sha"), facts.measured.headSha);
+    QJsonValue instructions = QJsonValue::Null;
+    if (started.instructions) {
+        QJsonArray list;
+        for (const Instruction& instruction : *started.instructions) {
+            list.append(QJsonObject{{QStringLiteral("name"), instruction.name}, {QStringLiteral("path"), instruction.path},
+                {QStringLiteral("sha1"), nullable(instruction.sha1)}});
+        }
+        instructions = list;
+    }
     return {{QStringLiteral("task"), facts.task}, {QStringLiteral("exec"), nullable(facts.exec)},
         {QStringLiteral("last_activity"), facts.lastActivity.isValid()
             ? QJsonValue(facts.lastActivity.toString(Qt::ISODate)) : QJsonValue::Null},
-        {QStringLiteral("plan_ref"), nullable(facts.started.value(QStringLiteral("plan_ref")).toString())},
+        {QStringLiteral("plan_ref"), nullable(started.planRef)},
         {QStringLiteral("plan_sha1"), nullable(recordedPlan)},
         {QStringLiteral("current_plan_sha1"), nullable(facts.planSha1)},
         {QStringLiteral("plan_changed"), recordedPlan.isEmpty() || facts.planSha1.isEmpty()
             ? QJsonValue::Null : QJsonValue(recordedPlan != facts.planSha1)},
         {QStringLiteral("workspace"), QJsonObject{
-            {QStringLiteral("worktree"), nullable(facts.started.value(QStringLiteral("worktree")).toString())},
-            {QStringLiteral("branch"), nullable(facts.started.value(QStringLiteral("branch")).toString())},
-            {QStringLiteral("base"), nullable(facts.started.value(QStringLiteral("base")).toString())},
-            {QStringLiteral("base_sha"), nullable(facts.started.value(QStringLiteral("base_sha")).toString())},
-            {QStringLiteral("remote_base_sha"), nullable(facts.started.value(QStringLiteral("remote_base_sha")).toString())},
+            {QStringLiteral("worktree"), nullable(started.worktree)},
+            {QStringLiteral("branch"), nullable(started.branch)},
+            {QStringLiteral("base"), nullable(started.base)},
+            {QStringLiteral("base_sha"), nullable(started.baseSha)},
+            {QStringLiteral("remote_base_sha"), nullable(started.remoteBaseSha)},
             {QStringLiteral("current_base_sha"), nullable(facts.currentBaseSha)},
             {QStringLiteral("worktree_exists"), boolean(facts.worktree.exists)},
             {QStringLiteral("base_advanced"), boolean(facts.baseAdvanced)}}},
@@ -168,9 +197,8 @@ static QJsonObject resumePackage(const ResumeFacts& facts, const QJsonArray& gap
         {QStringLiteral("agent_claims"), QJsonObject{{QStringLiteral("verification"), QStringLiteral("unverified")},
             {QStringLiteral("evidence"), claims}}},
         {QStringLiteral("unresolved"), QJsonObject{{QStringLiteral("with_ref"), withRef}, {QStringLiteral("without_ref"), withoutRef}}},
-        {QStringLiteral("instructions"), facts.started.contains(QStringLiteral("instructions"))
-            ? facts.started.value(QStringLiteral("instructions")) : QJsonValue::Null},
-        {QStringLiteral("preserved_ref"), nullable((facts.finished.isEmpty() ? facts.started : facts.finished).value(QStringLiteral("preserved_ref")).toString())},
+        {QStringLiteral("instructions"), instructions},
+        {QStringLiteral("preserved_ref"), nullable(facts.finished ? facts.finished->preservedRef : started.preservedRef)},
         {QStringLiteral("handoff"), QJsonObject{{QStringLiteral("path"), nullable(facts.handoff.path)},
             {QStringLiteral("sha1"), nullable(facts.handoff.sha1)}, {QStringLiteral("recorded_sha1"), nullable(recordedHandoff)},
             {QStringLiteral("verified"), recordedHandoff.isEmpty() || facts.handoff.sha1.isEmpty()

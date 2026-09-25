@@ -82,6 +82,96 @@ struct ExecutionFacts {
     QDateTime lastActivity;
 };
 
+// Ledger events, typed. Only infrastructure's ledger.cpp knows the JSONL keys
+// (DATA_MODEL.md §3); everything above it reads these, so a schema change
+// touches one file instead of every rule.
+struct Instruction {
+    QString name;
+    QString path;
+    QString sha1;              // empty: the file could not be read at start
+};
+
+struct ExecutionStarted {
+    QString exec;
+    QString ts;                // as written, for messages when `at` is invalid
+    QDateTime at;
+    QString task;
+    QString agent;
+    QString repo;
+    QString worktree;
+    QString branch;
+    QString base;
+    QString workspaceSource;   // created | adopted
+    bool repoDirty = false;
+    QString preservedRef;
+    QString baseSha;
+    QString headSha;
+    QString remoteBaseSha;     // empty in records older than the field
+    QString sessionId;
+    // nullopt: a record older than the field, which proves nothing about
+    // whether instructions existed.
+    std::optional<QVector<Instruction>> instructions;
+    QString planRef;
+    QString planSha1;
+};
+
+// What finish could learn from the agent runtime's transcript (ADR-021).
+struct TranscriptRecord {
+    QString status;            // read | unavailable | no_session; empty in older records
+    QString path;
+    QString error;
+    int commands = 0;
+    int testRuns = 0;
+};
+
+struct ExecutionFinished {
+    QString exec;
+    QDateTime at;
+    QString outcome;
+    QString headSha;
+    std::optional<QStringList> commits;
+    std::optional<int> filesChanged;
+    int insertions = 0;
+    int deletions = 0;
+    QString filesRef;
+    QString preservedRef;
+    QString handoffSha1;       // empty in records older than the field
+    TranscriptRecord transcript;
+};
+
+struct EvidenceRecorded {
+    QString exec;
+    QDateTime at;
+    QString task;
+    QString kind;
+    // runtime: read from the agent runtime's transcript by finish. Anything
+    // else, including records older than the field, is the agent's claim.
+    bool fromRuntime = false;
+    QString runtime;
+    std::optional<int> exitCode;
+    QString ref;
+    QString summary;
+};
+
+struct NoteRecorded {
+    QString exec;
+    QDateTime at;
+    QString kind;              // decision | unresolved | blocker
+    QString text;
+    QString source;
+    QString ref;
+};
+
+struct Ledger {
+    QVector<ExecutionStarted> started;
+    QVector<ExecutionFinished> finished;
+    QVector<EvidenceRecorded> evidence;
+    QVector<NoteRecorded> notes;
+    // "<file>: <type>" for lines of an unknown type. Skipping them silently
+    // would make a newer or corrupted ledger read as a quieter one.
+    QStringList unrecognised;
+};
+
 // Measured state of a finished execution's worktree. Runmark never removes a
 // worktree on its own -- an uncommitted change or an unmerged branch would be
 // gone with no record of it -- so it reports what it measured and leaves the
@@ -111,7 +201,7 @@ struct StatusFacts {
     // and lets the 24-hour threshold be tested without rewinding ledger dates.
     QDateTime now;
     QVector<RepoFacts> repos;
-    QVector<QJsonObject> events;
+    Ledger ledger;
     QVector<ExecutionFacts> executions;
     PlanFacts plan;
     // When the hook last ran. Absent means nullopt; hookError separates
@@ -127,6 +217,15 @@ struct FileFacts {
     QString error;
 };
 
+// Commits and files of the selected execution: from its finish event, or
+// measured live from its worktree while it is still running.
+struct MeasuredWork {
+    QString source;            // execution.finished | git; empty when unmeasured
+    QString headSha;           // git only
+    std::optional<QStringList> commits;
+    std::optional<int> filesChanged;
+};
+
 struct ResumeFacts {
     QString task;
     QString exec;
@@ -134,9 +233,12 @@ struct ResumeFacts {
     // needs before assuming an unfinished execution is nobody's.
     QDateTime lastActivity;
     QString ledgerError;
-    QJsonObject started;
-    QJsonObject finished;
-    QVector<QJsonObject> events;
+    // The selected execution's events; `exec` may be known from an evidence
+    // or note event while `started` is missing.
+    std::optional<ExecutionStarted> started;
+    std::optional<ExecutionFinished> finished;
+    QVector<EvidenceRecorded> evidence;
+    QVector<NoteRecorded> notes;
     FileFacts handoff;
     QString handoffContent;
     FileFacts worktree;
@@ -145,7 +247,7 @@ struct ResumeFacts {
     std::optional<bool> baseAdvanced;
     QString baseError;
     QString fetchError;
-    QJsonObject measured;
+    MeasuredWork measured;
     QString measurementError;
 };
 

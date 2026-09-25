@@ -22,7 +22,7 @@ Paths pathsFor(const QString& configPath);
 void ensureDirectories(const Paths& paths);
 QString sha1File(const QString& path);
 FileFacts observePath(const QString& path);
-QJsonArray observeInstructions(const QStringList& instructions, const QString& root);
+QVector<Instruction> observeInstructions(const QStringList& instructions, const QString& root);
 
 // .runmark/hook-observed.json: when the agent hook last ran. Not a ledger
 // event -- it belongs to no execution and is written on a read path.
