@@ -303,3 +303,52 @@ Runmark'ın kendi ölçümünden zayıftır.
 
 Yeniden değerlendirme tetikleyicisi: bir runtime transcript biçimini değiştirdiğinde
 veya `launch agent` uygulandığında.
+
+## ADR-022 — Kanıt kaynağı politikası: kurallar bizim, kaynaklar değiştirilebilir
+Accepted. Tarih: 2026-09-25.
+
+Soru: Entire, Multica gibi ajan oturumunu kaydeden araçları Runmark okumalı mı,
+ve bu tür araçların hepsine destek verecek miyiz?
+
+Ölçüm (Entire CLI 0.11.2, sandbox repo, telemetri kapalı): Entire her commit'e
+`Entire-Checkpoint` trailer'ı ekler, oturumun transcript'ini
+`refs/entire/checkpoints/<shard>/<id>` altında `0/full.jsonl` olarak saklar.
+Bu dosya Claude ve Codex'in kendi transcript'inin kopyasıdır; Runmark'ın
+ayrıştırıcısı olduğu gibi okur. Üç senaryo:
+
+- "tests pass" mesajlı commit, exit 1 ile biten teste bağlandı; Entire kaydetti,
+  uyarmadı. Kaydeder, yargılamaz.
+- Codex'in gerçek düzeltmesi: checkpoint'te her komut `exit_code` ile.
+- Codex proje hook'ları onaylanmadan: Entire hook'ları çalışmadı, commit
+  checkpoint'siz kaldı; commit anında uyarı yok, yalnız `entire status` /
+  `doctor` sorulunca söylüyor.
+
+Karar:
+
+1. **Kurallar kaynak bilmez.** Domain yalnız tipli olayları görür (B1);
+   bir kaynağı okumak infrastructure'da bir okuyucudur.
+2. **Her zaman okunan:** Git ve desteklediğimiz ajan runtime'larının kendi
+   transcript'leri (Claude, Codex). Runtime'ı destekliyorsak biçimine zaten
+   bağımlıyız.
+3. **Okunmayan:** üçüncü taraf kaydediciler (Entire, Multica, …). Entire yeni
+   veri getirmez, aynı verinin başka konumunu getirir; karşılığında dosya düzeni,
+   hedefi platform olan bir şirketin kontrolüne girer. Runmark hiçbir üçüncü
+   taraf araç kurulu olmadan tam çalışır.
+4. **Yeni kaynak için üç şartın üçü de:** başka yoldan alınamayan bir kanıt
+   getirir; gerçek bir kullanıcı onu kullanıyor; biçim tanınmazsa sonuç
+   "bilinmiyor" olur, "temiz" değil.
+5. **Runtime biçimi testle korunur:** `libs/infrastructure/tests/transcripts/`
+   altında gerçek runtime'ların ürettiği, izin listesiyle temizlenmiş
+   (`sanitize.py`) örnekler durur; dizin adı üreten sürümdür
+   (`claude-2.1.282`, `codex-0.156.1`). Biçim değişirse test kırılır, kullanıcının
+   kanıtı değil. Sürüm izin listesi tutulmaz: runtime'lar haftalık sürüm çıkarır,
+   her yeni sürüm bulgu üretseydi gürültü olurdu; sinyal biçimin tanınmasıdır
+   (`context.transcript_unavailable`).
+
+Kanıtın makineler arası taşınması Entire'ı gerektirmez: `finish` test koşularını
+zaten `.runmark/evidence/` altına kendi biçimiyle yazar. Taşınma, `.runmark`
+durumunun paylaşılıp paylaşılmayacağı kararıdır; ayrı konu.
+
+Yeniden değerlendirme tetikleyicileri: bir kullanıcı makineler arası kanıt
+ister ve Entire kullanıyordur; bir runtime yerel transcript yazmayı bırakır;
+Entire checkpoint biçimini belgelenmiş ve sürümlü bir sözleşme olarak yayınlar.

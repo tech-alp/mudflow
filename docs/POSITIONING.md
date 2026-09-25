@@ -30,7 +30,7 @@ Hakemin iki yapısal avantajı var:
 | --- | --- | --- |
 | Ajan yapma framework'leri | LangChain, LangGraph, LangSmith | Rakip değil. Kendi ajanını yazanlar içindir; biz hazır ajanları denetleriz. |
 | Paralel ajan çalıştırıcılar (stadyum) | Conductor, Claude Squad, CAO, Multica, Vibe Kanban | Yarışmıyoruz. `rmk start` worktree kısmı burayla çakışır; minimumda tutulur. |
-| Oturum kaydı (kamera) | Entire (Checkpoints, MIT CLI) | En yakın komşu. Kaydeder, gördüğümüz kadarıyla yargılamaz. Risk: üstüne kural motoru eklemesi kısa adım. Fırsat: checkpoint'leri girdi olarak okumak. |
+| Oturum kaydı (kamera) | Entire (Checkpoints, MIT CLI) | En yakın komşu. Ölçüldü: kaydeder, yargılamaz ("tests pass" + exit 1 commit'ine uyarı yok). Checkpoint'leri okunmuyor; gerekçe [ADR-022](DECISIONS.md). Risk: platformuna hakemlik eklemesi. |
 | Takım bilgisi dağıtımı | TeamAI (Tencent) | Komşu. Transcript'ten "ajana sormadan" sinyal çıkarma tekniği bizimle aynı yönde. |
 
 ## Ne yapmıyoruz (şimdilik)
