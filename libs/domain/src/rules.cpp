@@ -3,6 +3,7 @@ module;
 #include <QDateTime>
 #include <QHash>
 #include <QMap>
+#include <QRegularExpression>
 #include <QSet>
 
 module runmark.domain;
@@ -36,6 +37,31 @@ const ExecutionFacts* executionFor(const StatusFacts& facts, const QString& exec
 }
 
 } // namespace
+
+bool exitCodeCoversTestRun(const QString& command, const QString& testPattern)
+{
+    qsizetype end = -1;
+    QRegularExpressionMatchIterator it = QRegularExpression(testPattern).globalMatch(command);
+    while (it.hasNext()) end = it.next().capturedEnd();
+    if (end < 0) return false;
+    const bool pipefail = command.left(end).contains(QStringLiteral("pipefail"));
+    const QString after = command.mid(end);
+    for (qsizetype i = 0; i < after.size(); ++i) {
+        const QChar c = after[i];
+        const QChar next = i + 1 < after.size() ? after[i + 1] : QChar();
+        const QChar previous = i > 0 ? after[i - 1] : QChar();
+        if (c == QLatin1Char('\n') || c == QLatin1Char(';')) return false;
+        if (c == QLatin1Char('|')) {
+            if (next == QLatin1Char('|')) return false;
+            if (!pipefail) return false;
+        } else if (c == QLatin1Char('&')) {
+            if (next == QLatin1Char('&')) { ++i; continue; }
+            if (previous == QLatin1Char('>') || next == QLatin1Char('>')) continue;   // 2>&1, &>file
+            return false;                                                        // background job
+        }
+    }
+    return true;
+}
 
 Finding finding(const QString& id, const QString& severity, const QString& domain,
                 const QString& title, const QString& explanation, const QString& action)
@@ -163,7 +189,11 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
             QStringLiteral("Ledger has an event of unknown type"), line,
             QStringLiteral("Upgrade rmk if another version wrote it; otherwise inspect the ledger line.")));
     }
+    // Only what Runmark or the runtime measured closes "done": a commit of the
+    // execution, or evidence read from the runtime transcript. Anything the
+    // agent recorded itself is a claim and never does (ADR-002).
     QSet<QString> evidencedTasks;
+    QSet<QString> claimedTasks;
     // A test result counts as measured only when the agent runtime recorded
     // it; the agent's own `rmk evidence --kind test` is a claim (ADR-002).
     QSet<QString> runtimeTestedTasks;
@@ -183,10 +213,12 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
         }
     }
     for (const EvidenceRecorded& evidence : ledger.evidence) {
-        if (evidence.kind != QLatin1String("manual_note")) evidencedTasks.insert(evidence.task);
+        if (evidence.fromRuntime) evidencedTasks.insert(evidence.task);
+        else if (evidence.kind != QLatin1String("manual_note")) claimedTasks.insert(evidence.task);
         if (evidence.kind != QLatin1String("test")) continue;
         if (evidence.fromRuntime) {
-            runtimeTestedTasks.insert(evidence.task);
+            // A run whose result is unknown does not verify a claim either.
+            if (evidence.exitCode) runtimeTestedTasks.insert(evidence.task);
             lastRuntimeTest.insert(evidence.exec, evidence);
         } else {
             claimedTestTasks.insert(evidence.task);
@@ -200,7 +232,12 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
     }
 
     for (auto it = lastRuntimeTest.cbegin(); it != lastRuntimeTest.cend(); ++it) {
-        if (it.value().exitCode.value_or(-1) != 0) {
+        if (!it.value().exitCode) {
+            findings.append(finding(QStringLiteral("context.test_result_unknown"), QStringLiteral("warning"), QStringLiteral("context"),
+                QStringLiteral("Last test run's result is unknown"),
+                it.key() + QStringLiteral(": ") + it.value().summary,
+                QStringLiteral("Run the tests without piping their output (or with set -o pipefail) so the exit code is the test's own.")));
+        } else if (*it.value().exitCode != 0) {
             findings.append(finding(QStringLiteral("context.last_test_failed"), QStringLiteral("warning"), QStringLiteral("context"),
                 QStringLiteral("Last recorded test run failed"),
                 it.key() + QStringLiteral(": ") + it.value().summary,
@@ -277,7 +314,8 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
         for (const QString& task : facts.plan.doneTasks) {
             if (!evidencedTasks.contains(task)) {
                 findings.append(finding(QStringLiteral("plan.done_without_evidence"), QStringLiteral("warning"), QStringLiteral("plan"),
-                    QStringLiteral("Done plan task has no evidence"), task));
+                    QStringLiteral("Done plan task has no evidence"),
+                    claimedTasks.contains(task) ? task + QStringLiteral(": only agent-recorded evidence, nothing measured") : task));
             }
         }
         for (const QString& task : facts.plan.doneTasks) {

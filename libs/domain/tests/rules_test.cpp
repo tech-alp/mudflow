@@ -5,6 +5,7 @@ import runmark.domain;
 
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QTextStream>
 
 namespace {
 
@@ -176,7 +177,8 @@ int main()
         if (!explanation.contains(QStringLiteral("last activity unknown"))) return 1;
     }
 
-    // 5. done_without_evidence stays quiet when evidence exists.
+    // 5. Only measured evidence closes "done" (ADR-002): the agent's own
+    //    records, even of kind test or commit, are claims.
     {
         runmark::StatusFacts f;
         f.now = now;
@@ -185,12 +187,53 @@ int main()
         f.plan.doneTasks = {QStringLiteral("MF-1")};
         if (!has(runmark::evaluate(config(), f), QStringLiteral("plan.done_without_evidence"))) return 1;
 
-        f.ledger.evidence.append(agentEvidence(QStringLiteral("MF-1"), QStringLiteral("test")));
-        if (has(runmark::evaluate(config(), f), QStringLiteral("plan.done_without_evidence"))) return 1;
+        for (const QString& kind : {QStringLiteral("test"), QStringLiteral("commit"), QStringLiteral("agent_summary")}) {
+            f.ledger.evidence = {agentEvidence(QStringLiteral("MF-1"), kind)};
+            if (!has(runmark::evaluate(config(), f), QStringLiteral("plan.done_without_evidence"))) return 1;
+        }
 
-        // manual_note is the weakest evidence: alone it does not justify "done".
-        f.ledger.evidence[0] = agentEvidence(QStringLiteral("MF-1"), QStringLiteral("manual_note"));
-        if (!has(runmark::evaluate(config(), f), QStringLiteral("plan.done_without_evidence"))) return 1;
+        runmark::EvidenceRecorded measured = agentEvidence(QStringLiteral("MF-1"), QStringLiteral("test"));
+        measured.exec = QStringLiteral("E1");
+        measured.fromRuntime = true;
+        measured.exitCode = 0;
+        f.ledger.evidence = {measured};
+        QVector<runmark::Finding> findings = runmark::evaluate(config(), f);
+        if (has(findings, QStringLiteral("plan.done_without_evidence")) || has(findings, QStringLiteral("context.last_test_failed"))
+                || has(findings, QStringLiteral("context.test_result_unknown"))) return 1;
+
+        // Piped into tail: a run happened, its result did not reach us.
+        f.ledger.evidence[0].exitCode.reset();
+        findings = runmark::evaluate(config(), f);
+        if (!has(findings, QStringLiteral("context.test_result_unknown")) || has(findings, QStringLiteral("context.last_test_failed"))) return 1;
+        f.ledger.evidence[0].exitCode = 2;
+        if (!has(runmark::evaluate(config(), f), QStringLiteral("context.last_test_failed"))) return 1;
+    }
+
+    // 5d. Whose exit code is it? Measured in this repository's own sessions:
+    //     135 of 142 agent test commands were piped.
+    {
+        const QString pattern = runmark::ProjectConfig::defaultTestCommandPattern();
+        const struct { const char* command; bool covered; } cases[] = {
+            {"ctest --preset dev", true},
+            {"cd build && ctest --output-on-failure", true},
+            {"ctest --preset dev && echo done", true},
+            {"ctest --preset dev 2>&1", true},
+            {"ctest --preset dev &> log.txt", true},
+            {"set -o pipefail; ctest --preset dev | tail -5", true},
+            {"ctest --preset dev 2>&1 | tail -20", false},
+            {"ctest --preset dev; echo done", false},
+            {"ctest --preset dev || true", false},
+            {"ctest --preset dev &", false},
+            {"ctest -R one\necho next", false},
+            {"echo build only", false},
+        };
+        for (const auto& c : cases) {
+            const QString command = QString::fromLatin1(c.command);
+            if (runmark::exitCodeCoversTestRun(command, pattern) != c.covered) {
+                QTextStream(stderr) << "exitCodeCoversTestRun wrong for: " << c.command << '\n';
+                return 1;
+            }
+        }
     }
 
     // Resume: deterministic facts, no git/filesystem/clock access.

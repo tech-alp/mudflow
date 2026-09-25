@@ -278,6 +278,14 @@ export namespace runmark {
 QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts);
 QVector<Finding> evaluateResume(const ResumeFacts& facts);
 
+// Whether a shell command's exit status is the test run's own. After
+// `ctest | tail`, `ctest; echo` or `ctest || true` the status belongs to a
+// later command, so a failing suite reads as exit 0. `&&` keeps a failure, and
+// so does a pipe once `pipefail` is set.
+// ponytail: scans characters, not shell grammar; a separator inside quotes
+// after the test counts too, which errs towards "unknown".
+bool exitCodeCoversTestRun(const QString& command, const QString& testPattern);
+
 // One place owns the finding shape (TRUST_MODEL.md); start warnings use it too.
 Finding finding(const QString& id, const QString& severity, const QString& domain,
                 const QString& title, const QString& explanation, const QString& action = {});

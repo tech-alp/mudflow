@@ -365,6 +365,16 @@ void transcriptContract(const QString& executable)
     check(codexTested.value("exit_code") == 0 && codexTested.value("runtime") == "codex"
         && codexTested.value("summary").toString().contains("pytest -q"), "codex runtime test recorded");
 
+    // Piped into tail, a failing suite exits 0: the result is unknown, never a pass.
+    qputenv("CODEX_THREAD_ID", "thread-2");
+    const QString piped = cli({"start", "MF-4", "--agent", "codex"}).value("exec").toString();
+    check(writeFile(root + "/codex/sessions/2026/09/25/rollout-2026-09-25T00-00-01-thread-2.jsonl",
+        "{\"timestamp\":\"" + now + "\",\"type\":\"event_msg\",\"payload\":{\"type\":\"item_completed\",\"item\":{\"type\":\"CommandExecution\",\"command\":[\"/bin/zsh\",\"-lc\",\"ctest --preset dev 2>&1 | tail -5\"],\"exit_code\":0}}}\n"),
+        "piped transcript");
+    cli({"finish", piped});
+    check(runtimeEvidence(root + "/.runmark/ledger/" + piped + ".jsonl").value("exit_code").isNull(), "piped exit code recorded as unknown");
+    check(hasFinding(cli({"status"}), "context.test_result_unknown"), "unknown test result reported");
+
     for (const char* name : {"CLAUDE_CONFIG_DIR", "CLAUDE_CODE_SESSION_ID", "CODEX_HOME", "CODEX_THREAD_ID"}) qunsetenv(name);
 }
 

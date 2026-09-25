@@ -304,6 +304,14 @@ Runmark'ın kendi ölçümünden zayıftır.
 Yeniden değerlendirme tetikleyicisi: bir runtime transcript biçimini değiştirdiğinde
 veya `launch agent` uygulandığında.
 
+Ek (2026-09-25): İki açık kapatıldı. (1) Pipe: `ctest | tail` gibi komutlarda
+çıkış kodu sonraki komutundur; bu depodaki oturumlarda test komutlarının
+135/142'si böyleydi. Bu durumda kod `null` yazılır ve
+`context.test_result_unknown` bulgusu çıkar; bilinmeyen sonuç geçmiş sayılmaz.
+(2) Ajanın kendi kaydettiği hiçbir kanıt (`commit`, `test`, `agent_summary`…)
+artık `plan.done_without_evidence`'ı kapatmaz; yalnız execution commit'i ve
+runtime kanıtı kapatır.
+
 ## ADR-022 — Kanıt kaynağı politikası: kurallar bizim, kaynaklar değiştirilebilir
 Accepted. Tarih: 2026-09-25.
 

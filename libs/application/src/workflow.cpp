@@ -95,8 +95,10 @@ TranscriptRecord recordRuntimeTests(const ProjectConfig& config, const Paths& pa
     const TranscriptCommand* last = nullptr;
     for (const TranscriptCommand& command : transcript.commands) {
         if (!testPattern.match(command.command).hasMatch()) continue;
+        const bool covered = exitCodeCoversTestRun(command.command, config.testCommandPattern);
         runs.append(QJsonObject{{QStringLiteral("at"), command.at.toString(Qt::ISODateWithMs)},
-            {QStringLiteral("command"), command.command}, {QStringLiteral("exit_code"), command.exitCode}});
+            {QStringLiteral("command"), command.command},
+            {QStringLiteral("exit_code"), covered ? QJsonValue(command.exitCode) : QJsonValue::Null}});
         last = &command;
     }
     const TranscriptRecord record{QStringLiteral("read"), transcript.path, {}, int(transcript.commands.size()), int(runs.size())};
@@ -109,10 +111,13 @@ TranscriptRecord recordRuntimeTests(const ProjectConfig& config, const Paths& pa
     evidence.kind = QStringLiteral("test");
     evidence.fromRuntime = true;
     evidence.runtime = started.agent;
-    evidence.exitCode = last->exitCode;
+    // `ctest | tail` exits with tail's status: record that as unknown, not 0.
+    if (exitCodeCoversTestRun(last->command, config.testCommandPattern)) evidence.exitCode = last->exitCode;
     evidence.ref = writeEvidence(paths, {{QStringLiteral("transcript"), transcript.path}, {QStringLiteral("runs"), runs}});
-    evidence.summary = QStringLiteral("%1 test run(s); last: %2 (exit %3)")
-        .arg(QString::number(runs.size()), last->command.left(200), QString::number(last->exitCode));
+    evidence.summary = QStringLiteral("%1 test run(s); last: %2 (%3)")
+        .arg(QString::number(runs.size()), last->command.left(200),
+            evidence.exitCode ? QStringLiteral("exit ") + QString::number(*evidence.exitCode)
+                              : QStringLiteral("exit code unknown: a later command owns it"));
     appendEvent(paths, evidence);
     ledger.evidence.append(evidence);
     return record;

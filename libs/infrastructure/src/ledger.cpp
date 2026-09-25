@@ -183,7 +183,7 @@ void appendEvent(const Paths& paths, const EvidenceRecorded& e)
         {QStringLiteral("ref"), orNull(e.ref)}, {QStringLiteral("summary"), e.summary}};
     if (e.fromRuntime) {
         event.insert(QStringLiteral("runtime"), e.runtime);
-        event.insert(QStringLiteral("exit_code"), e.exitCode.value_or(-1));
+        event.insert(QStringLiteral("exit_code"), e.exitCode ? QJsonValue(*e.exitCode) : QJsonValue::Null);
     }
     append(paths, e.exec, event);
 }

@@ -128,7 +128,7 @@ static QJsonObject toJson(const EvidenceRecorded& event)
         {QStringLiteral("ref"), event.ref.isEmpty() ? QJsonValue::Null : QJsonValue(event.ref)}, {QStringLiteral("summary"), event.summary}};
     if (event.fromRuntime) {
         value.insert(QStringLiteral("runtime"), event.runtime);
-        value.insert(QStringLiteral("exit_code"), event.exitCode.value_or(-1));
+        value.insert(QStringLiteral("exit_code"), event.exitCode ? QJsonValue(*event.exitCode) : QJsonValue::Null);
     }
     return value;
 }

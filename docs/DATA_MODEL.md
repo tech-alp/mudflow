@@ -263,9 +263,16 @@ Eski finish kayıtlarında bulunmayabilir; resume bu durumda doğrulandığını
   koşularından yazar. Execution başına en fazla bir olay; `exit_code` son
   koşunun kodu, `ref` tüm koşuların listesi. Claude'da başarısız komut
   `Exit code N` taşır, başarılı komut kod taşımaz (0 sayılır); kodsuz hata `-1`.
+  Komutun çıkış kodu testin kendisine ait değilse `exit_code: null` yazılır:
+  test komutundan sonra `|`, `;`, `||`, satır sonu veya arka plan `&` gelirse
+  kod sonraki komutundur (`ctest | tail` test patlasa da 0 döner). `&&` ve
+  `set -o pipefail` altındaki pipe kodu korur. Bu depodaki ajan oturumlarında
+  142 test komutunun 135'i pipe'lıydı; bilinmeyen sonuç geçmiş sayılmaz.
 - `agent` — `rmk evidence` ile ajanın kendisi yazar. Alanı olmayan eski kayıtlar
   da `agent` sayılır. Aynı `kind` olsa da **beyandır**: resume paketinde
-  `agent_claims` altında durur ve `plan.test_claim_unverified` bulgusunu kapatmaz.
+  `agent_claims` altında durur, `plan.test_claim_unverified` bulgusunu kapatmaz
+  ve `plan.done_without_evidence`'ı da kapatmaz. "Bitti"yi yalnız ölçülen kapatır:
+  execution'ın commit'i veya runtime kanıtı.
 
 Güç sırası: ajanın sözü < runtime kaydı < Runmark'ın kendi ölçtüğü (Git).
 Runtime kaydı modelin uyduramayacağı ama shell erişimli bir ajanın teoride
@@ -397,6 +404,7 @@ MVP.md §8'in birebir karşılığı. Dokuz kural, fazlası yok.
 | `context.unresolved_without_ref` | info |
 | `context.hooks_not_observed` | warning |
 | `context.last_test_failed` | warning |
+| `context.test_result_unknown` | warning |
 | `context.transcript_unavailable` | warning |
 | `plan.test_claim_unverified` | warning |
 | `context.unrecognised_ledger_event` | warning |
