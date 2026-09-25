@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1530" height="1010" viewBox="0 0 1530 1010" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>
+<rect width="1530" height="1010" fill="#ffffff"/>
+<text x="765.0" y="50" font-size="34" fill="#1f2328" font-weight="bold" text-anchor="middle">Runmark: proje kokpiti (öneri)</text>
+<text x="765" y="80" font-size="16" fill="#57606a" text-anchor="middle">Akışı tanımlamaz, tanır: hangi araçla çalışırsan çalış, panel aynı dili konuşur.</text>
+<rect x="40" y="105" width="1420" height="150" rx="8" fill="#f4f0fc" stroke="#5b3fa6" stroke-width="2"/>
+<text x="58" y="137" font-size="22" fill="#5b3fa6" font-weight="bold" text-anchor="start">Sen</text>
+<text x="58" y="159" font-size="13" fill="#57606a" text-anchor="start">tek panel, tüm projeler</text>
+<rect x="250.0" y="140" width="387.3333333333333" height="90" rx="5" fill="#ffffff" stroke="#5b3fa6" stroke-width="1.5"/>
+<text x="443.66666666666663" y="183.0" font-size="15" fill="#1f2328" text-anchor="middle">Desktop kokpit</text>
+<text x="443.66666666666663" y="200.0" font-size="11" fill="#57606a" text-anchor="middle">projeler · görevler · ilerleme · kararlar · çalışan ajanlar</text>
+<rect x="651.3333333333333" y="140" width="387.3333333333333" height="90" rx="5" fill="#ffffff" stroke="#5b3fa6" stroke-width="1.5"/>
+<text x="844.9999999999999" y="183.0" font-size="15" fill="#1f2328" text-anchor="middle">rmk CLI</text>
+<text x="844.9999999999999" y="200.0" font-size="11" fill="#57606a" text-anchor="middle">status · resume · start · finish</text>
+<rect x="1052.6666666666665" y="140" width="387.3333333333333" height="90" rx="5" fill="#ffffff" stroke="#5b3fa6" stroke-width="1.5"/>
+<text x="1246.3333333333333" y="183.0" font-size="15" fill="#1f2328" text-anchor="middle">Ajan oturumu</text>
+<text x="1246.3333333333333" y="200.0" font-size="11" fill="#57606a" text-anchor="middle">açılışta: nerede kaldık · kapanışta: ne karar verildi</text>
+<rect x="40" y="290" width="1420" height="170" rx="8" fill="#eef4fd" stroke="#1f5fbf" stroke-width="2"/>
+<text x="58" y="322" font-size="22" fill="#1f5fbf" font-weight="bold" text-anchor="start">Çekirdek</text>
+<text x="58" y="344" font-size="13" fill="#57606a" text-anchor="start">tek dil</text>
+<rect x="250.0" y="325" width="387.3333333333333" height="110" rx="5" fill="#ffffff" stroke="#1f5fbf" stroke-width="1.5"/>
+<text x="443.66666666666663" y="378.0" font-size="15" fill="#1f2328" text-anchor="middle">Ortak model</text>
+<text x="443.66666666666663" y="395.0" font-size="11" fill="#57606a" text-anchor="middle">Görev · Karar · İlerleme · Kanıt · Oturum</text>
+<rect x="651.3333333333333" y="325" width="387.3333333333333" height="110" rx="5" fill="#ffffff" stroke="#1f5fbf" stroke-width="1.5"/>
+<text x="844.9999999999999" y="378.0" font-size="15" fill="#1f2328" text-anchor="middle">Güven katmanı</text>
+<text x="844.9999999999999" y="395.0" font-size="11" fill="#57606a" text-anchor="middle">bulgular · "doğrulandı" rozeti · bilinmeyen ≠ temiz</text>
+<rect x="1052.6666666666665" y="325" width="387.3333333333333" height="110" rx="5" fill="#ffffff" stroke="#1f5fbf" stroke-width="1.5"/>
+<text x="1246.3333333333333" y="378.0" font-size="15" fill="#1f2328" text-anchor="middle">Defter</text>
+<text x="1246.3333333333333" y="395.0" font-size="11" fill="#57606a" text-anchor="middle">.runmark/ledger · yerel · kaybolmaz</text>
+<rect x="40" y="495" width="1420" height="170" rx="8" fill="#f3f7fd" stroke="#1f5fbf" stroke-width="2"/>
+<text x="58" y="527" font-size="22" fill="#1f5fbf" font-weight="bold" text-anchor="start">Okuyucular</text>
+<text x="58" y="549" font-size="13" fill="#57606a" text-anchor="start">araç başına adaptör yok</text>
+<rect x="250.0" y="530" width="287.0" height="110" rx="5" fill="#ffffff" stroke="#1f5fbf" stroke-width="1.5"/>
+<text x="393.5" y="583.0" font-size="15" fill="#1f2328" text-anchor="middle">Plan dosyaları: tek checklist okuyucusu</text>
+<text x="393.5" y="600.0" font-size="11" fill="#57606a" text-anchor="middle">Superpowers · planning-with-files · GSD → hepsi - [ ]</text>
+<rect x="551.0" y="530" width="287.0" height="110" rx="5" fill="#ffffff" stroke="#1f5fbf" stroke-width="1.5"/>
+<text x="694.5" y="583.0" font-size="15" fill="#1f2328" text-anchor="middle">Git</text>
+<text x="694.5" y="600.0" font-size="11" fill="#57606a" text-anchor="middle">commit · base · worktree</text>
+<rect x="852.0" y="530" width="287.0" height="110" rx="5" fill="#ffffff" stroke="#1f5fbf" stroke-width="1.5"/>
+<text x="995.5" y="583.0" font-size="15" fill="#1f2328" text-anchor="middle">Claude · Codex</text>
+<text x="995.5" y="600.0" font-size="11" fill="#57606a" text-anchor="middle">transcript: komut · exit</text>
+<rect x="1153.0" y="530" width="287.0" height="110" rx="5" fill="#fbfbfb" stroke="#1f5fbf" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="1296.5" y="583.0" font-size="15" fill="#1f2328" text-anchor="middle">+ yeni araç</text>
+<text x="1296.5" y="600.0" font-size="11" fill="#57606a" text-anchor="middle">config'e bir satır</text>
+<rect x="40" y="700" width="1420" height="175" rx="8" fill="#eef8f0" stroke="#2d7a3e" stroke-width="2"/>
+<text x="58" y="732" font-size="22" fill="#2d7a3e" font-weight="bold" text-anchor="start">Çalışma alanı</text>
+<text x="58" y="754" font-size="13" fill="#57606a" text-anchor="start">her oturum kaydedilir</text>
+<rect x="250.0" y="735" width="287.0" height="110" rx="5" fill="#ffffff" stroke="#2d7a3e" stroke-width="1.5"/>
+<text x="393.5" y="788.0" font-size="15" fill="#1f2328" text-anchor="middle">Claude + Superpowers</text>
+<text x="393.5" y="805.0" font-size="11" fill="#57606a" text-anchor="middle">worktree: task/NX004</text>
+<rect x="551.0" y="735" width="287.0" height="110" rx="5" fill="#ffffff" stroke="#2d7a3e" stroke-width="1.5"/>
+<text x="694.5" y="788.0" font-size="15" fill="#1f2328" text-anchor="middle">Codex + GSD</text>
+<text x="694.5" y="805.0" font-size="11" fill="#57606a" text-anchor="middle">worktree: task/NX005</text>
+<rect x="852.0" y="735" width="287.0" height="110" rx="5" fill="#ffffff" stroke="#2d7a3e" stroke-width="1.5"/>
+<text x="995.5" y="788.0" font-size="15" fill="#1f2328" text-anchor="middle">Claude + planning-with-files</text>
+<text x="995.5" y="805.0" font-size="11" fill="#57606a" text-anchor="middle">worktree: task/OLY-12</text>
+<rect x="1153.0" y="735" width="287.0" height="110" rx="5" fill="#fbfbfb" stroke="#2d7a3e" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="1296.5" y="788.0" font-size="15" fill="#1f2328" text-anchor="middle">rmk launch</text>
+<text x="1296.5" y="805.0" font-size="11" fill="#57606a" text-anchor="middle">kolaylık · sonra</text>
+<path d="M430,700 V665" fill="none" stroke="#1f2328" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M430,495 V460" fill="none" stroke="#1f2328" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M430,290 V255" fill="none" stroke="#1f2328" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M750,700 V665" fill="none" stroke="#1f2328" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M750,495 V460" fill="none" stroke="#1f2328" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M750,290 V255" fill="none" stroke="#1f2328" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M1070,700 V665" fill="none" stroke="#1f2328" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M1070,495 V460" fill="none" stroke="#1f2328" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M1070,290 V255" fill="none" stroke="#1f2328" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="1085" y="687" font-size="12" fill="#57606a" text-anchor="start">dosya yazar</text>
+<text x="1085" y="482" font-size="12" fill="#57606a" text-anchor="start">ortak modele çevirir</text>
+<text x="1085" y="277" font-size="12" fill="#57606a" text-anchor="start">tek panelde gösterir</text>
+<path d="M1460,790 H1478 V380 H1443" fill="none" stroke="#2d7a3e" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="1484" y="580" font-size="12" fill="#2d7a3e" text-anchor="start">hook:</text>
+<text x="1484" y="596" font-size="12" fill="#2d7a3e" text-anchor="start">oturum</text>
+<text x="1484" y="612" font-size="12" fill="#2d7a3e" text-anchor="start">açıldı /</text>
+<text x="1484" y="628" font-size="12" fill="#2d7a3e" text-anchor="start">kapandı</text>
+<rect x="40" y="900" width="1420" height="90" rx="8" fill="#ffffff" stroke="#8c959f" stroke-width="2"/>
+<text x="60" y="930" font-size="18" fill="#1f2328" font-weight="bold" text-anchor="start">Karar noktaları</text>
+<text x="60" y="957" font-size="14" fill="#1f2328" text-anchor="start">• Akış preset'i yok: her araç zaten bir akış; Runmark onları okur.   • Ajan nasıl açılırsa açılsın hook oturumu deftere yazar; launch kolaylık.</text>
+<text x="60" y="979" font-size="14" fill="#1f2328" text-anchor="start">• Doğruluk ürünün kendisi değil, kokpitin güven katmanı.   • Oturum kapanırken hook ajandan kararları rmk note ile yazmasını ister.</text>
+</svg>

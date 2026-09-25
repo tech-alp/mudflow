@@ -1,13 +1,15 @@
 # Konumlanma notu
 
 Tarih: 2026-09-25
-Durum: Değerlendirme. Ürün kararı değil; [yakalama günlüğü](#değeri-nasıl-ölçeriz) sonuç verene kadar hipotez.
+Durum: **Güncellendi (2026-09-25, office-hours).** Konum artık [süreklilik kokpiti](designs/runmark-cockpit.md); aşağıdaki "hakem" bölümü ürünün kendisini değil, kokpitin **güven katmanını** anlatır.
 
 ## Tek cümle
 
-Runmark ajan çalıştırmaz, pano tutmaz, oturum kaydetmez; başkalarının ürettiği kaydı **okur** ve "ajanın dediği" ile "gerçekte olan"ı ayrı tutup plana bağlı, açıklanabilir bir **"devam etmek güvenli mi?"** kararı verir.
+Runmark, farklı araçlarla yürüyen AI işlerinin ne durumda olduğunu ve önceki oturumun ne bıraktığını tek panelde gösteren bir **süreklilik kokpitidir**. İş akışını tanımlamaz, tanır. Güven katmanı "ajanın dediği" ile "gerçekte olan"ı ayrı tutar.
 
-## Hakem, stadyum değil
+Neden değişti: kurucunun yaşanmış acıları iki ajanın aynı işi yapması, eski base / kaybolan iş ve devirde bağlam kaybıydı; "ajan bitti dedi, değildi" seçilmedi. Doğruluk değerli ama tek başına ürün değil.
+
+## Güven katmanı: hakem, stadyum değil
 
 Bir maçta üç ayrı iş var:
 

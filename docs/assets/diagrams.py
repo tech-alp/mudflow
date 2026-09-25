@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generates docs/assets/runmark-architecture.svg and runmark-execution-loop.svg."""
+"""Generates the SVG diagrams under docs/assets/."""
 import sys
 from xml.sax.saxutils import escape
 
@@ -267,7 +267,63 @@ def loop():
     return s.render()
 
 
+def cockpit():
+    s = Svg(1530, 1010, "Runmark: proje kokpiti (öneri)")
+    s.text(765, 80, "Akışı tanımlamaz, tanır: hangi araçla çalışırsan çalış, panel aynı dili konuşur.", 16, MUTED, "middle")
+    L, W = 40, 1420
+
+    # 1. What you see.
+    s.panel(L, 105, W, 150, "surface", "Sen", "tek panel, tüm projeler")
+    s.row(250, 140, 1190, 90, "surface", [
+        ("Desktop kokpit", "projeler · görevler · ilerleme · kararlar · çalışan ajanlar"),
+        ("rmk CLI", "status · resume · start · finish"),
+        ("Ajan oturumu", "açılışta: nerede kaldık · kapanışta: ne karar verildi")])
+
+    # 2. Runmark core.
+    s.panel(L, 290, W, 170, "domain", "Çekirdek", "tek dil")
+    s.row(250, 325, 1190, 110, "domain", [
+        ("Ortak model", "Görev · Karar · İlerleme · Kanıt · Oturum"),
+        ("Güven katmanı", "bulgular · \"doğrulandı\" rozeti · bilinmeyen ≠ temiz"),
+        ("Defter", ".runmark/ledger · yerel · kaybolmaz")])
+
+    # 3. Readers: one small adapter per tool; adding a tool adds a reader, not a flow.
+    s.panel(L, 495, W, 170, "infra", "Okuyucular", "araç başına adaptör yok")
+    s.row(250, 530, 1190, 110, "infra", [
+        ("Plan dosyaları: tek checklist okuyucusu", "Superpowers · planning-with-files · GSD → hepsi - [ ]"),
+        ("Git", "commit · base · worktree"),
+        ("Claude · Codex", "transcript: komut · exit"),
+        ("+ yeni araç", "config'e bir satır", True)])
+
+    # 4. Where the work happens.
+    s.panel(L, 700, W, 175, "agent", "Çalışma alanı", "her oturum kaydedilir")
+    s.row(250, 735, 1190, 110, "agent", [
+        ("Claude + Superpowers", "worktree: task/NX004"),
+        ("Codex + GSD", "worktree: task/NX005"),
+        ("Claude + planning-with-files", "worktree: task/OLY-12"),
+        ("rmk launch", "kolaylık · sonra", True)])
+
+    for x in (430, 750, 1070):
+        s.arrow(f"M{x},700 V665")
+        s.arrow(f"M{x},495 V460")
+        s.arrow(f"M{x},290 V255")
+    s.text(1085, 687, "dosya yazar", 12, MUTED)
+    s.text(1085, 482, "ortak modele çevirir", 12, MUTED)
+    s.text(1085, 277, "tek panelde gösterir", 12, MUTED)
+    s.arrow("M1460,790 H1478 V380 H1443", "#2d7a3e")
+    s.text(1484, 580, "hook:", 12, "#2d7a3e")
+    s.text(1484, 596, "oturum", 12, "#2d7a3e")
+    s.text(1484, 612, "açıldı /", 12, "#2d7a3e")
+    s.text(1484, 628, "kapandı", 12, "#2d7a3e")
+
+    s.rect(L, 900, W, 90, "#ffffff", "#8c959f")
+    s.text(60, 930, "Karar noktaları", 18, INK, bold=True)
+    s.text(60, 957, "• Akış preset'i yok: her araç zaten bir akış; Runmark onları okur.   • Ajan nasıl açılırsa açılsın hook oturumu deftere yazar; launch kolaylık.", 14)
+    s.text(60, 979, "• Doğruluk ürünün kendisi değil, kokpitin güven katmanı.   • Oturum kapanırken hook ajandan kararları rmk note ile yazmasını ister.", 14)
+    return s.render()
+
+
 if __name__ == "__main__":
     out = sys.argv[1]
     open(f"{out}/runmark-architecture.svg", "w").write(architecture())
     open(f"{out}/runmark-execution-loop.svg", "w").write(loop())
+    open(f"{out}/runmark-cockpit.svg", "w").write(cockpit())
