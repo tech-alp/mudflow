@@ -24,7 +24,10 @@ slate. Read the `gaps` array: it reports what could not be established.
 
 Run tests with your shell tool inside this session. `rmk finish` reads the
 runtime's own transcript and records those runs, with their exit codes, as
-measured evidence. A test you only describe is not measured.
+measured evidence. A test you only describe is not measured. Keep the exit code the
+test's own: do not pipe the test command into `tail`, `head` or `grep`, and do
+not follow it with `;` or `|| true` (use `set -o pipefail` if you must pipe). A
+piped run is recorded as "result unknown", never as a pass.
 
 After observing a test, command result, commit or diff, record the actual result:
 
