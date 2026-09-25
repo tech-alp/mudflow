@@ -27,6 +27,15 @@ struct ProjectConfig {
     QString taskIdPattern;
     bool hooksExpected = false;   // proje bir ajan hook'u bekliyor mu
     QStringList instructions;
+    // Which transcript commands count as a test run (runtime evidence).
+    QString testCommandPattern = defaultTestCommandPattern();
+
+    // ponytail: a keyword heuristic over the command line; a project whose
+    // runner is not listed sets project.test_command_pattern.
+    static QString defaultTestCommandPattern()
+    {
+        return QStringLiteral("\\b(ctest|pytest|go test|cargo test|(npm|pnpm|yarn)( run)? test|make (test|check)|swift test|dotnet test)\\b");
+    }
 
     // Pure validation. To read from disk, use loadProjectConfig in infrastructure.
     static ProjectConfig parse(const QJsonObject& root);

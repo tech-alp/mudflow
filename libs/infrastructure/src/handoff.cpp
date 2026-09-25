@@ -54,6 +54,14 @@ void writeHandoff(const Paths& paths, const HandoffInput& input, const QVector<Q
     output << "\nFiles changed: " << input.filesChanged << " (+" << input.insertions << " / -" << input.deletions << ")\n";
     for (const QString& file : input.files) output << "- " << file << '\n';
     output << "\nEvidence: " << input.filesRef << '\n';
+    for (const QJsonObject& event : events) {
+        if (event.value(QStringLiteral("type")).toString() == QLatin1String("evidence.recorded")
+                && event.value(QStringLiteral("exec")).toString() == input.executionId
+                && event.value(QStringLiteral("source")).toString() == QLatin1String("runtime")) {
+            output << "\nTests (from the " << event.value(QStringLiteral("runtime")).toString() << " transcript): "
+                   << event.value(QStringLiteral("summary")).toString() << '\n';
+        }
+    }
     if (!input.preservedRef.isEmpty()) output << "\nPreserved uncommitted snapshot: " << input.preservedRef << '\n';
 
     output << "\n## Agent note (weak evidence \u2014 unverified)\n\n";
@@ -61,8 +69,10 @@ void writeHandoff(const Paths& paths, const HandoffInput& input, const QVector<Q
     for (const QJsonObject& event : events) {
         if (event.value(QStringLiteral("type")).toString() == QLatin1String("evidence.recorded")
                 && event.value(QStringLiteral("exec")).toString() == input.executionId
-                && event.value(QStringLiteral("kind")).toString() == QLatin1String("agent_summary")) {
-            output << "- " << event.value(QStringLiteral("summary")).toString() << '\n';
+                && event.value(QStringLiteral("source")).toString() != QLatin1String("runtime")) {
+            const QString kind = event.value(QStringLiteral("kind")).toString();
+            output << "- " << (kind == QLatin1String("agent_summary") ? QString() : QLatin1Char('[') + kind + QStringLiteral("] "))
+                   << event.value(QStringLiteral("summary")).toString() << '\n';
             hasAgentSummary = true;
         }
     }

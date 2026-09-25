@@ -277,3 +277,29 @@ bizimki `finish` anında yazılan bir **belge** (DATA_MODEL §6), CAO'nunki
 
 Yeniden değerlendirme tetikleyicisi: `launch agent` uygulandığında. Ondan önce
 bu kalıplar gündeme alınmaz.
+
+## ADR-021 — Test kanıtı ajanın sözünden değil, runtime transcript'inden
+Accepted. Tarih: 2026-09-25.
+
+`rmk evidence --kind test` ajanın yazdığı metni kaydediyordu; Runmark komutu
+çalıştırmıyordu. Buna rağmen olay `plan.done_without_evidence`'ı kapatıyor ve
+resume paketinde `measured` altında görünüyordu: ajan kendi ödevini notluyordu.
+
+Karar: `start`, ajan runtime'ının oturum kimliğini kaydeder; `finish`, o
+oturumun transcript'inden (Claude `~/.claude/projects`, Codex
+`~/.codex/sessions`) start'tan sonraki test koşularını ve çıkış kodlarını okur,
+`source: runtime` olarak yazar. Ajanın yazdığı test kanıtı `source: agent`
+kalır ve beyandır.
+
+Neden launch değil: ajanı başlatıp akışını okumak (Multica `pkg/agent`) aynı
+sinyali canlı verir ama Go araç zinciri, yeni süreç ve lisans kararı ister.
+Transcript aynı sinyali bugün, sıfır yeni bağımlılıkla verir. Teknik TeamAI'ın
+`transcript-parser.ts`'inden: modele sormadan araç çağrısından sinyal çıkarmak.
+
+Sınırlar: transcript biçimleri belgelenmemiştir; tanınmayan biçim `unavailable`
+olur, temiz değil. Aynı oturumdan eşzamanlı iki execution test koşularını
+paylaşır. Shell erişimli ajan dosyayı teoride değiştirebilir; runtime kaydı
+Runmark'ın kendi ölçümünden zayıftır.
+
+Yeniden değerlendirme tetikleyicisi: bir runtime transcript biçimini değiştirdiğinde
+veya `launch agent` uygulandığında.

@@ -44,6 +44,14 @@ ProjectConfig ProjectConfig::parse(const QJsonObject& root)
         fail(QStringLiteral("project.task_id_pattern must be a valid regular expression"));
     }
 
+    const QJsonValue testPattern = root.value(QStringLiteral("test_command_pattern"));
+    if (!testPattern.isUndefined()) {
+        if (!testPattern.isString() || testPattern.toString().trimmed().isEmpty() || !QRegularExpression(testPattern.toString()).isValid()) {
+            fail(QStringLiteral("project.test_command_pattern must be a valid regular expression"));
+        }
+        config.testCommandPattern = testPattern.toString();
+    }
+
     const QJsonValue hooks = root.value(QStringLiteral("hooks_expected"));
     if (!hooks.isUndefined()) {
         if (!hooks.isBool()) fail(QStringLiteral("project.hooks_expected must be a boolean"));
@@ -103,7 +111,7 @@ QJsonObject ProjectConfig::toJson() const
         });
     }
 
-    return {
+    QJsonObject json{
         {QStringLiteral("version"), version},
         {QStringLiteral("name"), name},
         {QStringLiteral("worktree_root"), worktreeRoot},
@@ -113,6 +121,10 @@ QJsonObject ProjectConfig::toJson() const
         {QStringLiteral("hooks_expected"), hooksExpected},
         {QStringLiteral("instructions"), QJsonArray::fromStringList(instructions)},
     };
+    if (testCommandPattern != defaultTestCommandPattern()) {
+        json.insert(QStringLiteral("test_command_pattern"), testCommandPattern);
+    }
+    return json;
 }
 
 } // namespace runmark

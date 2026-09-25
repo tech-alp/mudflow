@@ -9,6 +9,7 @@
 #include "ledger.h"
 #include "paths.h"
 #include "plan.h"
+#include "transcript.h"
 
 #include <QDateTime>
 #include <QDir>
@@ -83,6 +84,48 @@ StatusFacts observe(const ProjectConfig& config, const Paths& paths)
         facts.executions.append(execution);
     }
     return facts;
+}
+
+// Test runs the agent runtime recorded between start and now become one
+// runtime evidence event. Returns what happened to the transcript, so an
+// unreadable one surfaces as a finding instead of "no tests ran".
+// ponytail: attribution is by session and time window; two executions driven
+// from one session at the same time share their test runs.
+QJsonObject recordRuntimeTests(const ProjectConfig& config, const Paths& paths, const QJsonObject& started, QVector<QJsonObject>& events)
+{
+    const QString sessionId = started.value(QStringLiteral("session_id")).toString();
+    if (sessionId.isEmpty()) return {{QStringLiteral("status"), QStringLiteral("no_session")}};
+    const QString runtime = started.value(QStringLiteral("agent")).toString();
+    const TranscriptFacts transcript = readTranscript(runtime, sessionId,
+        QDateTime::fromString(started.value(QStringLiteral("ts")).toString(), Qt::ISODate));
+    if (!transcript.error.isEmpty()) {
+        return {{QStringLiteral("status"), QStringLiteral("unavailable")}, {QStringLiteral("error"), transcript.error}};
+    }
+
+    const QRegularExpression testPattern(config.testCommandPattern);
+    QJsonArray runs;
+    const TranscriptCommand* last = nullptr;
+    for (const TranscriptCommand& command : transcript.commands) {
+        if (!testPattern.match(command.command).hasMatch()) continue;
+        runs.append(QJsonObject{{QStringLiteral("at"), command.at.toString(Qt::ISODateWithMs)},
+            {QStringLiteral("command"), command.command}, {QStringLiteral("exit_code"), command.exitCode}});
+        last = &command;
+    }
+    const QJsonObject status{{QStringLiteral("status"), QStringLiteral("read")}, {QStringLiteral("path"), transcript.path},
+        {QStringLiteral("commands"), transcript.commands.size()}, {QStringLiteral("test_runs"), runs.size()}};
+    if (!last) return status;
+
+    const QString executionId = started.value(QStringLiteral("exec")).toString();
+    const QJsonObject event{{QStringLiteral("ts"), nowUtc()}, {QStringLiteral("type"), QStringLiteral("evidence.recorded")},
+        {QStringLiteral("exec"), executionId}, {QStringLiteral("task"), started.value(QStringLiteral("task")).toString()},
+        {QStringLiteral("kind"), QStringLiteral("test")}, {QStringLiteral("source"), QStringLiteral("runtime")},
+        {QStringLiteral("runtime"), runtime}, {QStringLiteral("exit_code"), last->exitCode},
+        {QStringLiteral("ref"), writeEvidence(paths, {{QStringLiteral("transcript"), transcript.path}, {QStringLiteral("runs"), runs}})},
+        {QStringLiteral("summary"), QStringLiteral("%1 test run(s); last: %2 (exit %3)")
+            .arg(QString::number(runs.size()), last->command.left(200), QString::number(last->exitCode))}};
+    appendEvent(paths, executionId, event);
+    events.append(event);
+    return status;
 }
 
 } // namespace
@@ -206,6 +249,8 @@ StartResult startExecution(const QString& configPath, const QString& task, const
         {QStringLiteral("preserved_ref"), orNull(preservedRef)},
         {QStringLiteral("base_sha"), baseSha}, {QStringLiteral("head_sha"), headSha},
         {QStringLiteral("remote_base_sha"), remoteBaseSha},
+        // Which runtime transcript finish reads for test runs (DATA_MODEL.md §3.3).
+        {QStringLiteral("session_id"), orNull(sessionIdFromEnvironment(agent))},
         {QStringLiteral("instructions"), recordedInstructions},
         {QStringLiteral("plan_ref"), planReference(config, paths.root, task)},
         {QStringLiteral("plan_sha1"), sha1File(expandPath(config.planPath, paths.root))},
@@ -219,9 +264,9 @@ FinishResult finishExecution(const QString& configPath, const QString& execution
         fail(QStringLiteral("Outcome must be finished, interrupted, or abandoned"));
     }
     const Paths paths = pathsFor(configPath);
-    loadProjectConfig(configPath);
+    const ProjectConfig config = loadProjectConfig(configPath);
     prepareState(paths);
-    const QVector<QJsonObject> events = readEvents(paths);
+    QVector<QJsonObject> events = readEvents(paths);
     const QJsonObject started = startedEvent(events, executionId);
     for (const QJsonObject& event : events) {
         if (event.value(QStringLiteral("type")).toString() == QLatin1String("execution.finished")
@@ -264,6 +309,8 @@ FinishResult finishExecution(const QString& configPath, const QString& execution
     for (const QString& file : input.files) fileJson.append(file);
     input.filesRef = writeEvidence(paths, {{QStringLiteral("files"), fileJson}});
 
+    const QJsonObject transcript = recordRuntimeTests(config, paths, started, events);
+
     writeHandoff(paths, input, events);
     ResumeFacts handoffFacts;
     handoffFacts.exec = executionId;
@@ -275,7 +322,7 @@ FinishResult finishExecution(const QString& configPath, const QString& execution
         {QStringLiteral("commits"), commitJson}, {QStringLiteral("files_changed"), input.filesChanged},
         {QStringLiteral("insertions"), input.insertions}, {QStringLiteral("deletions"), input.deletions},
         {QStringLiteral("files_ref"), input.filesRef}, {QStringLiteral("preserved_ref"), orNull(input.preservedRef)},
-        {QStringLiteral("handoff_sha1"), handoffFacts.handoff.sha1}});
+        {QStringLiteral("handoff_sha1"), handoffFacts.handoff.sha1}, {QStringLiteral("transcript"), transcript}});
     return {executionId, outcome, input.headSha, input.preservedRef,
         QStringLiteral("handoffs/") + executionId + QStringLiteral(".md"),
         observeWorktreeCleanup(input.worktree,
@@ -292,7 +339,8 @@ void recordEvidence(const QString& configPath, const QString& executionId, const
     const QJsonObject started = startedEvent(readEvents(paths), executionId);
     appendEvent(paths, executionId, {{QStringLiteral("ts"), nowUtc()}, {QStringLiteral("type"), QStringLiteral("evidence.recorded")},
         {QStringLiteral("exec"), executionId}, {QStringLiteral("task"), started.value(QStringLiteral("task")).toString()},
-        {QStringLiteral("kind"), kind}, {QStringLiteral("ref"), orNull(reference)}, {QStringLiteral("summary"), summary}});
+        {QStringLiteral("kind"), kind}, {QStringLiteral("source"), QStringLiteral("agent")},
+        {QStringLiteral("ref"), orNull(reference)}, {QStringLiteral("summary"), summary}});
 }
 
 void recordNote(const QString& configPath, const QString& executionId, const QString& kind, const QString& text, const QString& reference)

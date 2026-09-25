@@ -2,6 +2,7 @@ module;
 
 #include <QHash>
 #include <QJsonArray>
+#include <QMap>
 #include <QSet>
 
 module runmark.domain;
@@ -158,6 +159,11 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
 
     // --- Ledger scan ---
     QSet<QString> evidencedTasks;
+    // A test result counts as measured only when the agent runtime recorded
+    // it; the agent's own `rmk evidence --kind test` is a claim (ADR-002).
+    QSet<QString> runtimeTestedTasks;
+    QSet<QString> claimedTestTasks;
+    QMap<QString, QJsonObject> lastRuntimeTest;
     QSet<QString> completedExecutions;
     QSet<QString> executionsWithCommits;
     for (const QJsonObject& event : facts.events) {
@@ -171,9 +177,35 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
         if (type == QLatin1String("evidence.recorded") && event.value(QStringLiteral("kind")).toString() != QLatin1String("manual_note")) {
             evidencedTasks.insert(event.value(QStringLiteral("task")).toString());
         }
+        if (type == QLatin1String("evidence.recorded") && event.value(QStringLiteral("kind")).toString() == QLatin1String("test")) {
+            const QString task = event.value(QStringLiteral("task")).toString();
+            if (event.value(QStringLiteral("source")).toString() == QLatin1String("runtime")) {
+                runtimeTestedTasks.insert(task);
+                lastRuntimeTest.insert(event.value(QStringLiteral("exec")).toString(), event);
+            } else {
+                claimedTestTasks.insert(task);
+            }
+        }
+        // A transcript that could not be read is unknown, not "no tests ran".
+        const QJsonObject transcript = event.value(QStringLiteral("transcript")).toObject();
+        if (type == QLatin1String("execution.finished") && transcript.value(QStringLiteral("status")).toString() == QLatin1String("unavailable")) {
+            findings.append(finding(QStringLiteral("context.transcript_unavailable"), QStringLiteral("warning"), QStringLiteral("context"),
+                QStringLiteral("Agent transcript could not be read"),
+                event.value(QStringLiteral("exec")).toString() + QStringLiteral(": ") + transcript.value(QStringLiteral("error")).toString(),
+                QStringLiteral("Test runs of this execution are unknown; check them before trusting its result.")));
+        }
         if (type == QLatin1String("note") && event.value(QStringLiteral("kind")).toString() == QLatin1String("unresolved") && event.value(QStringLiteral("ref")).isNull()) {
             findings.append(finding(QStringLiteral("context.unresolved_without_ref"), QStringLiteral("info"), QStringLiteral("context"),
                 QStringLiteral("Unresolved note has no reference"), event.value(QStringLiteral("text")).toString()));
+        }
+    }
+
+    for (auto it = lastRuntimeTest.cbegin(); it != lastRuntimeTest.cend(); ++it) {
+        if (it.value().value(QStringLiteral("exit_code")).toInt() != 0) {
+            findings.append(finding(QStringLiteral("context.last_test_failed"), QStringLiteral("warning"), QStringLiteral("context"),
+                QStringLiteral("Last recorded test run failed"),
+                it.key() + QStringLiteral(": ") + it.value().value(QStringLiteral("summary")).toString(),
+                QStringLiteral("Fix the failure before marking the task done, or record why it is expected.")));
         }
     }
 
@@ -254,6 +286,14 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
             if (!evidencedTasks.contains(task)) {
                 findings.append(finding(QStringLiteral("plan.done_without_evidence"), QStringLiteral("warning"), QStringLiteral("plan"),
                     QStringLiteral("Done plan task has no evidence"), task));
+            }
+        }
+        for (const QString& task : facts.plan.doneTasks) {
+            if (claimedTestTasks.contains(task) && !runtimeTestedTasks.contains(task)) {
+                findings.append(finding(QStringLiteral("plan.test_claim_unverified"), QStringLiteral("warning"), QStringLiteral("plan"),
+                    QStringLiteral("Test result is only claimed by the agent"),
+                    task + QStringLiteral(": no test run found in the agent runtime transcript"),
+                    QStringLiteral("Run the tests inside the agent session before rmk finish.")));
             }
         }
         // An identifier we could only guess at binds evidence to the wrong

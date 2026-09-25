@@ -80,7 +80,8 @@ Format kararı: TECH_CHOICES.md TC-003 (YAML yerine JSON → Qt dışı sıfır 
 
   "task_id_pattern": "SCMS-\\d+",
   "instructions": ["AGENTS.md", "docs/WORKFLOW.md"],
-  "hooks_expected": true
+  "hooks_expected": true,
+  "test_command_pattern": "\\b(ctest|pytest)\\b"
 }
 ```
 
@@ -94,6 +95,10 @@ Format kararı: TECH_CHOICES.md TC-003 (YAML yerine JSON → Qt dışı sıfır 
   eklentisi kurduysa `true` yazılır; ancak o zaman `context.hooks_not_observed`
   değerlendirilir. Beklenti yazılmadan uyarmak, CLI'yi tek başına kullanan
   projeye kapatamayacağı bir bulgu üretirdi.
+- `test_command_pattern` — opsiyonel regex. Ajan transcript'indeki hangi
+  komutların test koşusu sayılacağını seçer (§3.3). Verilmezse yaygın
+  koşucuları (`ctest`, `pytest`, `go test`, `cargo test`, `npm test`, …) kapsayan
+  varsayılan kullanılır; varsayılan `project.json`'a yazılmaz.
 
 v0.1'de `repos` tek elemanlı. Liste olması multi-repo'yu şema değiştirmeden açar.
 
@@ -142,6 +147,11 @@ Ortak alanlar: `ts` (UTC ISO8601), `type`, `exec`.
 ```
 
 `plan_ref` boş olabilir → `plan.execution_without_plan_link` finding'i doğar.
+
+`session_id`: `start`'ı çalıştıran ajan runtime'ının oturum kimliği; runtime
+dışından çalıştırıldıysa `null`. `agent` alanına göre okunur: `claude` →
+`CLAUDE_CODE_SESSION_ID`, `codex` → `CODEX_THREAD_ID`. Yalnız `[A-Za-z0-9-]`
+kabul edilir; kimlik dosya adına girer. `finish` bu oturumun transcript'ini okur.
 
 `repo_dirty`: start anında ana repo'nun kirli olup olmadığı (ADR-014).
 Bloklamaz, kaydedilir ve `start` çıktısının `warnings` dizisinde döner.
@@ -206,9 +216,15 @@ kararın verildiği ana taşır.
   "deletions": 58,
   "files_ref": "evidence/3a7f91c2.json",
   "preserved_ref": null,
-  "handoff_sha1": "<üretilen handoff byte'larının 40 haneli SHA1'i>"
+  "handoff_sha1": "<üretilen handoff byte'larının 40 haneli SHA1'i>",
+  "transcript": {"status": "read", "path": "<transcript yolu>", "commands": 14, "test_runs": 2}
 }
 ```
+
+`transcript.status`: `read` | `unavailable` (kimlik var, dosya bulunamadı veya
+biçim tanınmadı; `error` dolar) | `no_session` (start runtime dışından). Yalnız
+`start`'tan sonraki komutlar sayılır. `unavailable`, "test koşmadı" demek değildir:
+`context.transcript_unavailable` bulgusu üretir.
 
 `outcome`: `finished` | `interrupted` | `abandoned`
 
@@ -225,10 +241,27 @@ Eski finish kayıtlarında bulunmayabilir; resume bu durumda doğrulandığını
   "exec": "20260918T142231Z-SCMS-042",
   "task": "SCMS-042",
   "kind": "test",
+  "source": "runtime",
+  "runtime": "claude",
+  "exit_code": 0,
   "ref": "evidence/8c1d0b44.json",
-  "summary": "ctest: 148 passed, 0 failed"
+  "summary": "2 test run(s); last: ctest --preset dev (exit 0)"
 }
 ```
+
+`source` kanıtın kimden geldiğini söyler (ADR-021):
+
+- `runtime` — `finish`, ajan runtime'ının transcript'inde bulduğu test
+  koşularından yazar. Execution başına en fazla bir olay; `exit_code` son
+  koşunun kodu, `ref` tüm koşuların listesi. Claude'da başarısız komut
+  `Exit code N` taşır, başarılı komut kod taşımaz (0 sayılır); kodsuz hata `-1`.
+- `agent` — `rmk evidence` ile ajanın kendisi yazar. Alanı olmayan eski kayıtlar
+  da `agent` sayılır. Aynı `kind` olsa da **beyandır**: resume paketinde
+  `agent_claims` altında durur ve `plan.test_claim_unverified` bulgusunu kapatmaz.
+
+Güç sırası: ajanın sözü < runtime kaydı < Runmark'ın kendi ölçtüğü (Git).
+Runtime kaydı modelin uyduramayacağı ama shell erişimli bir ajanın teoride
+değiştirebileceği bir dosyadır.
 
 `kind` TRUST_MODEL.md'deki hiyerarşinin tam karşılığı:
 
@@ -355,6 +388,9 @@ MVP.md §8'in birebir karşılığı. Dokuz kural, fazlası yok.
 | `context.invalid_ledger_timestamp` | warning |
 | `context.unresolved_without_ref` | info |
 | `context.hooks_not_observed` | warning |
+| `context.last_test_failed` | warning |
+| `context.transcript_unavailable` | warning |
+| `plan.test_claim_unverified` | warning |
 
 Task kimliği plan satırında **tam token** olarak aranır: pattern yalnız daha
 uzun bir kimliğin parçasına uyuyorsa (`SCMS-\d+` ile `SCMS-42-W1`) satır
@@ -510,11 +546,11 @@ yan ürün. Başarısızlık "görülmedi" tarafına düşer, güvenli yön budu
     "source": "execution.finished",
     "commits": ["f9e8d7c6"],
     "files_changed": 12,
-    "evidence": ["<test ve command türündeki tam evidence.recorded olayları>"]
+    "evidence": ["<source: runtime olan tam evidence.recorded olayları>"]
   },
   "agent_claims": {
     "verification": "unverified",
-    "evidence": ["<agent_summary türündeki tam evidence.recorded olayları>"]
+    "evidence": ["<ajanın yazdığı test, command ve agent_summary olayları>"]
   },
   "unresolved": {
     "with_ref": ["<ref'i dolu unresolved note olayları>"],
@@ -575,5 +611,5 @@ değerlendirme `rules.cpp::evaluateResume(ResumeFacts)` içinde saf yapılır.
 | Finding persistence | Geçmiş finding trendi istenirse |
 | Multi-repo çapraz execution | `repos` ikinci elemanı geldiğinde |
 | Provider interface | İkinci plan provider yazılırken |
-| Test runner entegrasyonu | Elle `evidence.recorded` yazmak yetmeyince |
+| Testi Runmark'ın kendisinin koşması | Runtime kaydı da yetmeyince (ADR-021) |
 | Ledger şema versiyonu | İlk breaking change'de (`project.json` `version` var) |

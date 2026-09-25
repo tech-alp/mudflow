@@ -7,6 +7,7 @@ add_library(runmark_infrastructure STATIC
     src/ledger.cpp
     src/paths.cpp
     src/plan.cpp
+    src/transcript.cpp
 )
 add_library(runmark::infrastructure ALIAS runmark_infrastructure)
 

@@ -22,6 +22,10 @@ mean there is no previous execution: the hook stays silent whenever the CLI is
 missing, incompatible or fails. Check `resume` yourself before assuming a clean
 slate. Read the `gaps` array: it reports what could not be established.
 
+Run tests with your shell tool inside this session. `rmk finish` reads the
+runtime's own transcript and records those runs, with their exit codes, as
+measured evidence. A test you only describe is not measured.
+
 After observing a test, command result, commit or diff, record the actual result:
 
 ```sh
@@ -31,6 +35,8 @@ rmk evidence "$EXEC" --kind test --summary "<command, result, failures>" --ref "
 Use `commit`, `diff`, `test`, `files` or `command` only for observed evidence.
 Preserve failed results too. Include a durable `--ref` when available; omit the
 option when no source exists. Never invent a measurement or source reference.
+What you record this way stays your claim: it is shown as unverified until the
+transcript shows the run.
 
 Before handing work over, record your own summary separately:
 

@@ -1,6 +1,7 @@
 #include <QFile>
 #include <QDir>
 #include <QCryptographicHash>
+#include <QDateTime>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -150,10 +151,10 @@ void resumeContract(const QString& executable)
     check(cli({"resume", exec}) == package, "exec selects same package");
     const QJsonObject measured = package.value("measured").toObject();
     check(measured.value("source") == "execution.finished" && measured.value("commits").toArray().size() == 1
-        && measured.value("files_changed").toInt() == 1 && measured.value("evidence").toArray().size() == 2, "finished measurements");
+        && measured.value("files_changed").toInt() == 1 && measured.value("evidence").toArray().isEmpty(), "finished measurements");
     check(!QJsonDocument(measured).toJson().contains("CLAIM ONLY"), "claims never measured");
     check(package.value("agent_claims").toObject().value("verification") == QStringLiteral("unverified")
-        && package.value("agent_claims").toObject().value("evidence").toArray().size() == 1, "claims explicitly unverified");
+        && package.value("agent_claims").toObject().value("evidence").toArray().size() == 3, "claims explicitly unverified");
     check(package.value("unresolved").toObject().value("with_ref").toArray().size() == 1
         && package.value("unresolved").toObject().value("without_ref").toArray().size() == 1, "unresolved refs separated");
     check(package.value("instructions") == instructions, "resume recorded instructions");
@@ -270,6 +271,103 @@ void resumeContract(const QString& executable)
     QTextStream(stdout) << "resume contract: git chain, no execution, missing/tampered handoff, missing worktree, offline, plan/base changes, provenance, legacy selection, ledger immutability passed\n";
 }
 
+QJsonObject lastEvent(const QString& ledger)
+{
+    const QList<QByteArray> lines = readFile(ledger).trimmed().split('\n');
+    return QJsonDocument::fromJson(lines.last()).object();
+}
+
+QJsonObject runtimeEvidence(const QString& ledger)
+{
+    for (const QByteArray& line : readFile(ledger).trimmed().split('\n')) {
+        const QJsonObject event = QJsonDocument::fromJson(line).object();
+        if (event.value("source") == "runtime") return event;
+    }
+    return {};
+}
+
+// Test runs come from the agent runtime's own transcript, never from the
+// agent's word: rmk evidence --kind test stays a claim (ADR-002).
+void transcriptContract(const QString& executable)
+{
+    QTemporaryDir fixture;
+    check(fixture.isValid(), "transcript fixture directory");
+    const QString root = fixture.path();
+    const QString repo = root + "/repo";
+    const QString configPath = root + "/.runmark/project.json";
+    const auto git = [](const QStringList& args) {
+        QByteArray out, err;
+        check(run(QStringLiteral("git"), args, 0, &out, &err), "transcript git fixture command");
+    };
+    const auto cli = [&](const QStringList& args) {
+        QByteArray out, err;
+        check(run(executable, QStringList{"--project", configPath} + args, 0, &out, &err), "transcript CLI exit 0");
+        return QJsonDocument::fromJson(out).object();
+    };
+    git({"init", "--bare", root + "/remote.git"});
+    git({"init", "-b", "main", repo});
+    git({"-C", repo, "-c", "user.name=R", "-c", "user.email=r@example.invalid", "commit", "--allow-empty", "-m", "initial"});
+    git({"-C", repo, "remote", "add", "origin", root + "/remote.git"});
+    git({"-C", repo, "push", "-u", "origin", "main"});
+    check(QDir().mkpath(root + "/.runmark"), "transcript state directory");
+    check(writeFile(root + "/plan.md", "- [x] MF-1\n- [x] MF-2\n"), "transcript plan");
+    check(writeFile(configPath, R"({"version":1,"name":"t","worktree_root":"worktrees","repos":[{"name":"repo","path":"repo","base":{"remote":"origin","branch":"main"}}],"plan":{"path":"plan.md"},"task_id_pattern":"MF-\\d+"})"), "transcript config");
+    const QByteArray now = QDateTime::currentDateTimeUtc().addSecs(1).toString(Qt::ISODateWithMs).toUtf8();
+
+    // Claude: a failing ctest after start; a passing one before start must not count.
+    qputenv("CLAUDE_CONFIG_DIR", (root + "/claude").toUtf8());
+    qputenv("CLAUDE_CODE_SESSION_ID", "session-1");
+    const QString exec = cli({"start", "MF-1", "--agent", "claude"}).value("exec").toString();
+    const QString ledger = root + "/.runmark/ledger/" + exec + ".jsonl";
+    check(lastEvent(ledger).value("session_id") == "session-1", "start records the runtime session");
+    check(QDir().mkpath(root + "/claude/projects/-encoded"), "claude projects directory");
+    check(writeFile(root + "/claude/projects/-encoded/session-1.jsonl",
+        "{\"timestamp\":\"" + now + "\",\"message\":{\"content\":[{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"Bash\",\"input\":{\"command\":\"cd w && ctest --preset dev\"}}]}}\n"
+        "{\"timestamp\":\"" + now + "\",\"message\":{\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"t1\",\"is_error\":true,\"content\":\"Exit code 8\\nfailed\"}]}}\n"
+        "{\"timestamp\":\"" + now + "\",\"message\":{\"content\":[{\"type\":\"tool_use\",\"id\":\"t2\",\"name\":\"Bash\",\"input\":{\"command\":\"ls\"}}]}}\n"
+        "{\"timestamp\":\"" + now + "\",\"message\":{\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"t2\",\"content\":\"file\"}]}}\n"
+        "{\"timestamp\":\"2000-01-01T00:00:00.000Z\",\"message\":{\"content\":[{\"type\":\"tool_use\",\"id\":\"t0\",\"name\":\"Bash\",\"input\":{\"command\":\"ctest\"}}]}}\n"
+        "{\"timestamp\":\"2000-01-01T00:00:00.000Z\",\"message\":{\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"t0\",\"content\":\"ok\"}]}}\n"),
+        "claude transcript");
+    cli({"evidence", exec, "--kind", "test", "--summary", "all green"});
+    cli({"finish", exec});
+    const QJsonObject tested = runtimeEvidence(ledger);
+    check(tested.value("kind") == "test" && tested.value("exit_code") == 8
+        && tested.value("summary").toString().contains("ctest --preset dev"), "failing runtime test recorded");
+    check(lastEvent(ledger).value("transcript").toObject().value("test_runs") == 1, "only runs after start count");
+    QJsonObject status = cli({"status"});
+    check(hasFinding(status, "context.last_test_failed"), "failing last test reported");
+    const QJsonObject package = cli({"resume", exec});
+    const QJsonArray measured = package.value("measured").toObject().value("evidence").toArray();
+    check(measured.size() == 1 && measured.at(0).toObject().value("source") == "runtime", "only runtime evidence is measured");
+    check(QJsonDocument(package.value("agent_claims").toObject()).toJson().contains("all green"), "agent test result stays a claim");
+    check(readFile(root + "/.runmark/handoffs/" + exec + ".md").contains("Tests (from the claude transcript)"), "handoff shows runtime tests");
+
+    // A session whose transcript cannot be found is unknown, not clean.
+    qputenv("CLAUDE_CODE_SESSION_ID", "session-missing");
+    const QString missing = cli({"start", "MF-2", "--agent", "claude"}).value("exec").toString();
+    cli({"evidence", missing, "--kind", "test", "--summary", "trust me"});
+    cli({"finish", missing});
+    status = cli({"status"});
+    check(hasFinding(status, "context.transcript_unavailable"), "unreadable transcript reported");
+    check(hasFinding(status, "plan.test_claim_unverified"), "claim-only test on a done task reported");
+
+    // Codex: the rollout records the exit code as a field.
+    qputenv("CODEX_HOME", (root + "/codex").toUtf8());
+    qputenv("CODEX_THREAD_ID", "thread-1");
+    const QString codex = cli({"start", "MF-3", "--agent", "codex"}).value("exec").toString();
+    check(QDir().mkpath(root + "/codex/sessions/2026/09/25"), "codex sessions directory");
+    check(writeFile(root + "/codex/sessions/2026/09/25/rollout-2026-09-25T00-00-00-thread-1.jsonl",
+        "{\"timestamp\":\"" + now + "\",\"type\":\"event_msg\",\"payload\":{\"type\":\"item_completed\",\"item\":{\"type\":\"CommandExecution\",\"command\":[\"/bin/zsh\",\"-lc\",\"pytest -q\"],\"exit_code\":0}}}\n"),
+        "codex transcript");
+    cli({"finish", codex});
+    const QJsonObject codexTested = runtimeEvidence(root + "/.runmark/ledger/" + codex + ".jsonl");
+    check(codexTested.value("exit_code") == 0 && codexTested.value("runtime") == "codex"
+        && codexTested.value("summary").toString().contains("pytest -q"), "codex runtime test recorded");
+
+    for (const char* name : {"CLAUDE_CONFIG_DIR", "CLAUDE_CODE_SESSION_ID", "CODEX_HOME", "CODEX_THREAD_ID"}) qunsetenv(name);
+}
+
 } // namespace
 
 int main(int argc, char* argv[])
@@ -294,8 +392,13 @@ int main(int argc, char* argv[])
             || !standardError.isEmpty()
             || !QJsonDocument::fromJson(standardOutput).isObject()) return 1;
 
+    // The suite may itself run inside an agent session; its ids must not
+    // point finish at a real transcript.
+    qunsetenv("CLAUDE_CODE_SESSION_ID");
+    qunsetenv("CODEX_THREAD_ID");
     try {
         resumeContract(executable);
+        transcriptContract(executable);
     } catch (const std::exception& error) {
         QTextStream(stderr) << error.what() << '\n';
         return 1;

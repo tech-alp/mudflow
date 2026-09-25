@@ -132,8 +132,11 @@ static QJsonObject resumePackage(const ResumeFacts& facts, const QJsonArray& gap
     for (const QJsonObject& event : facts.events) {
         const QString kind = event.value(QStringLiteral("kind")).toString();
         if (event.value(QStringLiteral("type")) == QLatin1String("evidence.recorded")) {
-            if (kind == QLatin1String("test") || kind == QLatin1String("command")) evidence.append(event);
-            if (kind == QLatin1String("agent_summary")) claims.append(event);
+            // Only what the runtime recorded is measured; the same kind written
+            // by the agent through `rmk evidence` stays a claim.
+            const bool runtime = event.value(QStringLiteral("source")) == QLatin1String("runtime");
+            if (runtime) evidence.append(event);
+            else if (kind == QLatin1String("test") || kind == QLatin1String("command") || kind == QLatin1String("agent_summary")) claims.append(event);
         }
         if (event.value(QStringLiteral("type")) == QLatin1String("note") && kind == QLatin1String("unresolved")) {
             (event.value(QStringLiteral("ref")).toString().isEmpty() ? withoutRef : withRef).append(event);
@@ -262,7 +265,11 @@ QString resumeMarkdown(const QJsonObject& package)
     if (claims.isEmpty()) {
         out << "None.\n";
     } else {
-        for (const QJsonValue& value : claims) out << "- " << str(value.toObject().value(QStringLiteral("summary"))) << '\n';
+        for (const QJsonValue& value : claims) {
+            const QString kind = str(value.toObject().value(QStringLiteral("kind")));
+            out << "- " << (kind == QLatin1String("agent_summary") ? QString() : QLatin1Char('[') + kind + QStringLiteral("] "))
+                << str(value.toObject().value(QStringLiteral("summary"))) << '\n';
+        }
     }
 
     out << "\n## Open items\n\n";
