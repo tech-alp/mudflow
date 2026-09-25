@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="960" viewBox="0 0 1700 960" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>
+<rect width="1700" height="960" fill="#ffffff"/>
+<text x="850.0" y="50" font-size="34" fill="#1f2328" font-weight="bold" text-anchor="middle">Execution döngüsü ve güven sınırı</text>
+<rect x="30" y="90" width="1640" height="380" rx="8" fill="#eef8f0" stroke="#2d7a3e" stroke-width="2"/>
+<rect x="30" y="470" width="1640" height="320" rx="8" fill="#fdf5e8" stroke="#b36b00" stroke-width="2"/>
+<text x="50" y="124" font-size="22" fill="#2d7a3e" font-weight="bold" text-anchor="start">Ölçülen — Runmark kendisi gözlemler</text>
+<text x="50" y="146" font-size="13" fill="#57606a" text-anchor="start">git, dosya sistemi ve saat; ajanın sözüne dayanmaz</text>
+<text x="1375" y="625" font-size="22" fill="#b36b00" font-weight="bold" text-anchor="start">Beyan</text>
+<text x="1375" y="652" font-size="15" fill="#b36b00" text-anchor="start">ajan veya insan söyler,</text>
+<text x="1375" y="672" font-size="15" fill="#b36b00" text-anchor="start">Runmark yalnız kaydeder.</text>
+<text x="1375" y="704" font-size="13" fill="#57606a" text-anchor="start">zayıf kanıt; resume paketinde</text>
+<text x="1375" y="721" font-size="13" fill="#57606a" text-anchor="start">ayrı başlıkta ve 'unverified'</text>
+<text x="1375" y="738" font-size="13" fill="#57606a" text-anchor="start">etiketiyle durur</text>
+<line x1="30" y1="470" x2="1670" y2="470" stroke="#cf222e" stroke-width="2.5" stroke-dasharray="10 6"/>
+<text x="1650" y="460" font-size="15" fill="#cf222e" font-weight="bold" text-anchor="end">güven sınırı (ADR-002)</text>
+<text x="205.0" y="190" font-size="18" fill="#1f2328" font-weight="bold" text-anchor="middle">1 · start</text>
+<text x="530.0" y="190" font-size="18" fill="#1f2328" font-weight="bold" text-anchor="middle">2 · çalışma</text>
+<text x="855.0" y="190" font-size="18" fill="#1f2328" font-weight="bold" text-anchor="middle">3 · finish</text>
+<text x="1180.0" y="190" font-size="18" fill="#1f2328" font-weight="bold" text-anchor="middle">4 · yeni oturum</text>
+<text x="1505.0" y="190" font-size="18" fill="#1f2328" font-weight="bold" text-anchor="middle">5 · status · inspect</text>
+<rect x="60" y="215" width="290" height="150" rx="6" fill="#ffffff" stroke="#2d7a3e" stroke-width="1.5"/>
+<text x="74" y="239" font-size="15" fill="#1f2328" font-weight="bold" text-anchor="start">rmk start</text>
+<text x="74" y="261" font-size="12" fill="#57606a" text-anchor="start">base = doğrulanmış remote SHA</text>
+<text x="74" y="279" font-size="12" fill="#57606a" text-anchor="start">task başına worktree + branch</text>
+<text x="74" y="297" font-size="12" fill="#57606a" text-anchor="start">ledger: execution.started</text>
+<text x="74" y="315" font-size="12" fill="#57606a" text-anchor="start">plan task ID tam-token eşleşir</text>
+<rect x="385" y="215" width="290" height="150" rx="6" fill="#ffffff" stroke="#2d7a3e" stroke-width="1.5"/>
+<text x="399" y="239" font-size="15" fill="#1f2328" font-weight="bold" text-anchor="start">Git gerçeği</text>
+<text x="399" y="261" font-size="12" fill="#57606a" text-anchor="start">worktree'deki diff ve commit'ler</text>
+<text x="399" y="279" font-size="12" fill="#57606a" text-anchor="start">ledger olaylarının zaman damgası</text>
+<text x="399" y="297" font-size="12" fill="#57606a" text-anchor="start">→ last activity (ikinci sinyal)</text>
+<text x="399" y="315" font-size="12" fill="#57606a" text-anchor="start">PID yok, heartbeat yok</text>
+<rect x="710" y="215" width="290" height="150" rx="6" fill="#ffffff" stroke="#2d7a3e" stroke-width="1.5"/>
+<text x="724" y="239" font-size="15" fill="#1f2328" font-weight="bold" text-anchor="start">rmk finish</text>
+<text x="724" y="261" font-size="12" fill="#57606a" text-anchor="start">commit'siz iş → refs/runmark/preserved</text>
+<text x="724" y="279" font-size="12" fill="#57606a" text-anchor="start">worktree: exists · clean · merged</text>
+<text x="724" y="297" font-size="12" fill="#57606a" text-anchor="start">silme önerisi yalnız clean &amp;&amp; merged</text>
+<text x="724" y="315" font-size="12" fill="#57606a" text-anchor="start">transcript → test koşuları + exit (ADR-021)</text>
+<rect x="1035" y="215" width="290" height="150" rx="6" fill="#ffffff" stroke="#2d7a3e" stroke-width="1.5"/>
+<text x="1049" y="239" font-size="15" fill="#1f2328" font-weight="bold" text-anchor="start">SessionStart hook</text>
+<text x="1049" y="261" font-size="12" fill="#57606a" text-anchor="start">rmk resume --markdown --hook</text>
+<text x="1049" y="279" font-size="12" fill="#57606a" text-anchor="start">hook-observed.json yazılır</text>
+<text x="1049" y="297" font-size="12" fill="#57606a" text-anchor="start">gelmezse → hooks_not_observed</text>
+<text x="1049" y="315" font-size="12" fill="#57606a" text-anchor="start">(kör kalmak da bulgu)</text>
+<rect x="1360" y="215" width="290" height="150" rx="6" fill="#ffffff" stroke="#2d7a3e" stroke-width="1.5"/>
+<text x="1374" y="239" font-size="15" fill="#1f2328" font-weight="bold" text-anchor="start">rules · evaluate</text>
+<text x="1374" y="261" font-size="12" fill="#57606a" text-anchor="start">stale base · plansız execution</text>
+<text x="1374" y="279" font-size="12" fill="#57606a" text-anchor="start">ambiguous task ID</text>
+<text x="1374" y="297" font-size="12" fill="#57606a" text-anchor="start">active execution + last activity</text>
+<text x="1374" y="315" font-size="12" fill="#57606a" text-anchor="start">unknown ≠ clean</text>
+<rect x="385" y="595" width="290" height="170" rx="6" fill="#ffffff" stroke="#b36b00" stroke-width="1.5"/>
+<text x="399" y="619" font-size="15" fill="#1f2328" font-weight="bold" text-anchor="start">rmk evidence --kind test</text>
+<text x="399" y="641" font-size="12" fill="#57606a" text-anchor="start">özet ajanın yazdığı metin</text>
+<text x="399" y="659" font-size="12" fill="#57606a" text-anchor="start">source: agent — beyan kalır</text>
+<text x="399" y="677" font-size="12" fill="#57606a" text-anchor="start">test_claim_unverified'ı</text>
+<text x="399" y="695" font-size="12" fill="#57606a" text-anchor="start">kapatmaz; ölçüm transcript'ten</text>
+<text x="399" y="713" font-size="12" fill="#57606a" text-anchor="start">rmk note: decision · blocker</text>
+<rect x="710" y="595" width="290" height="150" rx="6" fill="#ffffff" stroke="#b36b00" stroke-width="1.5"/>
+<text x="724" y="619" font-size="15" fill="#1f2328" font-weight="bold" text-anchor="start">handoff notu</text>
+<text x="724" y="641" font-size="12" fill="#57606a" text-anchor="start">'Agent note (weak evidence —</text>
+<text x="724" y="659" font-size="12" fill="#57606a" text-anchor="start">unverified)' bölümü</text>
+<text x="724" y="677" font-size="12" fill="#57606a" text-anchor="start">açık maddeler · kararlar</text>
+<text x="724" y="695" font-size="12" fill="#57606a" text-anchor="start">plan [x] işaretleri de beyan</text>
+<rect x="1035" y="595" width="290" height="150" rx="6" fill="#ffffff" stroke="#b36b00" stroke-width="1.5"/>
+<text x="1049" y="619" font-size="15" fill="#1f2328" font-weight="bold" text-anchor="start">yeni ajan okur</text>
+<text x="1049" y="641" font-size="12" fill="#57606a" text-anchor="start">Verified ve Agent note</text>
+<text x="1049" y="659" font-size="12" fill="#57606a" text-anchor="start">ayrı başlıklarda gelir;</text>
+<text x="1049" y="677" font-size="12" fill="#57606a" text-anchor="start">hangisine güveneceği</text>
+<text x="1049" y="695" font-size="12" fill="#57606a" text-anchor="start">görünür durumda</text>
+<rect x="60" y="595" width="290" height="150" rx="6" fill="#fbfbfb" stroke="#b36b00" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="74" y="619" font-size="15" fill="#1f2328" font-weight="bold" text-anchor="start">başlatma</text>
+<text x="74" y="641" font-size="12" fill="#57606a" text-anchor="start">hangi task, hangi ajan</text>
+<text x="74" y="659" font-size="12" fill="#57606a" text-anchor="start">insan/ajan seçer;</text>
+<text x="74" y="677" font-size="12" fill="#57606a" text-anchor="start">Runmark ajanı başlatmaz</text>
+<text x="74" y="695" font-size="12" fill="#57606a" text-anchor="start">(launch agent: ADR-020)</text>
+<path d="M350,290 H385" fill="none" stroke="#1f2328" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M675,290 H710" fill="none" stroke="#1f2328" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M1000,290 H1035" fill="none" stroke="#1f2328" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M1325,290 H1360" fill="none" stroke="#1f2328" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M1505.0,365 V420 H205.0 V365" fill="none" stroke="#2d7a3e" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="855.0" y="412" font-size="12" fill="#2d7a3e" text-anchor="middle">bulgu bir sonraki start'ı veya devralmayı yönlendirir — sessiz kalmaz</text>
+<path d="M530.0,595 V365" fill="none" stroke="#b36b00" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#a)"/>
+<path d="M855.0,595 V365" fill="none" stroke="#b36b00" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#a)"/>
+<path d="M1180.0,595 V365" fill="none" stroke="#b36b00" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#a)"/>
+<path d="M205.0,595 V365" fill="none" stroke="#b36b00" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#a)"/>
+<text x="213.0" y="520" font-size="12" fill="#b36b00" text-anchor="start">girdi</text>
+<text x="538.0" y="520" font-size="12" fill="#b36b00" text-anchor="start">kayıt</text>
+<text x="863.0" y="520" font-size="12" fill="#b36b00" text-anchor="start">etiketli bölüm</text>
+<text x="1188.0" y="520" font-size="12" fill="#b36b00" text-anchor="start">bağlama girer</text>
+<rect x="30" y="810" width="1640" height="130" rx="8" fill="#ffffff" stroke="#8c959f" stroke-width="2"/>
+<text x="50" y="842" font-size="20" fill="#1f2328" font-weight="bold" text-anchor="start">Okuma kuralı</text>
+<text x="50" y="872" font-size="15" fill="#1f2328" text-anchor="start">• Yeşil banttaki her şey Runmark'ın kendi gözlemidir; turuncu banttakiler kaydedilir ama doğrulanmaz.</text>
+<text x="50" y="896" font-size="15" fill="#1f2328" text-anchor="start">• Turuncudan yeşile geçen tek şey etiketli metindir: hiçbir beyan bir bulguyu tek başına kapatmamalı.</text>
+<text x="50" y="920" font-size="15" fill="#1f2328" text-anchor="start">• Test sonucu: ajanın yazdığı 'geçti' beyan; finish'in transcript'te bulduğu koşu ve exit kodu ölçüm (ADR-021).</text>
+</svg>

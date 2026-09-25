@@ -56,3 +56,5 @@ Runmark; Superpowers, planning-with-files, MudIssue, Git, Claude Code ve Codex g
 - [Trust modeli](TRUST_MODEL.md)
 - [Desktop UX](UX.md)
 - [Mimari kararlar](DECISIONS.md)
+- [Multica inceleme notu](MULTICA_NOTES.md)
+- [Konumlanma notu](POSITIONING.md)

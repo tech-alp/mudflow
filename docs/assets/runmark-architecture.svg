@@ -1,0 +1,195 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="1240" viewBox="0 0 1700 1240" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>
+<rect width="1700" height="1240" fill="#ffffff"/>
+<text x="850.0" y="50" font-size="34" fill="#1f2328" font-weight="bold" text-anchor="middle">Runmark Architecture</text>
+<rect x="30" y="90" width="1250" height="110" rx="8" fill="#f4f0fc" stroke="#5b3fa6" stroke-width="2"/>
+<text x="48" y="122" font-size="22" fill="#5b3fa6" font-weight="bold" text-anchor="start">Yüzeyler</text>
+<text x="48" y="144" font-size="13" fill="#57606a" text-anchor="start">sonucu kim görür</text>
+<rect x="250.0" y="114" width="243.0" height="62" rx="5" fill="#ffffff" stroke="#5b3fa6" stroke-width="1.5"/>
+<text x="371.5" y="143.0" font-size="15" fill="#1f2328" text-anchor="middle">rmk CLI</text>
+<text x="371.5" y="160.0" font-size="11" fill="#57606a" text-anchor="middle">JSON · exit 0/1/2 (TC-007)</text>
+<rect x="507.0" y="114" width="243.0" height="62" rx="5" fill="#ffffff" stroke="#5b3fa6" stroke-width="1.5"/>
+<text x="628.5" y="143.0" font-size="15" fill="#1f2328" text-anchor="middle">Desktop · macOS</text>
+<text x="628.5" y="160.0" font-size="11" fill="#57606a" text-anchor="middle">Qt Quick + Merce · salt okunur</text>
+<rect x="764.0" y="114" width="243.0" height="62" rx="5" fill="#ffffff" stroke="#5b3fa6" stroke-width="1.5"/>
+<text x="885.5" y="143.0" font-size="15" fill="#1f2328" text-anchor="middle">Ajan oturumu</text>
+<text x="885.5" y="160.0" font-size="11" fill="#57606a" text-anchor="middle">resume paketi bağlama girer</text>
+<rect x="1021.0" y="114" width="243.0" height="62" rx="5" fill="#fbfbfb" stroke="#5b3fa6" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="1142.5" y="143.0" font-size="15" fill="#1f2328" text-anchor="middle">Linux · Windows</text>
+<text x="1142.5" y="160.0" font-size="11" fill="#57606a" text-anchor="middle">hedef</text>
+<rect x="30" y="225" width="1250" height="110" rx="8" fill="#fbf1f7" stroke="#8e3a78" stroke-width="2"/>
+<text x="48" y="257" font-size="22" fill="#8e3a78" font-weight="bold" text-anchor="start">Sunum</text>
+<text x="48" y="279" font-size="13" fill="#57606a" text-anchor="start">süreç içi · biçime çevirir</text>
+<rect x="250.0" y="249" width="243.0" height="62" rx="5" fill="#ffffff" stroke="#8e3a78" stroke-width="1.5"/>
+<text x="371.5" y="278.0" font-size="15" fill="#1f2328" text-anchor="middle">json.cpp · toJson</text>
+<text x="371.5" y="295.0" font-size="11" fill="#57606a" text-anchor="middle">apps/cli · tek JSON yeri</text>
+<rect x="507.0" y="249" width="243.0" height="62" rx="5" fill="#ffffff" stroke="#8e3a78" stroke-width="1.5"/>
+<text x="628.5" y="278.0" font-size="15" fill="#1f2328" text-anchor="middle">resumeMarkdown</text>
+<text x="628.5" y="295.0" font-size="11" fill="#57606a" text-anchor="middle">apps/cli'de kilitli</text>
+<circle cx="746.0" cy="253" r="13" fill="#cf222e"/>
+<text x="746.0" y="257.5" font-size="12" fill="#ffffff" font-weight="bold" text-anchor="middle">B4</text>
+<rect x="764.0" y="249" width="243.0" height="62" rx="5" fill="#ffffff" stroke="#8e3a78" stroke-width="1.5"/>
+<text x="885.5" y="278.0" font-size="15" fill="#1f2328" text-anchor="middle">libs/ui-shell</text>
+<text x="885.5" y="295.0" font-size="11" fill="#57606a" text-anchor="middle">ViewModel · FindingModel</text>
+<rect x="1021.0" y="249" width="243.0" height="62" rx="5" fill="#fbfbfb" stroke="#8e3a78" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="1142.5" y="278.0" font-size="15" fill="#1f2328" text-anchor="middle">Plugin runtime · QML host</text>
+<text x="1142.5" y="295.0" font-size="11" fill="#57606a" text-anchor="middle">hedef (ADR-018)</text>
+<rect x="30" y="360" width="1250" height="100" rx="8" fill="#f6f8fa" stroke="#57606a" stroke-width="2"/>
+<text x="48" y="392" font-size="22" fill="#57606a" font-weight="bold" text-anchor="start">Application</text>
+<text x="48" y="414" font-size="13" fill="#57606a" text-anchor="start">use case · tipli sonuç (TC-012)</text>
+<rect x="250.0" y="379" width="243.0" height="62" rx="5" fill="#ffffff" stroke="#57606a" stroke-width="1.5"/>
+<text x="371.5" y="408.0" font-size="15" fill="#1f2328" text-anchor="middle">inspect · status</text>
+<text x="371.5" y="425.0" font-size="11" fill="#57606a" text-anchor="middle">observe → evaluate</text>
+<circle cx="489.0" cy="383" r="13" fill="#cf222e"/>
+<text x="489.0" y="387.5" font-size="12" fill="#ffffff" font-weight="bold" text-anchor="middle">B2</text>
+<rect x="507.0" y="379" width="243.0" height="62" rx="5" fill="#ffffff" stroke="#57606a" stroke-width="1.5"/>
+<text x="628.5" y="408.0" font-size="15" fill="#1f2328" text-anchor="middle">start · finish</text>
+<text x="628.5" y="425.0" font-size="11" fill="#57606a" text-anchor="middle">worktree · preserve · handoff</text>
+<rect x="764.0" y="379" width="243.0" height="62" rx="5" fill="#ffffff" stroke="#57606a" stroke-width="1.5"/>
+<text x="885.5" y="408.0" font-size="15" fill="#1f2328" text-anchor="middle">resume</text>
+<text x="885.5" y="425.0" font-size="11" fill="#57606a" text-anchor="middle">paket · last activity</text>
+<rect x="1021.0" y="379" width="243.0" height="62" rx="5" fill="#ffffff" stroke="#57606a" stroke-width="1.5"/>
+<text x="1142.5" y="408.0" font-size="15" fill="#1f2328" text-anchor="middle">evidence · note</text>
+<text x="1142.5" y="425.0" font-size="11" fill="#57606a" text-anchor="middle">ledger'a ekler</text>
+<rect x="30" y="510" width="615.0" height="250" rx="8" fill="#f3f7fd" stroke="#1f5fbf" stroke-width="2"/>
+<text x="48" y="542" font-size="22" fill="#1f5fbf" font-weight="bold" text-anchor="start">Infrastructure</text>
+<text x="48" y="564" font-size="13" fill="#57606a" text-anchor="start">dış dünyayı okur → Facts</text>
+<rect x="665.0" y="510" width="615.0" height="250" rx="8" fill="#eef4fd" stroke="#1f5fbf" stroke-width="2"/>
+<text x="683.0" y="542" font-size="22" fill="#1f5fbf" font-weight="bold" text-anchor="start">Domain</text>
+<text x="683.0" y="564" font-size="13" fill="#57606a" text-anchor="start">C++23 module · saf · bağımlılığı yok</text>
+<rect x="48.0" y="582" width="282.5" height="70" rx="5" fill="#ffffff" stroke="#1f5fbf" stroke-width="1.5"/>
+<text x="189.25" y="615.0" font-size="15" fill="#1f2328" text-anchor="middle">git</text>
+<text x="189.25" y="632.0" font-size="11" fill="#57606a" text-anchor="middle">fetch · merge-base · preserve</text>
+<rect x="344.5" y="582" width="282.5" height="70" rx="5" fill="#ffffff" stroke="#1f5fbf" stroke-width="1.5"/>
+<text x="485.75" y="615.0" font-size="15" fill="#1f2328" text-anchor="middle">ledger</text>
+<text x="485.75" y="632.0" font-size="11" fill="#57606a" text-anchor="middle">JSONL · kilitsiz</text>
+<rect x="48.0" y="668" width="282.5" height="70" rx="5" fill="#ffffff" stroke="#1f5fbf" stroke-width="1.5"/>
+<text x="189.25" y="701.0" font-size="15" fill="#1f2328" text-anchor="middle">handoff · plan</text>
+<text x="189.25" y="718.0" font-size="11" fill="#57606a" text-anchor="middle">disk I/O · tam-token ID</text>
+<rect x="344.5" y="668" width="282.5" height="70" rx="5" fill="#ffffff" stroke="#1f5fbf" stroke-width="1.5"/>
+<text x="485.75" y="701.0" font-size="15" fill="#1f2328" text-anchor="middle">config_io · paths</text>
+<text x="485.75" y="718.0" font-size="11" fill="#57606a" text-anchor="middle">.runmark yerleşimi</text>
+<rect x="683.0" y="582" width="282.5" height="70" rx="5" fill="#ffffff" stroke="#1f5fbf" stroke-width="1.5"/>
+<text x="824.25" y="615.0" font-size="15" fill="#1f2328" text-anchor="middle">Facts</text>
+<text x="824.25" y="632.0" font-size="11" fill="#57606a" text-anchor="middle">ölçülen, yorumsuz</text>
+<circle cx="961.5" cy="586" r="13" fill="#cf222e"/>
+<text x="961.5" y="590.5" font-size="12" fill="#ffffff" font-weight="bold" text-anchor="middle">B1</text>
+<rect x="979.5" y="582" width="282.5" height="70" rx="5" fill="#ffffff" stroke="#1f5fbf" stroke-width="1.5"/>
+<text x="1120.75" y="615.0" font-size="15" fill="#1f2328" text-anchor="middle">rules · evaluate</text>
+<text x="1120.75" y="632.0" font-size="11" fill="#57606a" text-anchor="middle">Facts → Finding</text>
+<circle cx="1258.0" cy="586" r="13" fill="#cf222e"/>
+<text x="1258.0" y="590.5" font-size="12" fill="#ffffff" font-weight="bold" text-anchor="middle">B3</text>
+<rect x="683.0" y="668" width="282.5" height="70" rx="5" fill="#ffffff" stroke="#1f5fbf" stroke-width="1.5"/>
+<text x="824.25" y="701.0" font-size="15" fill="#1f2328" text-anchor="middle">ProjectConfig::parse</text>
+<text x="824.25" y="718.0" font-size="11" fill="#57606a" text-anchor="middle">doğrulama</text>
+<rect x="979.5" y="668" width="282.5" height="70" rx="5" fill="#ffffff" stroke="#1f5fbf" stroke-width="1.5"/>
+<text x="1120.75" y="701.0" font-size="15" fill="#1f2328" text-anchor="middle">domain_purity</text>
+<text x="1120.75" y="718.0" font-size="11" fill="#57606a" text-anchor="middle">I/O · QObject yasak (CTest)</text>
+<rect x="30" y="800" width="1250" height="140" rx="8" fill="#fdf5e8" stroke="#b36b00" stroke-width="2"/>
+<text x="48" y="832" font-size="22" fill="#b36b00" font-weight="bold" text-anchor="start">Workspace &amp; Persistence</text>
+<text x="48" y="854" font-size="13" fill="#57606a" text-anchor="start">yerel, Git'in yanında</text>
+<rect x="250.0" y="846" width="191.6" height="62" rx="5" fill="#ffffff" stroke="#b36b00" stroke-width="1.5"/>
+<text x="345.8" y="875.0" font-size="15" fill="#1f2328" text-anchor="middle">project.json</text>
+<text x="345.8" y="892.0" font-size="11" fill="#57606a" text-anchor="middle">commit'lenir</text>
+<rect x="455.6" y="846" width="191.6" height="62" rx="5" fill="#ffffff" stroke="#b36b00" stroke-width="1.5"/>
+<text x="551.4" y="875.0" font-size="15" fill="#1f2328" text-anchor="middle">ledger/*.jsonl</text>
+<text x="551.4" y="892.0" font-size="11" fill="#57606a" text-anchor="middle">execution başına</text>
+<rect x="661.2" y="846" width="191.6" height="62" rx="5" fill="#ffffff" stroke="#b36b00" stroke-width="1.5"/>
+<text x="757.0" y="875.0" font-size="15" fill="#1f2328" text-anchor="middle">handoffs/*.md</text>
+<text x="757.0" y="892.0" font-size="11" fill="#57606a" text-anchor="middle">ölçülen · iddia · açık</text>
+<rect x="866.8" y="846" width="191.6" height="62" rx="5" fill="#ffffff" stroke="#b36b00" stroke-width="1.5"/>
+<text x="962.5999999999999" y="875.0" font-size="15" fill="#1f2328" text-anchor="middle">refs/runmark/preserved/*</text>
+<text x="962.5999999999999" y="892.0" font-size="11" fill="#57606a" text-anchor="middle">commit'siz iş</text>
+<rect x="1072.4" y="846" width="191.6" height="62" rx="5" fill="#ffffff" stroke="#b36b00" stroke-width="1.5"/>
+<text x="1168.2" y="875.0" font-size="15" fill="#1f2328" text-anchor="middle">git worktrees</text>
+<text x="1168.2" y="892.0" font-size="11" fill="#57606a" text-anchor="middle">task başına</text>
+<text x="757.0" y="930" font-size="12" fill="#57606a" text-anchor="middle">evidence/ · hook-observed.json · .git/info/exclude (paylaşılan .gitignore'a dokunulmaz)</text>
+<path d="M640,200 V225" fill="none" stroke="#1f2328" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M640,335 V360" fill="none" stroke="#1f2328" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M337.5,460 V510" fill="none" stroke="#1f2328" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M972.5,460 V510" fill="none" stroke="#1f2328" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M645.0,635 H665.0" fill="none" stroke="#1f2328" stroke-width="1.8" marker-end="url(#a)"/>
+<path d="M337.5,760 V800" fill="none" stroke="#1f2328" stroke-width="1.8" marker-end="url(#a)"/>
+<rect x="1320" y="90" width="350" height="250" rx="8" fill="#eef8f0" stroke="#2d7a3e" stroke-width="2"/>
+<text x="1338" y="122" font-size="20" fill="#2d7a3e" font-weight="bold" text-anchor="start">Ajan istemcileri</text>
+<text x="1338" y="144" font-size="13" fill="#57606a" text-anchor="start">ayrı süreç · rmk'yi dışarıdan çağırır</text>
+<rect x="1338" y="150" width="314" height="46" rx="5" fill="#ffffff" stroke="#2d7a3e" stroke-width="1.5"/>
+<text x="1495.0" y="171.0" font-size="15" fill="#1f2328" text-anchor="middle">Claude Code</text>
+<text x="1495.0" y="188.0" font-size="11" fill="#57606a" text-anchor="middle">hook: düz stdout</text>
+<rect x="1338" y="204" width="314" height="46" rx="5" fill="#ffffff" stroke="#2d7a3e" stroke-width="1.5"/>
+<text x="1495.0" y="225.0" font-size="15" fill="#1f2328" text-anchor="middle">Codex</text>
+<text x="1495.0" y="242.0" font-size="11" fill="#57606a" text-anchor="middle">hooks = dosya yolu · Trust</text>
+<rect x="1338" y="258" width="314" height="62" rx="5" fill="#ffffff" stroke="#2d7a3e" stroke-width="1.5"/>
+<text x="1495.0" y="287.0" font-size="15" fill="#1f2328" text-anchor="middle">runmark-agent plugin</text>
+<text x="1495.0" y="304.0" font-size="11" fill="#57606a" text-anchor="middle">SessionStart hook · skill · iki runtime'da aynı</text>
+<path d="M1338,289 H1300 V75 H372 V114" fill="none" stroke="#2d7a3e" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="760" y="70" font-size="12" fill="#2d7a3e" text-anchor="middle">rmk resume --markdown --hook · start · evidence · note · finish</text>
+<rect x="1320" y="360" width="350" height="210" rx="8" fill="#eef8f0" stroke="#2d7a3e" stroke-width="2"/>
+<text x="1338" y="392" font-size="20" fill="#2d7a3e" font-weight="bold" text-anchor="start">Gerçeklik kaynakları</text>
+<rect x="1338" y="402" width="314" height="46" rx="5" fill="#ffffff" stroke="#2d7a3e" stroke-width="1.5"/>
+<text x="1495.0" y="423.0" font-size="15" fill="#1f2328" text-anchor="middle">Git remote (origin)</text>
+<text x="1495.0" y="440.0" font-size="11" fill="#57606a" text-anchor="middle">doğrulanmış base · ADR-007</text>
+<rect x="1338" y="456" width="314" height="46" rx="5" fill="#ffffff" stroke="#2d7a3e" stroke-width="1.5"/>
+<text x="1495.0" y="477.0" font-size="15" fill="#1f2328" text-anchor="middle">Plan · Markdown</text>
+<text x="1495.0" y="494.0" font-size="11" fill="#57606a" text-anchor="middle">[x] beyan, kanıt değil</text>
+<rect x="1338" y="510" width="314" height="46" rx="5" fill="#fbfbfb" stroke="#2d7a3e" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="1495.0" y="531.0" font-size="15" fill="#1f2328" text-anchor="middle">Jira · GitHub Issues · MudIssue</text>
+<text x="1495.0" y="548.0" font-size="11" fill="#57606a" text-anchor="middle">hedef</text>
+<path d="M1320,480 H1300 V780 H500 V760" fill="none" stroke="#2d7a3e" stroke-width="1.8" stroke-dasharray="6 5" marker-end="url(#a)"/>
+<rect x="1320" y="590" width="350" height="190" rx="8" fill="#fdf5e8" stroke="#b36b00" stroke-width="2"/>
+<text x="1338" y="622" font-size="20" fill="#b36b00" font-weight="bold" text-anchor="start">Tasarım &amp; araç zinciri</text>
+<rect x="1338" y="632" width="314" height="42" rx="5" fill="#ffffff" stroke="#b36b00" stroke-width="1.5"/>
+<text x="1495.0" y="651.0" font-size="15" fill="#1f2328" text-anchor="middle">Merce v1.2.0</text>
+<text x="1495.0" y="668.0" font-size="11" fill="#57606a" text-anchor="middle">FetchContent · statik · desktop profili</text>
+<rect x="1338" y="680" width="314" height="42" rx="5" fill="#ffffff" stroke="#b36b00" stroke-width="1.5"/>
+<text x="1495.0" y="706.0" font-size="15" fill="#1f2328" text-anchor="middle">Qt 6.11 · LabsStyleKit</text>
+<rect x="1338" y="728" width="314" height="42" rx="5" fill="#ffffff" stroke="#b36b00" stroke-width="1.5"/>
+<text x="1495.0" y="747.0" font-size="15" fill="#1f2328" text-anchor="middle">CMake 4.4 · Ninja · LLVM</text>
+<text x="1495.0" y="764.0" font-size="11" fill="#57606a" text-anchor="middle">cforgo ölçüldü, alınmadı</text>
+<rect x="1320" y="800" width="350" height="140" rx="8" fill="#f6f8fa" stroke="#57606a" stroke-width="2"/>
+<text x="1338" y="832" font-size="20" fill="#57606a" font-weight="bold" text-anchor="start">Ertelendi · ADR-020</text>
+<rect x="1338" y="840" width="314" height="42" rx="5" fill="#fbfbfb" stroke="#57606a" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="1495.0" y="859.0" font-size="15" fill="#1f2328" text-anchor="middle">launch agent</text>
+<text x="1495.0" y="876.0" font-size="11" fill="#57606a" text-anchor="middle">ön koşul</text>
+<rect x="1338" y="888" width="314" height="42" rx="5" fill="#fbfbfb" stroke="#57606a" stroke-width="1.5" stroke-dasharray="7 5"/>
+<text x="1495.0" y="907.0" font-size="15" fill="#1f2328" text-anchor="middle">assign · handoff · send_message</text>
+<text x="1495.0" y="924.0" font-size="11" fill="#57606a" text-anchor="middle">ondan sonra</text>
+<rect x="30" y="965" width="830" height="255" rx="8" fill="#fff5f5" stroke="#cf222e" stroke-width="2"/>
+<text x="48" y="997" font-size="20" fill="#cf222e" font-weight="bold" text-anchor="start">Bilinen borçlar</text>
+<text x="48" y="1019" font-size="13" fill="#57606a" text-anchor="start">kodda doğrulandı · sıra = önerilen çözüm sırası</text>
+<circle cx="64" cy="1035" r="13" fill="#cf222e"/>
+<text x="64" y="1039.5" font-size="12" fill="#ffffff" font-weight="bold" text-anchor="middle">B1</text>
+<text x="88" y="1040" font-size="14" fill="#1f2328" text-anchor="start">Domain ledger JSON şemasını biliyor (StatusFacts::events = QJsonObject)</text>
+<text x="88" y="1057" font-size="12" fill="#57606a" text-anchor="start">→ infrastructure tipli olay üretsin</text>
+<circle cx="64" cy="1081" r="13" fill="#cf222e"/>
+<text x="64" y="1085.5" font-size="12" fill="#ffffff" font-weight="bold" text-anchor="middle">B2</text>
+<text x="88" y="1086" font-size="14" fill="#1f2328" text-anchor="start">Application somut infrastructure'a bağlı, port yok</text>
+<text x="88" y="1103" font-size="12" fill="#57606a" text-anchor="start">→ testler gerçek git deposu kurmak zorunda</text>
+<circle cx="64" cy="1127" r="13" fill="#cf222e"/>
+<text x="64" y="1131.5" font-size="12" fill="#ffffff" font-weight="bold" text-anchor="middle">B3</text>
+<text x="88" y="1132" font-size="14" fill="#1f2328" text-anchor="start">Finding ID'leri rules.cpp'de dağınık, katalog DATA_MODEL.md'de elle</text>
+<text x="88" y="1149" font-size="12" fill="#57606a" text-anchor="start">→ kodda tek kural kaydı</text>
+<circle cx="64" cy="1173" r="13" fill="#cf222e"/>
+<text x="64" y="1177.5" font-size="12" fill="#ffffff" font-weight="bold" text-anchor="middle">B4</text>
+<text x="88" y="1178" font-size="14" fill="#1f2328" text-anchor="start">resumeMarkdown apps/cli içinde</text>
+<text x="88" y="1195" font-size="12" fill="#57606a" text-anchor="start">→ desktop aynı paketi gösteremez</text>
+<rect x="880" y="965" width="400" height="255" rx="8" fill="#f6f8fa" stroke="#57606a" stroke-width="2"/>
+<text x="898" y="997" font-size="20" fill="#57606a" font-weight="bold" text-anchor="start">Hedef</text>
+<text x="900" y="1040" font-size="15" fill="#1f2328" text-anchor="start">• Plan, kod, Git ve ajan bağlamı kopmasın.</text>
+<text x="900" y="1072" font-size="15" fill="#1f2328" text-anchor="start">• Kanıt &gt; iddia (ADR-002).</text>
+<text x="900" y="1104" font-size="15" fill="#1f2328" text-anchor="start">• Bilinmeyen ≠ temiz: sessiz yeşil yok.</text>
+<text x="900" y="1136" font-size="15" fill="#1f2328" text-anchor="start">• CLI, desktop ve ajan aynı sonuçtan beslenir.</text>
+<rect x="1320" y="965" width="350" height="255" rx="8" fill="#ffffff" stroke="#8c959f" stroke-width="2"/>
+<text x="1338" y="997" font-size="20" fill="#1f2328" font-weight="bold" text-anchor="start">Gösterim</text>
+<path d="M1338,1030 H1390" fill="none" stroke="#1f2328" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="1402" y="1035" font-size="13" fill="#1f2328" text-anchor="start">bağımlılık = çağrı yönü</text>
+<path d="M1338,1066 H1390" fill="none" stroke="#2d7a3e" stroke-width="1.8" marker-end="url(#a)"/>
+<text x="1402" y="1071" font-size="13" fill="#1f2328" text-anchor="start">süreçler arası çağrı</text>
+<rect x="1338" y="1094" width="52" height="18" rx="3" fill="#fbfbfb" stroke="#57606a" stroke-width="1.2" stroke-dasharray="7 5"/>
+<text x="1402" y="1108" font-size="13" fill="#1f2328" text-anchor="start">kesikli = hedef / ertelendi</text>
+<circle cx="1364" cy="1140" r="13" fill="#cf222e"/>
+<text x="1364" y="1144.5" font-size="12" fill="#ffffff" font-weight="bold" text-anchor="middle">B</text>
+<text x="1402" y="1145" font-size="13" fill="#1f2328" text-anchor="start">bilinen borç</text>
+<text x="1338" y="1190" font-size="13" fill="#57606a" text-anchor="start">Döngü ve güven sınırı:</text>
+<text x="1338" y="1208" font-size="13" fill="#57606a" text-anchor="start">runmark-execution-loop.svg</text>
+</svg>
