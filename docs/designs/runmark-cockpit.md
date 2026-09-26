@@ -110,15 +110,33 @@ kullanıyor. Tek bir genel okuyucu hepsini okur; yeni araç = config satırı, k
 
 | Faz | Hedef | İçerik | Kimin için |
 |---|---|---|---|
-| 0 — Süreklilik çekirdeği (2-3 hafta) | Kurucunun günlük acısı biter | Hook ile oturum kaydı, çok dosyalı plan okuyucusu, `rmk note` kararları, çok projeli kokpit v1 | Kurucu |
-| 1 — Başkası kurabilsin | 5 dakikada değer | `rmk init` (araçları ve Git'i algılar, hook'ları kurar), Linux, paket, kısa doküman; **3 dış geliştiriciyle deneme** | 3 gönüllü |
-| 2 — GitHub | Kanıt dışarıdan da gelsin | Görev kartında PR/CI durumu (CI = güçlü ölçülen kanıt), issue `--ref` | Kurucu + deneyenler |
+| 0 — Süreklilik çekirdeği (2-3 hafta) | Kurucunun günlük acısı biter | Hook ile oturum kaydı, çok dosyalı plan okuyucusu, `rmk note` kararları, çok projeli kokpit v1, kurtarma düğmeleri ("worktree'yi aç", "bu oturumdan devam et"), "ajan senden yanıt bekliyor" bildirimi | Kurucu |
+| 1 — Başkası kurabilsin | 5 dakikada değer | Önce Nimbalyst incelemesi (en yakın rakip: iş akışı dosyalarını okuyor mu?); `rmk init` (araçları ve Git'i algılar, hook'ları kurar), Linux, paket, kısa doküman; **3 dış geliştiriciyle deneme** | 3 gönüllü |
+| 2 — GitHub | Kanıt dışarıdan da gelsin | Görev kartında PR/CI durumu (CI = güçlü ölçülen kanıt), issue `--ref`, **merge hazırlığı rozeti** (diff özeti + CI + runtime test kanıtı) | Kurucu + deneyenler |
 | 3 — Panel modülleri | Kokpit zenginleşir | Çakışma radarı, oturum zaman çizelgesi, maliyet paneli, block editor (ayrı proje, önce okuma) | Herkes |
 | 4 — Ajan yönetimi | Ver ve bırak | Multica runner (lisans), üstünde kendi chat ekranı, takım modu | Şirket içi |
+
+Kaynak: nimbalyst.com "best agent management tools 2026" karşılaştırması; makalenin saydığı beş
+operatör sorunu (görünürlük, izolasyon, inceleme, organizasyon, kurtarma) fazlara dağıtıldı.
+Alınmayanlar: mobil uygulama, container izolasyonu, uzak/SSH çalışma, terminal çoklayıcı.
 
 Başka geliştiriciler için en değerli panel adayı **çakışma radarı**: iki aktif oturum aynı
 dosyaya veya göreve dokunuyorsa uyarır. Chat ekranı Faz 4'te, çünkü etkileşimsiz bir
 runner olmadan kendi ajan istemcimizi yazmak demek.
+
+## Ölçülen hook verisi (2026-09-25)
+
+Proje hook'larıyla stdin döküldü (Claude 2.1.282, Codex 0.156.1). İki runtime da aynı alanları verir:
+
+| Hook | Alanlar |
+|---|---|
+| SessionStart | `session_id`, `transcript_path`, `cwd`, `source` (startup/resume) |
+| UserPromptSubmit | `session_id`, `prompt`, `transcript_path` |
+| Stop | `session_id`, `last_assistant_message`, `stop_hook_active`, `transcript_path` |
+| SessionEnd | `session_id`, `reason`, `transcript_path` |
+
+Sonuç: oturum kaydı ve "ajan bekliyor" bildirimi ek bir mekanizma gerektirmez; `Stop` her
+yanıtın sonunda tetiklenir (her oturumda bir değil), `SessionEnd` ajan artık konuşamazken gelir.
 
 ## Open Questions
 
@@ -149,6 +167,17 @@ sürümleme. Tek kullanıcı için ek dağıtım işi yok.
 
 ## Next Steps (Faz 0)
 
+Faz 0 iki dilim (eng review D2). **0a çekirdek + CLI — bitti ölçütü:** worktree veya alt
+klasörde açılan Claude/Codex oturumu `.runmark/sessions/` altında görünür; `rmk status`
+aktif/bekleyen/kapanmış oturumları ve kayıtsız oturumları listeler; plan ilerlemesi dosya
+başına N/M; commit'ten sonra not yoksa ajan bir kez hatırlatılır. **0b kokpit — bitti
+ölçütü:** aynı veri çok projeli desktop panelinde; kurtarma düğmeleri ve "ajan bekliyor"
+bildirimi çalışır. Faz 3 kokpitin kendisi değil, ek paneller.
+
+Checklist kimliği sınırı: dosya başına N/M "kaç planlandı, kaç bitti" sorusuna yeter.
+Kanban kartının kimliği (dosya + satır metni) 0b'de ele alınır; satır metni değişirse kart
+yeni kart sayılır, bu sınır kokpitte açıkça gösterilir.
+
 1. **Oturum kaydı hook'tan** — SessionStart ve SessionEnd/Stop hook'ları
    `session.started` / `session.ended` yazar; worktree'ye göre execution'a bağlanır.
 2. **Çok dosyalı checklist okuyucu** — `project.json` tek plan yerine dosya listesi alır;
@@ -164,6 +193,10 @@ Sonra: yol haritasındaki Faz 1-4.
 
 ## The Assignment
 
+0a bitene kadar aşağıdaki not tutulur; 0a bitince oturum kayıtları çakışmayı, kayıtsız
+oturumu ve notsuz kapanışı nesnel sayar ve değerlendirme o sayılarla yapılır. Üç
+geliştiriciyle yapılacak konuşma bir **keşif görüşmesi**dir, karar verisi değil.
+
 29 Eylül – 3 Ekim arasında, her ajan oturumunu kapatırken üç satır not al: hangi proje ve
 araç, oturum Runmark dışından mı açıldı, oturum bitince hangi karar veya bilgi kayboldu
 (ya da kaybolmadı). Hafta sonunda sayıları çıkar: kaç oturum, kaçı paralel, kaçında bilgi
@@ -173,6 +206,96 @@ adımların önceliğini veriyle belirler.
 Aynı hafta, birden fazla ajanı paralel kullanan üç geliştiricinin adını yaz ve her birine
 tek soru sor: "Son iki haftada iki ajanın aynı işi yaptığı ya da bir oturumun kararının
 kaybolduğu oldu mu?" Faz 1'in gönüllüleri bu listeden çıkar.
+
+## Faz 0a mühendislik kararları (/plan-eng-review, 2026-09-25)
+
+| # | Karar | Gerekçe |
+|---|---|---|
+| D3 | Proje bulma tek fonksiyonda üç adım: üst klasörler → `git-common-dir` ile ana repo → çok projeli liste (`worktree_root`) | `apps/cli/src/main.cpp:46` yalnız cwd'ye bakıyor; worktree'de açılan oturumun hook'u sessizce çıkıyor |
+| D4, D11 | Karar hatırlatması: Stop hook'u, yeni bir commit'ten sonra bu oturumda not yoksa bir kez `{"decision":"block"}`; `stop_hook_active` iken asla. Yedek: sonraki açılışta resume "son oturum not bırakmadan kapandı" der | SessionEnd'de ajan konuşamaz; Stop her yanıtta gelir. Block iki runtime'da ölçüldü (Claude 2.1.282, Codex 0.156.1) |
+| D5 | Oturumlar `.runmark/sessions/<session_id>.jsonl`; `hook-observed.json` kalkar, `hooks_not_observed` oturumlardan türer | Görev defteri "execution başına dosya"; görevsiz oturumun sayfası yoktu. Bilgi tek yerde |
+| D6 | `plan.path` → `plan.paths` (glob); plan izi görevin geçtiği dosyadan | Ortak iz her plan değişikliğinde tüm çalışmalara gürültü üretir |
+| D7 | Tek `rmk hook <olay>` komutu hook stdin'ini okur, karar C++'ta; JS/sh yalnız sürüm kontrolü + iletim | Kayıt biçimi yalnız `ledger.cpp`'de kalır (B1); mantık contract testleriyle kilitlenir |
+| D9 | Stop yolu < 100 ms: ağ yok, transcript okunmaz; yerel git + oturum dosyası + oturum kimlikli notlar | `rmk status`/`resume` ölçümü ~0,6 sn (git fetch) |
+| D10 | Transcript taraması ikinci sinyal: proje/worktree klasöründe açılmış ama kaydı olmayan oturum → bulgu | Hook çalışmayan oturumu hook ile göremezsin (Codex dış görüşü) |
+| D12 | `rmk note` exec almazsa bulunduğu oturumun sayfasına yazar; oturum göreve bağlanırsa notlar resume'da görünür | Görevsiz oturumun kararının yazacağı yer yoktu |
+
+### Veri akışı (0a)
+
+```
+Claude/Codex oturumu
+  │ hook stdin JSON (session_id, cwd, transcript_path, source|reason, stop_hook_active)
+  ▼
+plugin sh/JS ──(sürüm kontrolü)──▶ rmk hook <session-start|stop|session-end>
+                                        │ projeyi bul (cwd → üst → git-common-dir → liste)
+                                        ▼
+                         .runmark/sessions/<id>.jsonl  ◀── rmk note (exec yoksa)
+                                        │
+            rmk status ◀── oturumlar + ledger + plan.paths + transcript taraması
+                  └──▶ bulgular: kayıtsız oturum, hook görülmedi, notsuz kapanış, ...
+```
+
+### NOT in scope (0a)
+
+- Desktop kokpit, kurtarma düğmeleri, bildirim: 0b.
+- Transcript'ten yapay zekâ ile karar çıkarma: premise 5.
+- Kanban kart kimliğinin satır değişikliklerinde korunması: 0b, sınırı yazılı.
+- Linux/Windows hook testleri: Faz 1.
+- Çok projeli listenin kullanıcı arayüzü: 0b (0a yalnız dosyayı okur).
+
+### What already exists
+
+- `execution.started.session_id` (ADR-021): oturum → görev bağı hazır, yeniden kullanılır.
+- `plan.cpp` checkbox regex'i: `plan.paths` için aynen kullanılır.
+- `transcript.cpp` dosya bulma: kayıtsız oturum taramasında yeniden kullanılır.
+- `resume --markdown`: `rmk hook session-start` bunu çağırır, yeniden yazılmaz.
+- `hook-observed.json` ve `writeHookObservation`: kaldırılır, oturum kaydına katılır.
+
+### Failure modes
+
+| Yol | Gerçekçi hata | Test | Hata yönetimi | Kullanıcı görür mü |
+|---|---|---|---|---|
+| Proje bulma | worktree ana repodan silinmiş, git-common-dir yok | contract | proje bulunamadı → hook exit 0, status'ta kayıtsız oturum | Evet (bulgu) |
+| hook session-start | bozuk stdin / session_id yok | contract | yazma yok, exit 0 | Hayır, ama transcript taraması yakalar |
+| hook stop | block döngüsü | contract (`stop_hook_active`) | asla block | — |
+| hook stop | yavaşlama (>100 ms) | contract süre ölçümü | ağ/transcript yasak | Evet (test kırmızı) |
+| oturum dosyası | iki süreç aynı oturuma yazar (resume + hook) | infra | append-only, satır başına tek yazım | — |
+| transcript taraması | çok eski/çok büyük dosyalar | infra | son N gün, yalnız ilk satır | — |
+| plan.paths | glob hiçbir dosyaya uymaz | rules | `plan.no_parsable_tasks` / okunamadı bulgusu | Evet |
+
+Kritik boşluk yok: sessiz kalan tek yol (bozuk stdin) transcript taramasıyla görünür oluyor.
+
+### Implementation Tasks (0a)
+
+- [ ] **T1 (P1, insan: ~4s / CC: ~30dk)** — CLI — Proje bulma fonksiyonu (üç adım) ve tüm komutların ondan geçmesi
+  - Kaynak: D3 · Dosyalar: `apps/cli/src/main.cpp`, `libs/application` · Doğrula: contract (cwd, alt klasör, worktree, liste, bulunamadı)
+- [ ] **T2 (P1, insan: ~1g / CC: ~1s)** — domain/infrastructure — Oturum olayları (`SessionStarted/Waiting/Ended`, not) ve `.runmark/sessions/` okuyucu/yazıcı; `hook-observed.json` kaldırma
+  - Kaynak: D5, D12 · Doğrula: rules + contract; **regresyon:** `hooks_not_observed` hâlâ tetiklenir ve oturumla kalkar
+- [ ] **T3 (P1, insan: ~1g / CC: ~1s)** — CLI — `rmk hook session-start|stop|session-end`; Stop'ta commit başına tek block, `stop_hook_active` koruması, < 100 ms
+  - Kaynak: D4, D7, D9, D11 · Doğrula: contract (stdin örnekleri, süre ölçümü)
+- [ ] **T4 (P2, insan: ~4s / CC: ~30dk)** — CLI — `rmk note` exec'siz: oturum sayfasına; not olayına `session_id`
+  - Kaynak: D9, D12 · Doğrula: contract
+- [ ] **T5 (P2, insan: ~1g / CC: ~1s)** — infrastructure/domain — `plan.paths` (glob), dosya başına N/M, görev dosyasının izi
+  - Kaynak: D6 · Doğrula: rules + infra; bu reponun `project.json`'u taşınır
+- [ ] **T6 (P2, insan: ~4s / CC: ~30dk)** — infrastructure — Kayıtsız oturum taraması (son N gün, ilk satırdaki cwd)
+  - Kaynak: D10 · Doğrula: gerçek transcript fixture'larıyla infra testi
+- [ ] **T7 (P2, insan: ~2s / CC: ~15dk)** — plugin — hooks.json'a Stop ve SessionEnd; ince sh/JS; minimum rmk sürümü
+  - Kaynak: D7 · Doğrula: `plugins/runmark-agent/test.sh`
+- [ ] **T8 (P3, insan: ~2s / CC: ~15dk)** — docs — DATA_MODEL (oturum olayları, plan.paths), TRUST_MODEL (hook-observed kalktı), ADR
+
+### Paralelleştirme
+
+| Adım | Modüller | Bağımlı |
+|---|---|---|
+| T1 | apps/cli, libs/application | — |
+| T2 | libs/domain, libs/infrastructure | — |
+| T5 | libs/domain, libs/infrastructure | — |
+| T6 | libs/infrastructure | — |
+| T3, T4 | apps/cli, libs/application | T1, T2 |
+| T7 | plugins | T3 |
+
+Şerit A: T1 → T3 → T4 → T7. Şerit B: T2 → T5 → T6 (domain/infrastructure ortak, sıralı).
+A ile B paralel başlar; T3 T2'yi bekler. Çakışma: T2 ve T5 aynı modüllerde, aynı şeritte.
 
 ## What I noticed about how you think
 
@@ -186,3 +309,18 @@ kaybolduğu oldu mu?" Faz 1'in gönüllüleri bu listeden çıkar.
   konuşmada. Bu gerilimi taşıyabilmek, hangi özelliğin ne zaman geleceğini belirleyecek.
 
 Şema: [runmark-cockpit.svg](../assets/runmark-cockpit.svg)
+
+## GSTACK REVIEW REPORT
+
+| Run | Status | Findings |
+|---|---|---|
+| plan-eng-review (Claude) | issues_resolved | Mimari 4 (proje bulma P1, karar hatırlatma zamanı, oturum depolama, plan listesi), kod kalitesi 1 (hook mantığı C++'a), test 1 (Codex block ölçümü), performans 1 (Stop < 100 ms). Kapsam: Faz 0 → 0a/0b |
+| outside voice (Codex) | issues_found → resolved | 6 madde: 3'ü karar (D10 transcript ikinci sinyal, D11 commit başına hatırlatma, D12 görevsiz not), 3'ü doküman düzeltmesi (D13) |
+
+Ölçümler: hook stdin alanları iki runtime'da; Stop `block` iki runtime'da çalışıyor; `rmk status`/`resume` ~0,6 sn, `rmk --version` 10 ms, node 20 ms.
+Regresyon: `hook-observed.json` kaldırılırken `hooks_not_observed` testi yeniden yazılacak (T2).
+TODOS: yeni kalem yok; ertelenenler yol haritası fazlarında.
+
+VERDICT: Faz 0a uygulamaya hazır. CROSS-MODEL: Codex'in üç yapısal itirazı kabul edildi, çelişki kalmadı.
+
+NO UNRESOLVED DECISIONS
