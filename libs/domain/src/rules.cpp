@@ -292,7 +292,8 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
                         + silenceFor(execution, facts.now)));
             }
         }
-        if (!completed && !started.planSha1.isEmpty() && started.planSha1 != facts.plan.sha1) {
+        const QString currentPlanSha = facts.plan.sha1For(started.planRef);
+        if (!completed && !started.planSha1.isEmpty() && !currentPlanSha.isEmpty() && started.planSha1 != currentPlanSha) {
             findings.append(finding(QStringLiteral("plan.changed_during_execution"), QStringLiteral("warning"), QStringLiteral("plan"),
                 QStringLiteral("Plan changed during execution"), started.task));
         }
@@ -305,12 +306,15 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
     }
 
     // --- Plan ---
-    if (!facts.plan.readable) {
+    // Each missing plan file is reported; the other files are still read.
+    for (const QString& path : facts.plan.unreadable) {
         findings.append(finding(QStringLiteral("plan.unreadable"), QStringLiteral("warning"), QStringLiteral("plan"),
             QStringLiteral("Plan file cannot be read"),
-            config.planPath + QStringLiteral(" could not be opened; no plan rule was evaluated"),
-            QStringLiteral("Fix project.plan.path in project.json.")));
-    } else {
+            path + (facts.plan.readable ? QStringLiteral(" could not be opened or matched no file")
+                                        : QStringLiteral(" could not be opened; no plan rule was evaluated")),
+            QStringLiteral("Fix project.plan.paths in project.json.")));
+    }
+    if (facts.plan.readable) {
         for (const QString& task : facts.plan.doneTasks) {
             if (!evidencedTasks.contains(task)) {
                 findings.append(finding(QStringLiteral("plan.done_without_evidence"), QStringLiteral("warning"), QStringLiteral("plan"),
@@ -342,8 +346,8 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
             findings.append(finding(QStringLiteral("plan.no_parsable_tasks"), QStringLiteral("warning"), QStringLiteral("plan"),
                 QStringLiteral("Plan yields no task candidates"),
                 facts.plan.checklistCount == 0
-                    ? config.planPath + QStringLiteral(" has no \"- [ ]\" / \"- [x]\" checklist item; plan rules evaluated nothing")
-                    : QString::number(facts.plan.checklistCount) + QStringLiteral(" checklist items found in ") + config.planPath + QStringLiteral(" but none matched task_id_pattern ") + config.taskIdPattern,
+                    ? config.planPaths.join(QStringLiteral(", ")) + QStringLiteral(" has no \"- [ ]\" / \"- [x]\" checklist item; plan rules evaluated nothing")
+                    : QString::number(facts.plan.checklistCount) + QStringLiteral(" checklist items found in ") + config.planPaths.join(QStringLiteral(", ")) + QStringLiteral(" but none matched task_id_pattern ") + config.taskIdPattern,
                 QStringLiteral("Write tasks as \"- [x] <TASK-ID> ...\" items, or fix project.task_id_pattern.")));
         }
     }

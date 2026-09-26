@@ -40,7 +40,7 @@ int main()
             || !git({QStringLiteral("-C"), repository, QStringLiteral("push"), QStringLiteral("-u"), QStringLiteral("up"), QStringLiteral("feature/x")})
             || !QDir().mkpath(root + QStringLiteral("/.runmark"))
             || !writeFile(root + QStringLiteral("/plan.md"), "- [ ] MF-1\n")
-            || !writeFile(config, R"({"version":1,"name":"test","worktree_root":"worktrees","repos":[{"name":"repo","path":"repo","base":{"remote":"up","branch":"feature/x"}}],"plan":{"path":"plan.md"},"task_id_pattern":"MF-\\d+"})")) return 1;
+            || !writeFile(config, R"({"version":1,"name":"test","worktree_root":"worktrees","repos":[{"name":"repo","path":"repo","base":{"remote":"up","branch":"feature/x"}}],"plan":{"paths":["plan.md"]},"task_id_pattern":"MF-\\d+"})")) return 1;
 
     try {
         const runmark::StatusResult status = runmark::projectStatus(config);

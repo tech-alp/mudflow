@@ -62,7 +62,16 @@ ProjectConfig ProjectConfig::parse(const QJsonObject& root)
     if (!plan.isObject()) {
         fail(QStringLiteral("project.plan must be an object"));
     }
-    config.planPath = requiredString(plan.toObject(), "path", QStringLiteral("project.plan"));
+    const QJsonValue planPaths = plan.toObject().value(QStringLiteral("paths"));
+    if (!planPaths.isArray() || planPaths.toArray().isEmpty()) {
+        fail(QStringLiteral("project.plan.paths must be a non-empty array of paths"));
+    }
+    for (const QJsonValue& value : planPaths.toArray()) {
+        if (!value.isString() || value.toString().trimmed().isEmpty()) {
+            fail(QStringLiteral("project.plan.paths items must be non-empty paths"));
+        }
+        config.planPaths.append(value.toString());
+    }
 
     const QJsonValue instructions = root.value(QStringLiteral("instructions"));
     if (!instructions.isUndefined()) {
@@ -116,7 +125,7 @@ QJsonObject ProjectConfig::toJson() const
         {QStringLiteral("name"), name},
         {QStringLiteral("worktree_root"), worktreeRoot},
         {QStringLiteral("repos"), repositoriesJson},
-        {QStringLiteral("plan"), QJsonObject{{QStringLiteral("path"), planPath}}},
+        {QStringLiteral("plan"), QJsonObject{{QStringLiteral("paths"), QJsonArray::fromStringList(planPaths)}}},
         {QStringLiteral("task_id_pattern"), taskIdPattern},
         {QStringLiteral("hooks_expected"), hooksExpected},
         {QStringLiteral("instructions"), QJsonArray::fromStringList(instructions)},

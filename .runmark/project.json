@@ -13,7 +13,10 @@
     }
   ],
   "plan": {
-    "path": "docs/plans/migration.md"
+    "paths": [
+      "docs/plans/migration.md",
+      "docs/superpowers/plans/*.md"
+    ]
   },
   "task_id_pattern": "RM-\\d+",
   "hooks_expected": true

@@ -23,7 +23,10 @@ struct ProjectConfig {
     QString name;
     QString worktreeRoot;
     QVector<RepositoryConfig> repositories;
-    QString planPath;
+    // Plan files, in order; a file-name glob ("docs/superpowers/plans/*.md")
+    // is allowed. Workflow tools all track progress with "- [ ]" (measured:
+    // Superpowers, planning-with-files, GSD), so one reader serves them all.
+    QStringList planPaths;
     QString taskIdPattern;
     bool hooksExpected = false;   // proje bir ajan hook'u bekliyor mu
     QStringList instructions;
@@ -210,8 +213,18 @@ struct WorktreeCleanupFacts {
     QString error;             // non-empty when a check could not run at all
 };
 
+// One plan file's progress: "how many planned, how many done".
+struct PlanFileFacts {
+    QString path;              // as the task's plan_ref names it: relative to the project root when inside it
+    int checklistCount = 0;
+    int doneCount = 0;
+    QString sha1;
+};
+
 struct PlanFacts {
-    bool readable = false;
+    bool readable = false;     // at least one plan file could be read
+    QVector<PlanFileFacts> files;
+    QStringList unreadable;    // listed paths that could not be read, or globs that matched nothing
     int checklistCount = 0;    // number of "- [ ]" / "- [x]" lines
     int taskCount = 0;         // of those, the ones matching task_id_pattern
     QStringList doneTasks;     // task IDs marked "- [x]", in file order
@@ -219,7 +232,17 @@ struct PlanFacts {
     // identifier, e.g. "SCMS-42" inside "SCMS-42-W1". Guessing which task
     // they mean would silently bind evidence to the wrong one.
     QStringList ambiguousTasks;
-    QString sha1;
+
+    // Fingerprint of the file a plan_ref ("<path>#L<n>") points into; empty
+    // when that file is not among the plan files.
+    QString sha1For(const QString& planRef) const
+    {
+        const QString path = planRef.section(QLatin1Char('#'), 0, 0);
+        for (const PlanFileFacts& file : files) {
+            if (file.path == path) return file.sha1;
+        }
+        return {};
+    }
 };
 
 struct StatusFacts {

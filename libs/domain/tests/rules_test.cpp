@@ -21,7 +21,7 @@ runmark::ProjectConfig config()
 {
     runmark::ProjectConfig c;
     c.name = QStringLiteral("t");
-    c.planPath = QStringLiteral("plan.md");
+    c.planPaths = {QStringLiteral("plan.md")};
     c.taskIdPattern = QStringLiteral("MF-\\d+");
     return c;
 }
@@ -119,7 +119,30 @@ int main()
         if (!has(runmark::evaluate(config(), f), QStringLiteral("plan.no_parsable_tasks"))) return 1;
 
         f.plan.readable = false;
+        f.plan.unreadable = {QStringLiteral("plan.md")};
         if (!has(runmark::evaluate(config(), f), QStringLiteral("plan.unreadable"))) return 1;
+    }
+
+    // 4b. Several plan files: a missing one is reported, the rest still count.
+    {
+        runmark::StatusFacts f;
+        f.now = now;
+        f.plan.readable = true;
+        f.plan.taskCount = 1;
+        f.plan.doneTasks = {QStringLiteral("MF-1")};
+        f.plan.unreadable = {QStringLiteral("docs/superpowers/plans/*.md")};
+        const QVector<runmark::Finding> findings = runmark::evaluate(config(), f);
+        if (!has(findings, QStringLiteral("plan.unreadable")) || !has(findings, QStringLiteral("plan.done_without_evidence"))) return 1;
+        // plan_ref points into one file; only that file's fingerprint counts.
+        f.plan.files = {{QStringLiteral("a.md"), 1, 0, QStringLiteral("sha-a")}, {QStringLiteral("b.md"), 1, 0, QStringLiteral("sha-b2")}};
+        if (f.plan.sha1For(QStringLiteral("a.md#L3")) != QStringLiteral("sha-a") || !f.plan.sha1For(QStringLiteral("c.md#L1")).isEmpty()) return 1;
+        runmark::ExecutionStarted e = startedEvent(QStringLiteral("E1"), QStringLiteral("MF-1"), QStringLiteral("2026-09-20T11:00:00Z"));
+        e.planRef = QStringLiteral("a.md#L3");
+        e.planSha1 = QStringLiteral("sha-a");
+        f.ledger.started = {e};
+        if (has(runmark::evaluate(config(), f), QStringLiteral("plan.changed_during_execution"))) return 1;
+        f.plan.files[0].sha1 = QStringLiteral("sha-a2");
+        if (!has(runmark::evaluate(config(), f), QStringLiteral("plan.changed_during_execution"))) return 1;
     }
 
     // 5b. An ambiguous ID is reported per line and never guessed into a task.

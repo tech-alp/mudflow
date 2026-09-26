@@ -50,7 +50,7 @@ int main()
             || !writeFile(worktree + QStringLiteral("/uncommitted.txt"), "preserve me\n")
             || !QDir().mkpath(root + QStringLiteral("/.runmark"))
             || !writeFile(root + QStringLiteral("/plan.md"), "- [ ] MF-1\n")
-            || !writeFile(config, R"({"version":1,"name":"test","worktree_root":"worktrees","repos":[{"name":"repo","path":"repo","base":{"remote":"origin","branch":"main"}}],"plan":{"path":"plan.md"},"task_id_pattern":"MF-\\d+"})")) return 1;
+            || !writeFile(config, R"({"version":1,"name":"test","worktree_root":"worktrees","repos":[{"name":"repo","path":"repo","base":{"remote":"origin","branch":"main"}}],"plan":{"paths":["plan.md"]},"task_id_pattern":"MF-\\d+"})")) return 1;
 
     const QString statusBefore = gitOutput({QStringLiteral("-C"), worktree, QStringLiteral("status"), QStringLiteral("--porcelain")});
     const QString stashBefore = gitOutput({QStringLiteral("-C"), worktree, QStringLiteral("stash"), QStringLiteral("list")});

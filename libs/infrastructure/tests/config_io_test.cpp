@@ -24,7 +24,7 @@ int main()
         "name": "runmark",
         "worktree_root": "~/worktrees",
         "repos": [{"name": "runmark", "path": ".", "base": {"remote": "origin", "branch": "main"}}],
-        "plan": {"path": "docs/ROADMAP.md"},
+        "plan": {"paths": ["docs/ROADMAP.md"]},
         "task_id_pattern": "MF-\\d+"
     })");
     file.close();
@@ -90,7 +90,7 @@ int main()
     }
 
     file.setFileName(directory.filePath(QStringLiteral("legacy.json")));
-    if (!file.open(QIODevice::WriteOnly) || file.write(R"({"version":1,"name":"test","worktree_root":"w","repos":[{"name":"r","path":".","base":"origin/main"}],"plan":{"path":"p"},"task_id_pattern":"T-\\d+"})") < 0) {
+    if (!file.open(QIODevice::WriteOnly) || file.write(R"({"version":1,"name":"test","worktree_root":"w","repos":[{"name":"r","path":".","base":"origin/main"}],"plan":{"paths":["p"]},"task_id_pattern":"T-\\d+"})") < 0) {
         return 1;
     }
     file.close();

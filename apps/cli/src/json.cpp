@@ -74,7 +74,15 @@ QJsonObject toJson(const StatusResult& result)
     return {{QStringLiteral("project"), result.project},
             {QStringLiteral("repositories"), repositories},
             {QStringLiteral("findings"), toJsonArray(result.findings)},
-            {QStringLiteral("sessions"), sessions}};
+            {QStringLiteral("sessions"), sessions},
+            {QStringLiteral("plans"), [&] {
+                QJsonArray plans;
+                for (const PlanFileFacts& file : result.plan.files) {
+                    plans.append(QJsonObject{{QStringLiteral("path"), file.path},
+                        {QStringLiteral("done"), file.doneCount}, {QStringLiteral("total"), file.checklistCount}});
+                }
+                return plans;
+            }()}};
 }
 
 QJsonObject toJson(const SessionFacts& session)

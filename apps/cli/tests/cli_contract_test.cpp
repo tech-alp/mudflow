@@ -121,7 +121,7 @@ void resumeContract(const QString& executable)
     check(writeFile(root + "/plan.md", "- [ ] MF-1\n- [ ] MF-2\n"), "plan");
     check(writeFile(root + "/AGENTS.md", "Project instructions\n"), "project instructions");
     check(writeFile(root + "/extra.md", "Extra instructions\n"), "extra instructions");
-    QJsonObject config = QJsonDocument::fromJson(R"({"version":1,"name":"test","worktree_root":"worktrees","repos":[{"name":"repo","path":"repo","base":{"remote":"origin","branch":"main"}}],"plan":{"path":"plan.md"},"task_id_pattern":"MF-\\d+","instructions":["AGENTS.md"]})").object();
+    QJsonObject config = QJsonDocument::fromJson(R"({"version":1,"name":"test","worktree_root":"worktrees","repos":[{"name":"repo","path":"repo","base":{"remote":"origin","branch":"main"}}],"plan":{"paths":["plan.md"]},"task_id_pattern":"MF-\\d+","instructions":["AGENTS.md"]})").object();
     check(writeFile(configPath, QJsonDocument(config).toJson()), "config");
 
     const QJsonObject none = cli({"resume", "MF-99"});
@@ -332,7 +332,7 @@ void transcriptContract(const QString& executable)
     git({"-C", repo, "push", "-u", "origin", "main"});
     check(QDir().mkpath(root + "/.runmark"), "transcript state directory");
     check(writeFile(root + "/plan.md", "- [x] MF-1\n- [x] MF-2\n"), "transcript plan");
-    check(writeFile(configPath, R"({"version":1,"name":"t","worktree_root":"worktrees","repos":[{"name":"repo","path":"repo","base":{"remote":"origin","branch":"main"}}],"plan":{"path":"plan.md"},"task_id_pattern":"MF-\\d+"})"), "transcript config");
+    check(writeFile(configPath, R"({"version":1,"name":"t","worktree_root":"worktrees","repos":[{"name":"repo","path":"repo","base":{"remote":"origin","branch":"main"}}],"plan":{"paths":["plan.md"]},"task_id_pattern":"MF-\\d+"})"), "transcript config");
     const QByteArray now = QDateTime::currentDateTimeUtc().addSecs(1).toString(Qt::ISODateWithMs).toUtf8();
 
     // Claude: a failing ctest after start; a passing one before start must not count.
@@ -433,7 +433,7 @@ void discoveryContract(const QString& executable)
     check(writeFile(project + "/.runmark/project.json", QJsonDocument(QJsonObject{
         {"version", 1}, {"name", "found"}, {"worktree_root", worktrees},
         {"repos", QJsonArray{QJsonObject{{"name", "repo"}, {"path", "."}, {"base", QJsonObject{{"remote", "origin"}, {"branch", "main"}}}}}},
-        {"plan", QJsonObject{{"path", "plan.md"}}}, {"task_id_pattern", "MF-\\d+"}}).toJson()), "discovery config");
+        {"plan", QJsonObject{{"paths", QJsonArray{"plan.md"}}}}, {"task_id_pattern", "MF-\\d+"}}).toJson()), "discovery config");
     qputenv("RUNMARK_CONFIG_HOME", configHome.path().toUtf8());
 
     QByteArray output;
@@ -456,6 +456,24 @@ void discoveryContract(const QString& executable)
     check(runIn(executable, {"status"}, loose, &output) == 0
         && QJsonDocument::fromJson(output).object().value("project") == "found", "found through the project list");
     qunsetenv("RUNMARK_CONFIG_HOME");
+
+    // Several plan files, one of them a glob: progress per file, and a glob
+    // matching nothing is reported rather than read as an empty plan.
+    check(QDir().mkpath(project + "/plans"), "plans directory");
+    check(writeFile(project + "/plans/a.md", "- [x] step one\n- [ ] step two\n"), "plan a");
+    check(writeFile(project + "/plans/b.md", "- [x] only step\n"), "plan b");
+    QJsonObject config = QJsonDocument::fromJson(readFile(project + "/.runmark/project.json")).object();
+    config.insert("plan", QJsonObject{{"paths", QJsonArray{"plan.md", "plans/*.md", "none/*.md"}}});
+    check(writeFile(project + "/.runmark/project.json", QJsonDocument(config).toJson()), "multi plan config");
+    check(runIn(executable, {"status"}, project, &output) == 0, "status with several plans");
+    const QJsonObject status = QJsonDocument::fromJson(output).object();
+    QStringList progress;
+    for (const QJsonValue& plan : status.value("plans").toArray()) {
+        progress.append(plan.toObject().value("path").toString() + "=" + QString::number(plan.toObject().value("done").toInt())
+            + "/" + QString::number(plan.toObject().value("total").toInt()));
+    }
+    check(progress == QStringList{"plan.md=0/1", "plans/a.md=1/2", "plans/b.md=1/1"}, "per-file progress in path order");
+    check(hasFinding(status, "plan.unreadable"), "a glob matching nothing is reported");
 }
 
 // Session hooks (Phase 0a): one file per session, a one-time note reminder
@@ -478,7 +496,7 @@ void sessionContract(const QString& executable)
     commit("initial");
     check(QDir().mkpath(root + "/.runmark"), "session state");
     check(writeFile(root + "/plan.md", "- [ ] MF-1\n"), "session plan");
-    check(writeFile(root + "/.runmark/project.json", R"({"version":1,"name":"s","worktree_root":"wt","repos":[{"name":"r","path":".","base":{"remote":"origin","branch":"main"}}],"plan":{"path":"plan.md"},"task_id_pattern":"MF-\\d+"})"), "session config");
+    check(writeFile(root + "/.runmark/project.json", R"({"version":1,"name":"s","worktree_root":"wt","repos":[{"name":"r","path":".","base":{"remote":"origin","branch":"main"}}],"plan":{"paths":["plan.md"]},"task_id_pattern":"MF-\\d+"})"), "session config");
     const auto input = [&](const QString& id, const QByteArray& extra = {}) {
         return R"({"session_id":")" + id.toUtf8() + R"(","cwd":")" + root.toUtf8()
             + R"(","transcript_path":"/x/.codex/sessions/2026/09/26/rollout-)" + id.toUtf8() + R"(.jsonl")" + extra + "}";
@@ -575,7 +593,7 @@ int main(int argc, char* argv[])
 
     QTemporaryDir directory;
     if (!directory.isValid()
-            || !writeFile(directory.filePath(QStringLiteral("project.json")), R"({"version":1,"name":"test","worktree_root":"worktrees","repos":[{"name":"repo","path":".","base":{"remote":"origin","branch":"main"}}],"plan":{"path":"plan.md"},"task_id_pattern":"MF-\\d+"})")) return 1;
+            || !writeFile(directory.filePath(QStringLiteral("project.json")), R"({"version":1,"name":"test","worktree_root":"worktrees","repos":[{"name":"repo","path":".","base":{"remote":"origin","branch":"main"}}],"plan":{"paths":["plan.md"]},"task_id_pattern":"MF-\\d+"})")) return 1;
     if (!run(executable, {QStringLiteral("--project"), directory.filePath(QStringLiteral("project.json")), QStringLiteral("inspect")}, 0, &standardOutput, &standardError)
             || !standardError.isEmpty()
             || !QJsonDocument::fromJson(standardOutput).isObject()) return 1;

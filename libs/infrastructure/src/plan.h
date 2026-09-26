@@ -7,11 +7,12 @@
 
 namespace runmark {
 
-// Reads the plan file. Not a real markdown parser: two regexes, one for the
-// checkbox line and one for the task ID. If more is ever needed, TC-002.
+// Reads the plan files (project.plan.paths). Not a real markdown parser: a
+// checkbox regex and a task-ID regex. If more is ever needed, md4c (TC-002).
 PlanFacts observePlan(const ProjectConfig& config, const QString& root);
 
-// First line in the plan where the task ID appears: "<path>#L<n>", else empty.
+// First line across the plan files where the task ID appears:
+// "<path>#L<n>", else empty.
 QString planReference(const ProjectConfig& config, const QString& root, const QString& task);
 
 } // namespace runmark

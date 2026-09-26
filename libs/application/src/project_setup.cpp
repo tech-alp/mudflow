@@ -100,7 +100,7 @@ QString initializeProject(const QString& folder, const QString& name, const QStr
     config.name = name.trimmed();
     config.worktreeRoot = QDir::home().filePath("worktrees/" + QFileInfo(root).fileName());
     config.taskIdPattern = QRegularExpression::escape(taskPrefix) + QStringLiteral("-\\d+");
-    config.planPath = QDir(root).relativeFilePath(planFile.absoluteFilePath());
+    config.planPaths = {QDir(root).relativeFilePath(planFile.absoluteFilePath())};
     config.repositories.append({config.name, QStringLiteral("."), remote, branch});
     if (QFileInfo::exists(QDir(root).filePath("AGENTS.md")))
         config.instructions.append(QStringLiteral("AGENTS.md"));

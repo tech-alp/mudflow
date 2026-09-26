@@ -21,6 +21,7 @@ struct StatusResult {
     QVector<RepoFacts> repositories;
     QVector<Finding> findings;
     QVector<SessionFacts> sessions;
+    PlanFacts plan;            // per-file progress: how many planned, how many done
 };
 
 struct StartResult {

@@ -141,13 +141,12 @@ void StatusViewModel::refresh()
         Measurement measurement;
         try {
             const StatusResult result = projectStatus(configPath);
-            const auto config = inspectProject(configPath);
             QDir root = QFileInfo(configPath).absoluteDir();
             root.cdUp();
             measurement.folder = QUrl::fromLocalFile(root.absolutePath());
-            const QString planPath = config.planPath.startsWith("~/")
-                ? QDir::home().filePath(config.planPath.mid(2)) : root.filePath(config.planPath);
-            if (QFileInfo(planPath).isFile() && QFileInfo(planPath).isReadable())
+            // The first readable plan file; paths come back relative to the root.
+            const QString planPath = result.plan.files.isEmpty() ? QString() : root.filePath(result.plan.files.first().path);
+            if (!planPath.isEmpty() && QFileInfo(planPath).isFile() && QFileInfo(planPath).isReadable())
                 measurement.plan = QUrl::fromLocalFile(QFileInfo(planPath).absoluteFilePath());
             measurement.project = result.project;
             for (const Finding& finding : result.findings) {

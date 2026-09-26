@@ -178,7 +178,7 @@ private slots:
 
         QFile file(config);
         QVERIFY(file.open(QIODevice::WriteOnly));
-        file.write(R"({"version":1,"name":"desktop-test","worktree_root":"worktrees","repos":[{"name":"missing","path":"missing","base":{"remote":"origin","branch":"main"}}],"plan":{"path":"plan.md"},"task_id_pattern":"T-\\d+"})");
+        file.write(R"({"version":1,"name":"desktop-test","worktree_root":"worktrees","repos":[{"name":"missing","path":"missing","base":{"remote":"origin","branch":"main"}}],"plan":{"paths":["plan.md"]},"task_id_pattern":"T-\\d+"})");
         file.close();
         view.refresh();
         QTRY_VERIFY_WITH_TIMEOUT(!view.busy(), 5000);

@@ -206,7 +206,7 @@ StatusResult projectStatus(const QString& configPath)
 
     const StatusFacts facts = observe(config, paths);
 
-    return {config.name, facts.repos, evaluate(config, facts), facts.sessions};
+    return {config.name, facts.repos, evaluate(config, facts), facts.sessions, facts.plan};
 }
 
 ResumeResult resumeExecution(const QString& configPath, const QString& taskOrExecution)
@@ -215,7 +215,7 @@ ResumeResult resumeExecution(const QString& configPath, const QString& taskOrExe
     const Paths paths = pathsFor(configPath);
     ResumeFacts facts = observeResumeLedger(paths, taskOrExecution);
     if (facts.started) {
-        facts.planSha1 = observePlan(config, paths.root).sha1;
+        facts.planSha1 = observePlan(config, paths.root).sha1For(facts.started->planRef);
         readHandoff(paths, facts);
         observeResumeGit(config, paths, facts);
     }
@@ -318,7 +318,9 @@ StartResult startExecution(const QString& configPath, const QString& task, const
     started.sessionId = sessionIdFromEnvironment(agent);
     started.instructions = recordedInstructions;
     started.planRef = planReference(config, paths.root, task);
-    started.planSha1 = sha1File(expandPath(config.planPath, paths.root));
+    // The fingerprint of the file the task lives in, not of every plan: a line
+    // added to another tool's plan must not flag this execution (eng review D6).
+    started.planSha1 = observePlan(config, paths.root).sha1For(started.planRef);
     appendEvent(paths, started);
     return {executionId, worktree, branch, workspaceSource, baseSha, preservedRef, warnings};
 }

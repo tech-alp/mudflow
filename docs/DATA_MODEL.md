@@ -92,7 +92,7 @@ Format kararı: TECH_CHOICES.md TC-003 (YAML yerine JSON → Qt dışı sıfır 
     }
   ],
 
-  "plan": { "path": "docs/plans/config-migration.md" },
+  "plan": { "paths": ["docs/plans/config-migration.md", "docs/superpowers/plans/*.md"] },
 
   "task_id_pattern": "SCMS-\\d+",
   "instructions": ["AGENTS.md", "docs/WORKFLOW.md"],
@@ -105,6 +105,13 @@ Format kararı: TECH_CHOICES.md TC-003 (YAML yerine JSON → Qt dışı sıfır 
 - `repos[].base.remote` + `repos[].base.branch` — ADR-007: verified remote
   base. Git ref'i `remote + "/" + branch` olarak türetilir; eski
   `"origin/main"` string biçimi kabul edilmez.
+- `plan.paths` — boş olmayan plan dosyası listesi; dosya adında glob olabilir
+  (`docs/superpowers/plans/*.md`). Superpowers, planning-with-files ve GSD
+  ilerlemeyi `- [ ]` ile yazar; tek okuyucu hepsini okur. `rmk status` dosya başına
+  `plans: [{path, done, total}]` verir. Okunamayan dosya ya da hiçbir şeye uymayan
+  glob ayrı `plan.unreadable` bulgusudur; diğer dosyalar okunmaya devam eder.
+  Execution'ın `plan_sha1`'i görevin geçtiği dosyanındır (`plan_ref`'in dosyası);
+  görev hiçbir planda yoksa karşılaştırma "bilinmiyor"dur.
 - `task_id_pattern` — Plan ↔ evidence eşleşmesinin dayandığı konvansiyon. Bu
   pattern olmadan PlanTruthEngine çalışmaz.
 - `hooks_expected` — opsiyonel boolean, varsayılanı `false`. Proje bir ajan
