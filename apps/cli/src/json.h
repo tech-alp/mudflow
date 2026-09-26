@@ -29,5 +29,8 @@ QString sessionWithoutNotesMarkdown(const SessionFacts& session);
 // Appended to the session-start context: what the last session that left
 // notes decided and left open.
 QString sessionNotesMarkdown(const SessionFacts& session, const QVector<NoteRecorded>& notes);
+// Heads the session-start context: executions other than the one resumed that
+// still wait for someone. Empty when there are none.
+QString openWorkMarkdown(const QVector<OpenExecution>& open);
 
 } // namespace runmark

@@ -118,9 +118,13 @@ Format `project.json` içindeki `task_id_pattern` ile eşleşmezse `rmk status`
   notsuz kapanışı ve kayıtsız oturumu sayar; yakalama günlüğü bunlardan
   tutulur. Codex hook'ları `/hooks` panelinden onaylanmalı.
 
-  Bilinen pürüz: oturum açılış bağlamı en son execution'la başlıyor (ör. 4
-  gün önceki RM-12), son oturumun daha yeni notları altta kalıyor. Notlar son
-  execution'dan yeniyse önce onlar gösterilmeli.
+  Pürüzler:
+  - [x] #1 Açılış bağlamı en son execution'la başlıyor, son oturumun daha yeni
+    notları altta kalıyordu. Notlar yeniyse artık önce onlar gösteriliyor.
+  - [x] #2 Açılış yalnız en son execution'ı gösteriyordu; paralel işler
+    görünmüyordu. Artık `## Open work` listesi var (ADR-024).
+  - [x] #3 `interrupted` iş devam ettirilemiyordu (`rmk start` iki yoldan da
+    reddediyordu). Artık `rmk start` onu devralıyor (ADR-024).
 
 - [ ] RM-15 — Faz 0b öncesi: Nimbalyst incelemesi
 

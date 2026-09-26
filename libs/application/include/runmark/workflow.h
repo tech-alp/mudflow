@@ -71,6 +71,9 @@ struct SessionStartResult {
     // continuity.
     std::optional<SessionFacts> lastWithNotes;
     QVector<NoteRecorded> lastNotes;
+    // Every task's unfinished or interrupted execution: the resume context
+    // shows only the latest execution, so parallel work would go unseen.
+    QVector<OpenExecution> openWork;
 };
 
 // The project.json that governs `directory`: the directory or a parent, the

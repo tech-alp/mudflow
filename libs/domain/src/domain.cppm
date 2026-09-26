@@ -331,6 +331,16 @@ export namespace runmark {
 QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts);
 QVector<Finding> evaluateResume(const ResumeFacts& facts);
 
+// Work still waiting for someone: the newest execution of each task, when it
+// never finished or finished as interrupted. A later execution of the task
+// takes over, so an older one never shows. Oldest first.
+struct OpenExecution {
+    ExecutionStarted started;
+    QString outcome;           // interrupted; empty when it never finished
+    QDateTime lastActivity;
+};
+QVector<OpenExecution> openExecutions(const Ledger& ledger);
+
 // Whether a shell command's exit status is the test run's own. After
 // `ctest | tail`, `ctest; echo` or `ctest || true` the status belongs to a
 // later command, so a failing suite reads as exit 0. `&&` keeps a failure, and

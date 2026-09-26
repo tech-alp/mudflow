@@ -387,3 +387,25 @@ Sınırlar: hook'u hiç çalışmayan oturum bu yolla görünmez (transcript tar
 T6 bunu kapatır). Oturum ana dizinde açılıp başka bir worktree'ye elle
 geçildiyse, o worktree'nin commit'leri yalnız oturum `rmk start` ile bir
 execution başlattıysa görülür.
+
+## ADR-024 — Yarım kalan iş devam ettirilir, açılışta hepsi görünür
+Accepted. Tarih: 2026-09-26. Kaynak: RM-14 dogfooding.
+
+`interrupted` ile bırakılan bir iş hiçbir yoldan devam ettirilemiyordu:
+worktree yerindeyse `rmk start` "worktree already belongs" diye, silinmişse
+git "branch already exists" diye reddediyordu. Oturum açılışı da yalnız en son
+execution'ı gösteriyordu; paralel işler görünmüyordu. Karar:
+
+- Açık iş: her görevin en yeni execution'ı, hiç bitmemişse ya da `interrupted`
+  bittiyse. Tek tanım domain'deki `openExecutions()`; status, start ve oturum
+  açılışı onu kullanır.
+- `rmk start <görev>`, görevin açık execution'ı `interrupted` ise onun branch'ini
+  ve worktree'sini devralır (`adopted`); worktree silinmişse branch'ten yeniden
+  kurar. Hiç bitmemişse reddeder ve `rmk resume <exec>` ya da `rmk finish`
+  önerir.
+- Status `interrupted` işi `context.interrupted_execution` ile gösterir; onun
+  worktree'si için "sil" önermez.
+- Oturum açılışı, resume edilen dışındaki açık işleri en üstte `## Open work`
+  olarak listeler.
+
+Sınır: `finished` ya da `abandoned` bir görevi yeniden açmak hâlâ elle yapılır.

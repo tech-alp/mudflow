@@ -6,6 +6,9 @@ module;
 #include <QRegularExpression>
 #include <QSet>
 
+#include <algorithm>
+#include <utility>
+
 module runmark.domain;
 
 namespace runmark {
@@ -149,6 +152,39 @@ QVector<Finding> evaluateResume(const ResumeFacts& facts)
     return gaps;
 }
 
+QVector<OpenExecution> openExecutions(const Ledger& ledger)
+{
+    // Execution IDs carry UTC time: lexical order is the ledger's chronology.
+    QMap<QString, ExecutionStarted> newest;
+    for (const ExecutionStarted& started : ledger.started) {
+        if (!newest.contains(started.task) || started.exec > newest.value(started.task).exec) newest.insert(started.task, started);
+    }
+    QVector<OpenExecution> open;
+    for (const ExecutionStarted& started : std::as_const(newest)) {
+        OpenExecution execution{started, {}, started.at};
+        const auto touch = [&execution](const QDateTime& at) {
+            if (at.isValid() && (!execution.lastActivity.isValid() || at > execution.lastActivity)) execution.lastActivity = at;
+        };
+        bool closed = false;
+        for (const ExecutionFinished& finished : ledger.finished) {
+            if (finished.exec != started.exec) continue;
+            touch(finished.at);
+            if (finished.outcome == QLatin1String("interrupted")) execution.outcome = finished.outcome;
+            else closed = true;
+        }
+        if (closed) continue;
+        for (const EvidenceRecorded& evidence : ledger.evidence) {
+            if (evidence.exec == started.exec) touch(evidence.at);
+        }
+        for (const NoteRecorded& note : ledger.notes) {
+            if (note.exec == started.exec) touch(note.at);
+        }
+        open.append(execution);
+    }
+    std::sort(open.begin(), open.end(), [](const OpenExecution& a, const OpenExecution& b) { return a.started.exec < b.started.exec; });
+    return open;
+}
+
 QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
 {
     QVector<Finding> findings;
@@ -245,6 +281,18 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
         }
     }
 
+    // Interrupted is finished on purpose, yet the work waits for someone; its
+    // worktree is the work, not something left behind.
+    QSet<QString> interrupted;
+    for (const OpenExecution& open : openExecutions(ledger)) {
+        if (open.outcome.isEmpty()) continue;
+        interrupted.insert(open.started.exec);
+        findings.append(finding(QStringLiteral("context.interrupted_execution"), QStringLiteral("info"), QStringLiteral("context"),
+            QStringLiteral("Execution waits to be continued"),
+            open.started.exec + QStringLiteral(" was interrupted; ") + silenceFor(executionFor(facts, open.started.exec), facts.now),
+            QStringLiteral("rmk start ") + open.started.task));
+    }
+
     // --- Per execution ---
     for (const ExecutionStarted& started : ledger.started) {
         const QString& executionId = started.exec;
@@ -265,7 +313,7 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
         // A finished execution whose worktree survives on disk reads as active
         // work. Removal is never automatic (ARCHITECTURE.md "Security"); this
         // only makes it visible.
-        if (completed && !started.worktree.isEmpty() && execution && execution->worktreeExists) {
+        if (completed && !interrupted.contains(executionId) && !started.worktree.isEmpty() && execution && execution->worktreeExists) {
             findings.append(finding(QStringLiteral("git.orphaned_worktree"), QStringLiteral("info"), QStringLiteral("git"),
                 QStringLiteral("Completed execution still has a worktree"),
                 started.worktree + QStringLiteral(" remains on disk after ") + executionId + QStringLiteral(" (")

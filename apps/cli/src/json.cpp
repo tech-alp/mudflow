@@ -114,6 +114,21 @@ QString sessionNotesMarkdown(const SessionFacts& session, const QVector<NoteReco
     return text;
 }
 
+QString openWorkMarkdown(const QVector<OpenExecution>& open)
+{
+    if (open.isEmpty()) return {};
+    QString text = QStringLiteral("## Open work\n\nNot done yet; the resume context below covers only the latest execution.\n\n");
+    for (const OpenExecution& execution : open) {
+        const QString exec = execution.started.exec;
+        const QString activity = execution.lastActivity.isValid() ? execution.lastActivity.toString(Qt::ISODate) : QStringLiteral("unknown");
+        text += execution.outcome.isEmpty()
+            ? QStringLiteral("- %1: %2 never finished, last activity %3. A recent one may be another live session's. "
+                "Continue in %4 with `rmk resume %2`\n").arg(execution.started.task, exec, activity, execution.started.worktree)
+            : QStringLiteral("- %1: %2 interrupted, last activity %3. Continue with `rmk start %1`\n").arg(execution.started.task, exec, activity);
+    }
+    return text;
+}
+
 QString sessionWithoutNotesMarkdown(const SessionFacts& session)
 {
     return QStringLiteral("\n## Unrecorded decisions\n\nAn earlier %1 session (%2) committed work and ended without a "

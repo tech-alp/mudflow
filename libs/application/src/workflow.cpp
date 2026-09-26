@@ -267,6 +267,15 @@ StartResult startExecution(const QString& configPath, const QString& task, const
     if (agent != QLatin1String("codex") && agent != QLatin1String("claude")) {
         fail(QStringLiteral("Agent must be codex or claude"));
     }
+    const Ledger ledger = readLedger(paths);
+    std::optional<OpenExecution> open;
+    for (const OpenExecution& execution : openExecutions(ledger)) {
+        if (execution.started.task == task) open = execution;
+    }
+    if (open && open->outcome.isEmpty()) {
+        fail(QStringLiteral("Refusing start: %1 is still open in %2. Continue it with `rmk resume %1`, "
+            "or close it with `rmk finish %1 --outcome interrupted`").arg(open->started.exec, open->started.worktree));
+    }
 
     const RepositoryConfig& repository = repositoryFor(config, repositoryName);
     const QString repositoryPath = expandPath(repository.path, paths.root);
@@ -292,6 +301,11 @@ StartResult startExecution(const QString& configPath, const QString& task, const
     if (QFileInfo::exists(QDir(paths.ledger).filePath(executionId + QStringLiteral(".jsonl")))) {
         fail(QStringLiteral("Refusing start: execution already exists"));
     }
+    // An interrupted execution is continued: the new one takes over its branch
+    // and worktree, recreating the worktree when it was removed meanwhile.
+    if (open && !QFileInfo::exists(worktree)) {
+        gitRequired(repositoryPath, {QStringLiteral("worktree"), QStringLiteral("add"), worktree, open->started.branch});
+    }
     QString branch;
     QString baseSha;
     QString headSha;
@@ -301,8 +315,8 @@ StartResult startExecution(const QString& configPath, const QString& task, const
         if (gitCommonDir(worktree) != gitCommonDir(repositoryPath)) {
             fail(QStringLiteral("Refusing start: existing worktree belongs to another repository"));
         }
-        for (const ExecutionStarted& other : readLedger(paths).started) {
-            if (other.worktree == worktree) {
+        for (const ExecutionStarted& other : ledger.started) {
+            if (!open && other.worktree == worktree) {
                 fail(QStringLiteral("Refusing start: worktree already belongs to execution %1").arg(other.exec));
             }
         }
@@ -474,6 +488,7 @@ SessionStartResult sessionStarted(const QString& configPath, const HookInput& in
     SessionStartResult result;
     // Before recording this one, so it is never its own predecessor.
     const Ledger ledger = readLedger(paths);
+    result.openWork = openExecutions(ledger);
     QDateTime newestNote;
     for (const SessionFacts& earlier : readSessions(paths, nullptr)) {
         if (earlier.id == input.sessionId) continue;

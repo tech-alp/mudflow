@@ -10,6 +10,7 @@
 #include <QProcess>
 #include <QTemporaryDir>
 #include <QTextStream>
+#include <QThread>
 #include <stdexcept>
 
 namespace {
@@ -618,6 +619,67 @@ void sessionContract(const QString& executable)
 
 } // namespace
 
+// Parallel and paused work (RM-14): the next start of an interrupted task
+// continues it, a start of a still-open task points at it, and session start
+// lists every open execution, not only the latest one.
+void continuationContract(const QString& executable)
+{
+    QTemporaryDir fixture;
+    check(fixture.isValid(), "continuation fixture");
+    const QString root = QFileInfo(fixture.path()).canonicalFilePath();
+    const QString project = root + "/repo";
+    const auto git = [](const QStringList& args) {
+        QByteArray out, err;
+        check(run(QStringLiteral("git"), args, 0, &out, &err), "continuation git command");
+        return QString::fromUtf8(out);
+    };
+    git({"init", "--bare", root + "/remote.git"});
+    git({"init", "-b", "main", project});
+    git({"-C", project, "-c", "user.name=R", "-c", "user.email=r@example.invalid", "commit", "--allow-empty", "-m", "initial"});
+    git({"-C", project, "remote", "add", "origin", root + "/remote.git"});
+    git({"-C", project, "push", "-u", "origin", "main"});
+    check(QDir().mkpath(project + "/.runmark") && writeFile(project + "/plan.md", "- [ ] MF-1\n- [ ] MF-2\n"), "continuation layout");
+    check(writeFile(project + "/.runmark/project.json", R"({"version":1,"name":"c","worktree_root":")" + root.toUtf8()
+        + R"(/wt","repos":[{"name":"r","path":".","base":{"remote":"origin","branch":"main"}}],"plan":{"paths":["plan.md"]},"task_id_pattern":"MF-\\d+"})"), "continuation config");
+    const auto cli = [&](const QStringList& args, int exitCode = 0, QByteArray* error = nullptr) {
+        QByteArray out, err;
+        check(run(executable, QStringList{"--project", project + "/.runmark/project.json"} + args, exitCode, &out, &err), "continuation CLI exit");
+        if (error) *error = err;
+        return QJsonDocument::fromJson(out).object();
+    };
+
+    const QJsonObject first = cli({"start", "MF-1"});
+    const QString worktree = first.value("worktree").toString();
+    git({"-C", worktree, "-c", "user.name=R", "-c", "user.email=r@example.invalid", "commit", "--allow-empty", "-m", "half done"});
+    cli({"finish", first.value("exec").toString(), "--outcome", "interrupted"});
+    const QJsonObject paused = cli({"status"});
+    check(hasFinding(paused, "context.interrupted_execution"), "an interrupted execution waits to be continued");
+    check(!hasFinding(paused, "git.orphaned_worktree"), "its worktree is the work, not left behind");
+
+    QThread::sleep(1);  // execution IDs have one-second resolution
+    const QString second = cli({"start", "MF-2"}).value("exec").toString();
+    const QByteArray context = hook(executable, project, "session-start", R"({"session_id":"c1","cwd":")" + project.toUtf8() + R"("})");
+    check(context.startsWith("## Open work") && context.contains("- MF-1: " + first.value("exec").toString().toUtf8() + " interrupted")
+        && !context.contains("- MF-2:"), "session start lists open work besides the resumed execution");
+    QByteArray refusal;
+    cli({"start", "MF-2"}, 1, &refusal);
+    check(refusal.contains("rmk resume " + second.toUtf8()), "a still-open task is pointed at, not restarted");
+
+    const QJsonObject continued = cli({"start", "MF-1"});
+    check(continued.value("workspace_source") == "adopted" && continued.value("worktree") == worktree
+        && continued.value("branch") == "task/MF-1" && git({"-C", worktree, "log", "--format=%s"}).contains("half done"),
+        "the next start continues the interrupted work");
+    check(!hasFinding(cli({"status"}), "context.interrupted_execution"), "a continued execution no longer waits");
+
+    cli({"finish", continued.value("exec").toString(), "--outcome", "interrupted"});
+    git({"-C", project, "worktree", "remove", worktree});
+    QThread::sleep(1);
+    const QJsonObject recreated = cli({"start", "MF-1"});
+    check(recreated.value("workspace_source") == "adopted" && git({"-C", worktree, "log", "--format=%s"}).contains("half done"),
+        "a removed worktree is recreated from the interrupted branch");
+    QTextStream(stdout) << "continuation contract: interrupted continue, open refusal, open work listing passed\n";
+}
+
 int main(int argc, char* argv[])
 {
     if (argc != 2) return 1;
@@ -653,6 +715,7 @@ int main(int argc, char* argv[])
         transcriptContract(executable);
         discoveryContract(executable);
         sessionContract(executable);
+        continuationContract(executable);
     } catch (const std::exception& error) {
         QTextStream(stderr) << error.what() << '\n';
         return 1;
