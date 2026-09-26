@@ -560,6 +560,7 @@ void sessionContract(const QString& executable)
     check(!next.contains("(s1)"), "a session that noted its decision is not reported");
     check(next.contains("## Notes from the last session") && next.contains("session s1") && next.contains("[decision] kept the old API"),
         "the next session sees the last session's notes");
+    check(next.startsWith("## Notes from the last session"), "notes newer than any execution come first");
 
     hook(executable, root, "session-end", input("s3", R"(,"reason":"other")"));
 

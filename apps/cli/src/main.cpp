@@ -50,8 +50,20 @@ int runHook(const QString& configPath, const QString& event)
     if (event == QLatin1String("session-start")) {
         const runmark::SessionStartResult started = runmark::sessionStarted(configPath, hook);
         // Plain stdout is taken as context by both runtimes.
-        out << runmark::resumeMarkdown(toJson(runmark::resumeExecution(configPath, QString())));
-        if (started.lastWithNotes) out << sessionNotesMarkdown(*started.lastWithNotes, started.lastNotes);
+        const runmark::ResumeResult resume = runmark::resumeExecution(configPath, QString());
+        const QString resumeText = runmark::resumeMarkdown(toJson(resume));
+        bool notesFirst = false;
+        if (started.lastWithNotes) {
+            // Notes newer than the latest execution are the current state; a
+            // days-old execution on top buried them (RM-14).
+            for (const runmark::NoteRecorded& note : started.lastNotes) {
+                notesFirst = notesFirst || !resume.facts.lastActivity.isValid() || note.at > resume.facts.lastActivity;
+            }
+            const QString notesText = sessionNotesMarkdown(*started.lastWithNotes, started.lastNotes);
+            out << (notesFirst ? notesText.mid(1) + QLatin1Char('\n') + resumeText : resumeText + notesText);
+        } else {
+            out << resumeText;
+        }
         if (started.previousWithoutNotes) out << sessionWithoutNotesMarkdown(*started.previousWithoutNotes);
     } else if (event == QLatin1String("prompt-submit")) {
         runmark::sessionWorking(configPath, hook);
