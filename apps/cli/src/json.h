@@ -26,5 +26,8 @@ QString resumeMarkdown(const QJsonObject& package);
 // Appended to the session-start context when an earlier session committed
 // work and left no note: its decisions live only in its transcript.
 QString sessionWithoutNotesMarkdown(const SessionFacts& session);
+// Appended to the session-start context: what the last session that left
+// notes decided and left open.
+QString sessionNotesMarkdown(const SessionFacts& session, const QVector<NoteRecorded>& notes);
 
 } // namespace runmark

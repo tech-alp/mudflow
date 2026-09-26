@@ -39,7 +39,7 @@ export function smoke(directory, version) {
   const fixture = mkdtempSync(join(tmpdir(), 'rmk-package-fixture-'));
   const config = join(fixture, 'project.json');
   writeFileSync(config, JSON.stringify({ version: 1, name: 'package-smoke', worktree_root: 'worktrees',
-    task_id_pattern: 'RM-\\d+', plan: { path: 'plan.md' },
+    task_id_pattern: 'RM-\\d+', plan: { paths: ['plan.md'] },
     repos: [{ name: 'fixture', path: '.', base: { remote: 'origin', branch: 'main' } }] }));
   const inspected = execFileSync(binary, ['-p', config, 'inspect'], { env: environment, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
   assert.equal(JSON.parse(inspected).name, 'package-smoke');

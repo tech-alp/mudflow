@@ -104,3 +104,26 @@ Format `project.json` içindeki `task_id_pattern` ile eşleşmezse `rmk status`
   ilk sürüm/bootstrap politikası ayrıca kararlaştırılmalı, 0.3.0 kod sabitinden
   geçmiş yayın tag'i uydurulmamalı. Ardından onaylı dry-run ve gerçek release
   doğrulaması yap. Bu görev RM-8 desktop çalışmasını engellemez.
+
+- [x] RM-13 — Faz 0a: süreklilik çekirdeği
+
+  Proje bulma (alt klasör, worktree, proje listesi), oturum kaydı ve
+  `rmk hook`, commit başına not hatırlatması, görevsiz not, çoklu plan
+  dosyası, çakışma radarı, kayıtsız oturum taraması. Tasarım:
+  `docs/designs/runmark-cockpit.md`, ADR-023.
+
+- [ ] RM-14 — Faz 0a dogfooding: bir haftalık kullanım
+
+  Runmark ve olympos'ta 0.4.0 ile gerçek iş. Oturum kayıtları çakışmayı,
+  notsuz kapanışı ve kayıtsız oturumu sayar; yakalama günlüğü bunlardan
+  tutulur. Codex hook'ları `/hooks` panelinden onaylanmalı.
+
+- [ ] RM-15 — Faz 0b öncesi: Nimbalyst incelemesi
+
+  İş akışı dosyalarını okuyor mu, dışarıdan kaynak bağlanabiliyor mu (MCP,
+  dosya)? Karar: Runmark kendi kokpitini mi büyütür, Nimbalyst'e motor mu olur.
+
+- [ ] RM-16 — Faz 0b: ince çok projeli kokpit
+
+  RM-15 kararına bağlı. Oturumlar, plan ilerlemesi, kararlar; kurtarma
+  düğmeleri ve "ajan bekliyor" bildirimi.

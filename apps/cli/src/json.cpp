@@ -103,6 +103,17 @@ QJsonObject toJson(const SessionFacts& session)
         {QStringLiteral("transcript"), session.transcriptPath.isEmpty() ? QJsonValue::Null : QJsonValue(session.transcriptPath)}};
 }
 
+QString sessionNotesMarkdown(const SessionFacts& session, const QVector<NoteRecorded>& notes)
+{
+    QString text = QStringLiteral("\n## Notes from the last session\n\nsession %1 (%2)\n\n").arg(session.id, session.runtime.isEmpty() ? QStringLiteral("unknown") : session.runtime);
+    for (const NoteRecorded& note : notes) {
+        text += QStringLiteral("- [%1] %2").arg(note.kind, note.text);
+        if (!note.ref.isEmpty()) text += QStringLiteral("  (ref: %1)").arg(note.ref);
+        text += QLatin1Char('\n');
+    }
+    return text;
+}
+
 QString sessionWithoutNotesMarkdown(const SessionFacts& session)
 {
     return QStringLiteral("\n## Unrecorded decisions\n\nAn earlier %1 session (%2) committed work and ended without a "

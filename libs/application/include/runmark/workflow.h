@@ -66,6 +66,11 @@ struct SessionStartResult {
     // An earlier session of this project that committed work, was asked for a
     // note and still left none: its decisions exist only in its transcript.
     std::optional<SessionFacts> previousWithoutNotes;
+    // The most recent other session that left notes, with them. Work done
+    // without `rmk start` has no execution to resume; its notes are the
+    // continuity.
+    std::optional<SessionFacts> lastWithNotes;
+    QVector<NoteRecorded> lastNotes;
 };
 
 // The project.json that governs `directory`: the directory or a parent, the

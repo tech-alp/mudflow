@@ -473,9 +473,19 @@ SessionStartResult sessionStarted(const QString& configPath, const HookInput& in
     prepareState(paths);
     SessionStartResult result;
     // Before recording this one, so it is never its own predecessor.
+    const Ledger ledger = readLedger(paths);
+    QDateTime newestNote;
     for (const SessionFacts& earlier : readSessions(paths, nullptr)) {
-        if (earlier.id == input.sessionId || !earlier.endedAt || earlier.remindedHeads.isEmpty()) continue;
-        if (!notesOf(paths, earlier).isEmpty()) continue;
+        if (earlier.id == input.sessionId) continue;
+        const QVector<NoteRecorded> notes = notesOf(paths, earlier, &ledger);
+        for (const NoteRecorded& note : notes) {
+            if (!newestNote.isValid() || note.at > newestNote) {
+                newestNote = note.at;
+                result.lastWithNotes = earlier;
+                result.lastNotes = notes;
+            }
+        }
+        if (!earlier.endedAt || earlier.remindedHeads.isEmpty() || !notes.isEmpty()) continue;
         if (!result.previousWithoutNotes || *earlier.endedAt > *result.previousWithoutNotes->endedAt) {
             result.previousWithoutNotes = earlier;
         }

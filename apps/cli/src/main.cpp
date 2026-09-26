@@ -51,6 +51,7 @@ int runHook(const QString& configPath, const QString& event)
         const runmark::SessionStartResult started = runmark::sessionStarted(configPath, hook);
         // Plain stdout is taken as context by both runtimes.
         out << runmark::resumeMarkdown(toJson(runmark::resumeExecution(configPath, QString())));
+        if (started.lastWithNotes) out << sessionNotesMarkdown(*started.lastWithNotes, started.lastNotes);
         if (started.previousWithoutNotes) out << sessionWithoutNotesMarkdown(*started.previousWithoutNotes);
     } else if (event == QLatin1String("prompt-submit")) {
         runmark::sessionWorking(configPath, hook);
