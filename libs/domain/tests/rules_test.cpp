@@ -378,6 +378,26 @@ int main()
         if (has(runmark::evaluate(config(), f), QStringLiteral("context.session_conflict"))) return 1;
     }
 
+    // 5f. A session seen only in a transcript ran without hooks; reported
+    //     only once hooks are expected (ADR-015 opt-in).
+    {
+        runmark::StatusFacts f;
+        f.now = now;
+        f.plan.readable = true;
+        f.plan.taskCount = 1;
+        runmark::SessionFacts ghost;
+        ghost.id = QStringLiteral("ghost");
+        ghost.runtime = QStringLiteral("codex");
+        f.unregisteredSessions = {ghost};
+        f.sessions = {ghost};
+        runmark::ProjectConfig expects = config();
+        if (has(runmark::evaluate(config(), f), QStringLiteral("context.unregistered_session"))) return 1;
+        expects.hooksExpected = true;
+        if (!has(runmark::evaluate(expects, f), QStringLiteral("context.unregistered_session"))) return 1;
+        f.unregisteredSessions.clear();
+        if (has(runmark::evaluate(expects, f), QStringLiteral("context.unregistered_session"))) return 1;
+    }
+
     // 6. Hook blindness: once the expectation is declared, absence of an
     //    observation is a finding; without it the rule stays quiet, or a
     //    CLI-only project would see a warning it cannot turn off.

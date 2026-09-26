@@ -386,6 +386,20 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
         }
     }
 
+    // Hooks cannot report their own absence; the runtimes write transcripts
+    // regardless. A session seen only there ran blind to Runmark.
+    if (config.hooksExpected && !facts.unregisteredSessions.isEmpty()) {
+        QStringList names;
+        for (const SessionFacts& session : facts.unregisteredSessions.mid(0, 3)) {
+            names.append(session.id + QStringLiteral(" (") + session.runtime + QStringLiteral(")"));
+        }
+        findings.append(finding(QStringLiteral("context.unregistered_session"), QStringLiteral("warning"), QStringLiteral("context"),
+            QStringLiteral("Agent sessions ran without Runmark hooks"),
+            QString::number(facts.unregisteredSessions.size()) + QStringLiteral(" recent session(s) in this project left no record: ")
+                + names.join(QStringLiteral(", ")) + (facts.unregisteredSessions.size() > 3 ? QStringLiteral(", ...") : QString()),
+            QStringLiteral("Install or update the runmark-agent plugin; in Codex approve its hooks (/hooks).")));
+    }
+
     // A hook believed to be installed but never run is indistinguishable from
     // a clean project. Once the expectation is declared, absence is a finding.
     if (config.hooksExpected && facts.sessions.isEmpty()) {

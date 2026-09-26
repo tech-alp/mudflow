@@ -18,6 +18,8 @@ struct Paths {
 };
 
 QString expandPath(const QString& value, const QString& root);
+// `path` (canonical) is `directory` or lies below it; false if the directory does not exist.
+bool isInsideDirectory(const QString& path, const QString& directory);
 Paths pathsFor(const QString& configPath);
 void ensureDirectories(const Paths& paths);
 QString sha1File(const QString& path);

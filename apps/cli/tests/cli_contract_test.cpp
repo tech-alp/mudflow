@@ -334,6 +334,8 @@ void transcriptContract(const QString& executable)
     check(writeFile(root + "/plan.md", "- [x] MF-1\n- [x] MF-2\n"), "transcript plan");
     check(writeFile(configPath, R"({"version":1,"name":"t","worktree_root":"worktrees","repos":[{"name":"repo","path":"repo","base":{"remote":"origin","branch":"main"}}],"plan":{"paths":["plan.md"]},"task_id_pattern":"MF-\\d+"})"), "transcript config");
     const QByteArray now = QDateTime::currentDateTimeUtc().addSecs(1).toString(Qt::ISODateWithMs).toUtf8();
+    const QByteArray claudeHome = qgetenv("CLAUDE_CONFIG_DIR");
+    const QByteArray codexHome = qgetenv("CODEX_HOME");
 
     // Claude: a failing ctest after start; a passing one before start must not count.
     qputenv("CLAUDE_CONFIG_DIR", (root + "/claude").toUtf8());
@@ -396,7 +398,9 @@ void transcriptContract(const QString& executable)
     check(runtimeEvidence(root + "/.runmark/ledger/" + piped + ".jsonl").value("exit_code").isNull(), "piped exit code recorded as unknown");
     check(hasFinding(cli({"status"}), "context.test_result_unknown"), "unknown test result reported");
 
-    for (const char* name : {"CLAUDE_CONFIG_DIR", "CLAUDE_CODE_SESSION_ID", "CODEX_HOME", "CODEX_THREAD_ID"}) qunsetenv(name);
+    for (const char* name : {"CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID"}) qunsetenv(name);
+    qputenv("CLAUDE_CONFIG_DIR", claudeHome);
+    qputenv("CODEX_HOME", codexHome);
 }
 
 // Runs rmk without --project from `directory`; returns the exit code.
@@ -570,6 +574,41 @@ void sessionContract(const QString& executable)
     hook(executable, root, "session-end", input("r2", R"(,"reason":"other")"));
     check(!hasFinding(status(), "context.session_conflict"), "an ended session no longer conflicts");
 
+    // Sessions whose hooks never ran are found through their transcripts.
+    QTemporaryDir runtimes;
+    const QByteArray claudeHome = qgetenv("CLAUDE_CONFIG_DIR");
+    const QByteArray codexHome = qgetenv("CODEX_HOME");
+    qputenv("CLAUDE_CONFIG_DIR", (runtimes.path() + "/claude").toUtf8());
+    qputenv("CODEX_HOME", (runtimes.path() + "/codex").toUtf8());
+    check(QDir().mkpath(runtimes.path() + "/claude/projects/-p") && QDir().mkpath(runtimes.path() + "/codex/sessions/2026/09/26"), "runtime homes");
+    const auto claudeTranscript = [&](const QString& id, const QString& cwd) {
+        check(writeFile(runtimes.path() + "/claude/projects/-p/" + id + ".jsonl",
+            "{\"type\":\"queue-operation\"}\n{\"type\":\"attachment\",\"cwd\":\"" + cwd.toUtf8() + "\",\"sessionId\":\"" + id.toUtf8() + "\"}\n"), "claude transcript");
+    };
+    const auto codexRollout = [&](const QString& id, const QByteArray& extra) {
+        check(writeFile(runtimes.path() + "/codex/sessions/2026/09/26/rollout-2026-09-26T00-00-00-" + id + ".jsonl",
+            R"({"type":"session_meta","payload":{"id":")" + id.toUtf8() + R"(","cwd":")" + root.toUtf8() + "\"" + extra + "}}\n"), "codex rollout");
+    };
+    claudeTranscript("ghost-claude", root + "/src");
+    claudeTranscript("s1", root);                     // recorded by its hooks
+    claudeTranscript("elsewhere", "/");                // not this project
+    codexRollout("ghost-codex", "");
+    codexRollout("sub-thread", R"(,"parent_thread_id":"ghost-codex")");
+    QJsonObject expecting = QJsonDocument::fromJson(readFile(root + "/.runmark/project.json")).object();
+    check(!hasFinding(status(), "context.unregistered_session"), "without hooks_expected it stays quiet");
+    expecting.insert("hooks_expected", true);
+    check(writeFile(root + "/.runmark/project.json", QJsonDocument(expecting).toJson()), "hooks expected");
+    QString unregistered;
+    for (const QJsonValue& value : status().value("findings").toArray()) {
+        if (value.toObject().value("id") == "context.unregistered_session") unregistered = value.toObject().value("explanation").toString();
+    }
+    check(unregistered.contains("ghost-claude") && unregistered.contains("ghost-codex") && unregistered.startsWith("2 "),
+        "sessions seen only in transcripts are reported");
+    check(!unregistered.contains("(claude), s1") && !unregistered.contains("sub-thread") && !unregistered.contains("elsewhere"),
+        "recorded sessions, sub-threads and other projects are not");
+    qputenv("CLAUDE_CONFIG_DIR", claudeHome);
+    qputenv("CODEX_HOME", codexHome);
+
     hook(executable, root, "session-start", R"({"session_id":"../escape","cwd":"/"})", 1);
     check(!QFile::exists(root + "/.runmark/escape.jsonl") && !QFile::exists(root + "/.runmark/sessions/../escape.jsonl"), "unsafe session id rejected");
 }
@@ -599,9 +638,13 @@ int main(int argc, char* argv[])
             || !QJsonDocument::fromJson(standardOutput).isObject()) return 1;
 
     // The suite may itself run inside an agent session; its ids must not
-    // point finish at a real transcript.
+    // point finish at a real transcript, and status must not scan the real
+    // runtime homes for unregistered sessions.
     qunsetenv("CLAUDE_CODE_SESSION_ID");
     qunsetenv("CODEX_THREAD_ID");
+    QTemporaryDir isolated;
+    qputenv("CLAUDE_CONFIG_DIR", (isolated.path() + "/claude").toUtf8());
+    qputenv("CODEX_HOME", (isolated.path() + "/codex").toUtf8());
     try {
         resumeContract(executable);
         transcriptContract(executable);

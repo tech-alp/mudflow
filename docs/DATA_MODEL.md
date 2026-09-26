@@ -53,7 +53,15 @@ Olaylar (`ts` milisaniyeli, `session` alanlı):
 Oturum yeniden açılırsa (`source: resume`) ilk `head` taban kalır. `rmk status` kapanmamış ve son 12 saatte
 hareket görmüş iki oturumun aynı göreve (başlattıkları execution'lar) ya da aynı
 dosyalara (tabanlarına göre `git diff`, commit'lenmemiş değişiklik dahil; anahtar
-`<git common dir>//<yol>`) dokunduğunu görürse `context.session_conflict` üretir. Herhangi bir
+`<git common dir>//<yol>`) dokunduğunu görürse `context.session_conflict` üretir.
+
+Hook'lar kendi yokluklarını bildiremez, ama runtime'lar transcript'i her durumda
+yazar. `rmk status` son 3 günün Claude (`<config>/projects/*/*.jsonl`, ilk `cwd`)
+ve Codex (`<home>/sessions/**/rollout-*.jsonl`, `session_meta`) transcript'lerini
+tarar; çalışma dizini proje kökünde, worktree kökünde ya da bir repoda olup
+`sessions/`'ta kaydı olmayan oturumlar `hooks_expected` açıkken
+`context.unregistered_session` üretir. `parent_thread_id` taşıyan Codex alt
+thread'leri sayılmaz. Silinmiş bir worktree'deki oturum da sayılır. Herhangi bir
 oturum kaydı, hook'un çalıştığının kanıtıdır; eskiden bunu tutan
 `hook-observed.json` kaldırıldı (eng review D5).
 
@@ -438,6 +446,7 @@ MVP.md §8'in birebir karşılığı. Dokuz kural, fazlası yok.
 | `plan.test_claim_unverified` | warning |
 | `context.unrecognised_ledger_event` | warning |
 | `context.session_conflict` | warning |
+| `context.unregistered_session` | warning |
 | `git.orphaned_worktree` | info |
 
 Task kimliği plan satırında **tam token** olarak aranır: pattern yalnız daha

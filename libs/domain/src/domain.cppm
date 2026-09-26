@@ -257,6 +257,10 @@ struct StatusFacts {
     // indistinguishable from a clean project, so it is a finding.
     QVector<SessionFacts> sessions;
     QString sessionsError;     // non-empty: the session directory could not be read
+    // Recent sessions in this project known only from their transcripts: no
+    // hook recorded them (plugin missing, Codex hooks not approved). Hooks
+    // cannot report their own absence; transcripts are written regardless.
+    QVector<SessionFacts> unregisteredSessions;
 };
 
 struct FileFacts {

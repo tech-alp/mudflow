@@ -24,6 +24,12 @@ QString expandPath(const QString& value, const QString& root)
     return QFileInfo(value).isAbsolute() ? QDir::cleanPath(value) : QDir(root).absoluteFilePath(value);
 }
 
+bool isInsideDirectory(const QString& path, const QString& directory)
+{
+    const QString canonical = QFileInfo(directory).canonicalFilePath();
+    return !canonical.isEmpty() && (path == canonical || path.startsWith(canonical + QLatin1Char('/')));
+}
+
 Paths pathsFor(const QString& configPath)
 {
     QDir configDirectory = QFileInfo(configPath).absoluteDir();

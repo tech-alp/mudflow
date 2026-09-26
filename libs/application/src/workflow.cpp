@@ -66,6 +66,36 @@ void observeSessionWork(SessionFacts& session, const Ledger& ledger)
     session.changedFiles.removeDuplicates();
 }
 
+// Sessions of the last three days that ran in this project (its root, its
+// worktree root or a repository) but were never recorded by a hook.
+// ponytail: three days bounds the scan; widen it if status proves fast enough.
+QVector<SessionFacts> unregisteredSessions(const ProjectConfig& config, const Paths& paths,
+    const QVector<SessionFacts>& registered, const QDateTime& now)
+{
+    QStringList directories{paths.root, expandPath(config.worktreeRoot, paths.root)};
+    for (const RepositoryConfig& repository : config.repositories) directories.append(expandPath(repository.path, paths.root));
+    QSet<QString> known;
+    for (const SessionFacts& session : registered) known.insert(session.id);
+    QVector<SessionFacts> result;
+    for (const TranscriptSession& found : recentTranscriptSessions(now.addDays(-3))) {
+        if (known.contains(found.id)) continue;
+        // A removed worktree still counts: fall back to the path as written.
+        const QString canonical = QFileInfo(found.cwd).canonicalFilePath();
+        const QString cwd = canonical.isEmpty() ? QDir::cleanPath(found.cwd) : canonical;
+        for (const QString& directory : directories) {
+            if (!isInsideDirectory(cwd, directory)) continue;
+            SessionFacts session;
+            session.id = found.id;
+            session.runtime = found.runtime;
+            session.cwd = found.cwd;
+            session.transcriptPath = found.path;
+            result.append(session);
+            break;
+        }
+    }
+    return result;
+}
+
 // OBSERVE: run git, read the plan, read the ledger, measure what exists on
 // disk. No evaluation happens here.
 StatusFacts observe(const ProjectConfig& config, const Paths& paths)
@@ -84,6 +114,7 @@ StatusFacts observe(const ProjectConfig& config, const Paths& paths)
         if (session.endedAt) continue;
         observeSessionWork(session, facts.ledger);
     }
+    facts.unregisteredSessions = unregisteredSessions(config, paths, facts.sessions, facts.now);
 
     for (const ExecutionStarted& started : facts.ledger.started) {
         ExecutionFacts execution;

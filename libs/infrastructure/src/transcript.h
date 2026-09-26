@@ -21,6 +21,20 @@ struct TranscriptFacts {
     QVector<TranscriptCommand> commands;
 };
 
+// A session found by its transcript alone, whether or not any hook ran.
+struct TranscriptSession {
+    QString runtime;           // claude | codex
+    QString id;
+    QString cwd;
+    QString path;
+};
+
+// Transcripts modified since `since`: Claude <config>/projects/*/*.jsonl and
+// Codex <home>/sessions/**/rollout-*.jsonl. Codex sub-threads (they carry a
+// parent_thread_id, e.g. automatic reviews) are left out: they are not
+// sessions a person started.
+QVector<TranscriptSession> recentTranscriptSessions(const QDateTime& since);
+
 // The session id the runtime exports to the commands it runs, or empty.
 QString sessionIdFromEnvironment(const QString& runtime);
 

@@ -94,7 +94,48 @@ bool parseCodexLine(const QJsonObject& line, QVector<TranscriptCommand>& out)
     return true;
 }
 
+// The first line carrying "cwd" (Claude writes it on its early attachment
+// lines). Transcripts can be large; only the head is read.
+QString claudeCwd(const QString& path)
+{
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) return {};
+    for (int line = 0; line < 50 && !file.atEnd(); ++line) {
+        const QString cwd = QJsonDocument::fromJson(file.readLine()).object().value(QStringLiteral("cwd")).toString();
+        if (!cwd.isEmpty()) return cwd;
+    }
+    return {};
+}
+
 } // namespace
+
+QVector<TranscriptSession> recentTranscriptSessions(const QDateTime& since)
+{
+    QVector<TranscriptSession> sessions;
+    const QDir projects(configRoot("CLAUDE_CONFIG_DIR", QStringLiteral(".claude")) + QStringLiteral("/projects"));
+    for (const QString& project : projects.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+        const QDir directory(projects.filePath(project));
+        for (const QFileInfo& file : directory.entryInfoList({QStringLiteral("*.jsonl")}, QDir::Files)) {
+            if (file.lastModified() < since) continue;
+            const QString cwd = claudeCwd(file.filePath());
+            if (!cwd.isEmpty()) sessions.append({QStringLiteral("claude"), file.completeBaseName(), cwd, file.filePath()});
+        }
+    }
+    QDirIterator it(configRoot("CODEX_HOME", QStringLiteral(".codex")) + QStringLiteral("/sessions"),
+        {QStringLiteral("rollout-*.jsonl")}, QDir::Files, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        const QFileInfo file(it.next());
+        if (file.lastModified() < since) continue;
+        QFile rollout(file.filePath());
+        if (!rollout.open(QIODevice::ReadOnly)) continue;
+        const QJsonObject meta = QJsonDocument::fromJson(rollout.readLine()).object().value(QStringLiteral("payload")).toObject();
+        const QString id = meta.value(QStringLiteral("id")).toString();
+        const QString cwd = meta.value(QStringLiteral("cwd")).toString();
+        if (id.isEmpty() || cwd.isEmpty() || !meta.value(QStringLiteral("parent_thread_id")).toString().isEmpty()) continue;
+        sessions.append({QStringLiteral("codex"), id, cwd, file.filePath()});
+    }
+    return sessions;
+}
 
 QString sessionIdFromEnvironment(const QString& runtime)
 {

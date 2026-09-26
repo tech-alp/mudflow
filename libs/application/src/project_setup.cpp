@@ -26,12 +26,6 @@ QString configUnder(QString directory)
     return {};
 }
 
-bool isInside(const QString& path, const QString& directory)
-{
-    const QString canonical = QFileInfo(directory).canonicalFilePath();
-    return !canonical.isEmpty() && (path == canonical || path.startsWith(canonical + QLatin1Char('/')));
-}
-
 // ~/.config/runmark/projects.json: {"projects": ["/abs/.runmark/project.json", ...]}
 QStringList listedProjects()
 {
@@ -66,9 +60,9 @@ QString locateProject(const QString& directory)
         try {
             const ProjectConfig config = loadProjectConfig(configPath);
             const QString root = pathsFor(configPath).root;
-            bool matches = isInside(start, expandPath(config.worktreeRoot, root));
+            bool matches = isInsideDirectory(start, expandPath(config.worktreeRoot, root));
             for (const RepositoryConfig& repository : config.repositories) {
-                matches = matches || isInside(start, expandPath(repository.path, root));
+                matches = matches || isInsideDirectory(start, expandPath(repository.path, root));
             }
             if (matches) return configPath;
         } catch (const std::exception&) {
