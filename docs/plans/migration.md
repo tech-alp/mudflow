@@ -118,6 +118,10 @@ Format `project.json` içindeki `task_id_pattern` ile eşleşmezse `rmk status`
   notsuz kapanışı ve kayıtsız oturumu sayar; yakalama günlüğü bunlardan
   tutulur. Codex hook'ları `/hooks` panelinden onaylanmalı.
 
+  Bilinen pürüz: oturum açılış bağlamı en son execution'la başlıyor (ör. 4
+  gün önceki RM-12), son oturumun daha yeni notları altta kalıyor. Notlar son
+  execution'dan yeniyse önce onlar gösterilmeli.
+
 - [ ] RM-15 — Faz 0b öncesi: Nimbalyst incelemesi
 
   İş akışı dosyalarını okuyor mu, dışarıdan kaynak bağlanabiliyor mu (MCP,
