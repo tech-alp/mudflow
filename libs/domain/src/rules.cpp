@@ -349,6 +349,39 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
     }
 
     // --- Hook ---
+    // --- Conflict radar ---
+    // Two live sessions on the same task or the same files redo or overwrite
+    // each other's work; nobody sees it until the merge. Live: not ended and
+    // active within 12 hours.
+    // ponytail: a crashed session never sends session.ended; the 12-hour
+    // window keeps it from colliding forever. Tune it if that proves short.
+    QVector<const SessionFacts*> live;
+    for (const SessionFacts& session : facts.sessions) {
+        QDateTime last = session.startedAt;
+        for (const QDateTime& at : {session.lastWorkingAt, session.lastWaitingAt}) {
+            if (at.isValid() && (!last.isValid() || at > last)) last = at;
+        }
+        if (!session.endedAt && last.isValid() && last.secsTo(facts.now) < 12 * 60 * 60) live.append(&session);
+    }
+    for (qsizetype i = 0; i < live.size(); ++i) {
+        for (qsizetype j = i + 1; j < live.size(); ++j) {
+            const SessionFacts& a = *live[i];
+            const SessionFacts& b = *live[j];
+            QStringList shared;
+            for (const QString& task : a.tasks) if (b.tasks.contains(task)) shared.append(QStringLiteral("task ") + task);
+            for (const QString& file : a.changedFiles) {
+                if (b.changedFiles.contains(file)) shared.append(file.section(QStringLiteral("//"), 1));
+            }
+            if (shared.isEmpty()) continue;
+            findings.append(finding(QStringLiteral("context.session_conflict"), QStringLiteral("warning"), QStringLiteral("context"),
+                QStringLiteral("Two live agent sessions touch the same work"),
+                a.id + QStringLiteral(" (") + a.runtime + QStringLiteral(") and ") + b.id + QStringLiteral(" (") + b.runtime
+                    + QStringLiteral(") both touch ") + QStringList(shared.mid(0, 3)).join(QStringLiteral(", "))
+                    + (shared.size() > 3 ? QStringLiteral(" and %1 more").arg(shared.size() - 3) : QString()),
+                QStringLiteral("Stop one of them or split the work before both finish.")));
+        }
+    }
+
     // A hook believed to be installed but never run is indistinguishable from
     // a clean project. Once the expectation is declared, absence is a finding.
     if (config.hooksExpected && facts.sessions.isEmpty()) {

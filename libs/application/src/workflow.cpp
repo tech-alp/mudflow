@@ -41,6 +41,31 @@ const RepositoryConfig& repositoryFor(const ProjectConfig& config, const QString
     fail(QStringLiteral("Unknown repository: %1").arg(name.isEmpty() ? QStringLiteral("(select --repo)") : name));
 }
 
+// What a live session is working on, for the conflict radar: tasks of the
+// executions it started and files changed since each baseline (its own
+// directory from its start HEAD, each worktree from the execution's base),
+// uncommitted changes included. Local git only.
+void observeSessionWork(SessionFacts& session, const Ledger& ledger)
+{
+    QVector<QPair<QString, QString>> places;
+    if (!session.startHead.isEmpty()) places.append({session.cwd, session.startHead});
+    for (const ExecutionStarted& started : ledger.started) {
+        if (started.sessionId != session.id) continue;
+        session.tasks.append(started.task);
+        places.append({started.worktree, started.baseSha});
+    }
+    for (const auto& [place, baseline] : places) {
+        if (place.isEmpty() || !QFileInfo(place).isDir()) continue;
+        const ProcessResult diff = git(place, {QStringLiteral("diff"), QStringLiteral("--name-only"), baseline});
+        const ProcessResult common = git(place, {QStringLiteral("rev-parse"), QStringLiteral("--path-format=absolute"), QStringLiteral("--git-common-dir")});
+        if (diff.exitCode != 0 || common.exitCode != 0) continue;
+        for (const QString& file : diff.output.split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
+            session.changedFiles.append(common.output.trimmed() + QStringLiteral("//") + file);
+        }
+    }
+    session.changedFiles.removeDuplicates();
+}
+
 // OBSERVE: run git, read the plan, read the ledger, measure what exists on
 // disk. No evaluation happens here.
 StatusFacts observe(const ProjectConfig& config, const Paths& paths)
@@ -55,6 +80,10 @@ StatusFacts observe(const ProjectConfig& config, const Paths& paths)
     }
 
     facts.sessions = readSessions(paths, &facts.sessionsError);
+    for (SessionFacts& session : facts.sessions) {
+        if (session.endedAt) continue;
+        observeSessionWork(session, facts.ledger);
+    }
 
     for (const ExecutionStarted& started : facts.ledger.started) {
         ExecutionFacts execution;

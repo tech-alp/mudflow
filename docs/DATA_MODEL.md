@@ -50,7 +50,10 @@ Olaylar (`ts` milisaniyeli, `session` alanlı):
 | `session.ended` | `reason` | `rmk hook session-end` |
 | `note` | §3.4 ile aynı; `exec` null | `rmk note` (exec verilmeden) |
 
-Oturum yeniden açılırsa (`source: resume`) ilk `head` taban kalır. Herhangi bir
+Oturum yeniden açılırsa (`source: resume`) ilk `head` taban kalır. `rmk status` kapanmamış ve son 12 saatte
+hareket görmüş iki oturumun aynı göreve (başlattıkları execution'lar) ya da aynı
+dosyalara (tabanlarına göre `git diff`, commit'lenmemiş değişiklik dahil; anahtar
+`<git common dir>//<yol>`) dokunduğunu görürse `context.session_conflict` üretir. Herhangi bir
 oturum kaydı, hook'un çalıştığının kanıtıdır; eskiden bunu tutan
 `hook-observed.json` kaldırıldı (eng review D5).
 
@@ -427,6 +430,7 @@ MVP.md §8'in birebir karşılığı. Dokuz kural, fazlası yok.
 | `context.transcript_unavailable` | warning |
 | `plan.test_claim_unverified` | warning |
 | `context.unrecognised_ledger_event` | warning |
+| `context.session_conflict` | warning |
 | `git.orphaned_worktree` | info |
 
 Task kimliği plan satırında **tam token** olarak aranır: pattern yalnız daha

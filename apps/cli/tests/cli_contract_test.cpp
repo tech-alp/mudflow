@@ -537,6 +537,21 @@ void sessionContract(const QString& executable)
     check(next.contains("## Unrecorded decisions") && next.contains("s2"), "the next session is told what went unrecorded");
     check(!next.contains("(s1)"), "a session that noted its decision is not reported");
 
+    hook(executable, root, "session-end", input("s3", R"(,"reason":"other")"));
+
+    // Conflict radar: two live sessions in one checkout change the same file.
+    check(writeFile(root + "/shared.txt", "v1\n"), "shared file");
+    git({"add", "shared.txt"});
+    commit("add shared");
+    hook(executable, root, "session-start", input("r1"));
+    hook(executable, root, "session-start", input("r2"));
+    const auto status = [&] { QByteArray o, e; run(executable, {"--project", root + "/.runmark/project.json", "status"}, 0, &o, &e); return QJsonDocument::fromJson(o).object(); };
+    check(!hasFinding(status(), "context.session_conflict"), "no shared change, no conflict");
+    check(writeFile(root + "/shared.txt", "v2\n"), "edit shared file");
+    check(hasFinding(status(), "context.session_conflict"), "two live sessions changing one file conflict");
+    hook(executable, root, "session-end", input("r2", R"(,"reason":"other")"));
+    check(!hasFinding(status(), "context.session_conflict"), "an ended session no longer conflicts");
+
     hook(executable, root, "session-start", R"({"session_id":"../escape","cwd":"/"})", 1);
     check(!QFile::exists(root + "/.runmark/escape.jsonl") && !QFile::exists(root + "/.runmark/sessions/../escape.jsonl"), "unsafe session id rejected");
 }

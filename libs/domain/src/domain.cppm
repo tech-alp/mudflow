@@ -181,6 +181,11 @@ struct SessionFacts {
     QString endReason;
     QStringList remindedHeads; // commits after which a note was already asked for
     QVector<NoteRecorded> notes;
+    // Observed by status, not stored: tasks of executions this session
+    // started, and files it changed against its baselines, keyed
+    // "<git common dir>//<path>" so equal names in different repos differ.
+    QStringList tasks;
+    QStringList changedFiles;
 };
 
 struct Ledger {

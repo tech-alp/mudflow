@@ -316,6 +316,45 @@ int main()
         if (!has(runmark::evaluate(config(), f), QStringLiteral("context.unrecognised_ledger_event"))) return 1;
     }
 
+    // 5e. Conflict radar: two live sessions on the same task or files.
+    {
+        runmark::StatusFacts f;
+        f.now = now;
+        f.plan.readable = true;
+        f.plan.taskCount = 1;
+        const auto live = [&](const QString& id, const QStringList& files, const QStringList& tasks = {}) {
+            runmark::SessionFacts s;
+            s.id = id;
+            s.runtime = QStringLiteral("claude");
+            s.startedAt = now.addSecs(-600);
+            s.changedFiles = files;
+            s.tasks = tasks;
+            return s;
+        };
+        const QString rules = QStringLiteral("/repo/.git//libs/domain/src/rules.cpp");
+        f.sessions = {live("a", {rules}), live("b", {QStringLiteral("/repo/.git//README.md")})};
+        if (has(runmark::evaluate(config(), f), QStringLiteral("context.session_conflict"))) return 1;
+        f.sessions[1].changedFiles.append(rules);
+        QVector<runmark::Finding> findings = runmark::evaluate(config(), f);
+        if (!has(findings, QStringLiteral("context.session_conflict"))) return 1;
+        for (const runmark::Finding& finding : findings) {
+            if (finding.id == QLatin1String("context.session_conflict") && !finding.explanation.contains(QStringLiteral("libs/domain/src/rules.cpp"))) return 1;
+        }
+        // Same name in another repository is not the same file.
+        f.sessions[1].changedFiles = {QStringLiteral("/other/.git//libs/domain/src/rules.cpp")};
+        if (has(runmark::evaluate(config(), f), QStringLiteral("context.session_conflict"))) return 1;
+        // Same task, no shared file yet.
+        f.sessions[0].tasks = {QStringLiteral("MF-1")};
+        f.sessions[1].tasks = {QStringLiteral("MF-1")};
+        if (!has(runmark::evaluate(config(), f), QStringLiteral("context.session_conflict"))) return 1;
+        // An ended session, or one silent for over 12 hours, is not live.
+        f.sessions[1].endedAt = now;
+        if (has(runmark::evaluate(config(), f), QStringLiteral("context.session_conflict"))) return 1;
+        f.sessions[1].endedAt.reset();
+        f.sessions[1].startedAt = now.addSecs(-13 * 60 * 60);
+        if (has(runmark::evaluate(config(), f), QStringLiteral("context.session_conflict"))) return 1;
+    }
+
     // 6. Hook blindness: once the expectation is declared, absence of an
     //    observation is a finding; without it the rule stays quiet, or a
     //    CLI-only project would see a warning it cannot turn off.
