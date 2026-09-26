@@ -10,6 +10,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonParseError>
+#include <QRegularExpression>
 #include <QSet>
 
 namespace runmark {
@@ -120,7 +121,70 @@ EvidenceRecorded parseEvidence(const QJsonObject& o)
 
 NoteRecorded parseNote(const QJsonObject& o)
 {
-    return {text(o, "exec"), parseTime(o), text(o, "kind"), text(o, "text"), text(o, "source"), text(o, "ref")};
+    return {text(o, "exec"), parseTime(o), text(o, "kind"), text(o, "text"), text(o, "source"), text(o, "ref"), text(o, "session")};
+}
+
+QString sessionFile(const Paths& paths, const QString& id)
+{
+    if (!isSafeSessionId(id)) fail(QStringLiteral("Invalid session id: %1").arg(id));
+    return QDir(paths.sessions).filePath(id + QStringLiteral(".jsonl"));
+}
+
+void appendTo(const QString& path, const QJsonObject& event)
+{
+    if (!QDir().mkpath(QFileInfo(path).absolutePath())) fail(QStringLiteral("Cannot create %1").arg(QFileInfo(path).absolutePath()));
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Append)) {
+        fail(QStringLiteral("Cannot append %1: %2").arg(file.fileName(), file.errorString()));
+    }
+    file.write(QJsonDocument(event).toJson(QJsonDocument::Compact));
+    file.write("\n");
+}
+
+void sessionEvent(const Paths& paths, const QString& id, const QString& type, QJsonObject event = {})
+{
+    // Milliseconds: a prompt and a reply can land in the same second.
+    event.insert(QStringLiteral("ts"), QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs));
+    event.insert(QStringLiteral("type"), type);
+    event.insert(QStringLiteral("session"), id);
+    appendTo(sessionFile(paths, id), event);
+}
+
+// ponytail: lines of an unknown type in a session file are skipped; session
+// files are written only by rmk hook, unlike the shared execution ledger.
+SessionFacts parseSession(const QString& path)
+{
+    SessionFacts session;
+    session.id = QFileInfo(path).completeBaseName();
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) fail(QStringLiteral("Cannot read session %1").arg(path));
+    while (!file.atEnd()) {
+        const QJsonObject o = QJsonDocument::fromJson(file.readLine().trimmed()).object();
+        const QString type = text(o, "type");
+        if (type == QLatin1String("session.started")) {
+            // A resumed session starts again; its baseline stays the first one.
+            if (!session.startedAt.isValid()) {
+                session.startHead = text(o, "head");
+                session.startedAt = parseTime(o);
+            }
+            session.runtime = text(o, "runtime");
+            session.cwd = text(o, "cwd");
+            session.transcriptPath = text(o, "transcript");
+            session.source = text(o, "source");
+        } else if (type == QLatin1String("session.working")) {
+            session.lastWorkingAt = parseTime(o);
+        } else if (type == QLatin1String("session.waiting")) {
+            session.lastWaitingAt = parseTime(o);
+        } else if (type == QLatin1String("session.reminded")) {
+            session.remindedHeads.append(text(o, "head"));
+        } else if (type == QLatin1String("session.ended")) {
+            session.endedAt = parseTime(o);
+            session.endReason = text(o, "reason");
+        } else if (type == QLatin1String("note")) {
+            session.notes.append(parseNote(o));
+        }
+    }
+    return session;
 }
 
 void parseInto(Ledger& ledger, const QJsonObject& event, const QString& file)
@@ -190,9 +254,67 @@ void appendEvent(const Paths& paths, const EvidenceRecorded& e)
 
 void appendEvent(const Paths& paths, const NoteRecorded& e)
 {
-    append(paths, e.exec, {{QStringLiteral("ts"), timestamp(e.at)}, {QStringLiteral("type"), QStringLiteral("note")},
-        {QStringLiteral("exec"), e.exec}, {QStringLiteral("kind"), e.kind}, {QStringLiteral("text"), e.text},
-        {QStringLiteral("source"), e.source}, {QStringLiteral("ref"), orNull(e.ref)}});
+    const QJsonObject event{{QStringLiteral("ts"), timestamp(e.at)}, {QStringLiteral("type"), QStringLiteral("note")},
+        {QStringLiteral("exec"), orNull(e.exec)}, {QStringLiteral("kind"), e.kind}, {QStringLiteral("text"), e.text},
+        {QStringLiteral("source"), e.source}, {QStringLiteral("ref"), orNull(e.ref)}, {QStringLiteral("session"), orNull(e.session)}};
+    if (e.exec.isEmpty()) appendTo(sessionFile(paths, e.session), event);
+    else append(paths, e.exec, event);
+}
+
+bool isSafeSessionId(const QString& id)
+{
+    static const QRegularExpression safe(QStringLiteral("^[A-Za-z0-9-]+$"));
+    return safe.match(id).hasMatch();
+}
+
+void recordSessionStarted(const Paths& paths, const SessionFacts& session)
+{
+    sessionEvent(paths, session.id, QStringLiteral("session.started"), {
+        {QStringLiteral("runtime"), session.runtime}, {QStringLiteral("cwd"), session.cwd},
+        {QStringLiteral("transcript"), orNull(session.transcriptPath)}, {QStringLiteral("source"), orNull(session.source)},
+        {QStringLiteral("head"), orNull(session.startHead)}});
+}
+
+void recordSessionWorking(const Paths& paths, const QString& id)
+{
+    sessionEvent(paths, id, QStringLiteral("session.working"));
+}
+
+void recordSessionWaiting(const Paths& paths, const QString& id)
+{
+    sessionEvent(paths, id, QStringLiteral("session.waiting"));
+}
+
+void recordSessionReminded(const Paths& paths, const QString& id, const QString& head)
+{
+    sessionEvent(paths, id, QStringLiteral("session.reminded"), {{QStringLiteral("head"), head}});
+}
+
+void recordSessionEnded(const Paths& paths, const QString& id, const QString& reason)
+{
+    sessionEvent(paths, id, QStringLiteral("session.ended"), {{QStringLiteral("reason"), orNull(reason)}});
+}
+
+std::optional<SessionFacts> readSession(const Paths& paths, const QString& id)
+{
+    const QString path = sessionFile(paths, id);
+    if (!QFileInfo::exists(path)) return std::nullopt;
+    return parseSession(path);
+}
+
+QVector<SessionFacts> readSessions(const Paths& paths, QString* error)
+{
+    QVector<SessionFacts> sessions;
+    const QDir directory(paths.sessions);
+    if (!directory.exists()) return sessions;
+    try {
+        for (const QString& name : directory.entryList({QStringLiteral("*.jsonl")}, QDir::Files, QDir::Name)) {
+            sessions.append(parseSession(directory.filePath(name)));
+        }
+    } catch (const std::exception& failure) {
+        if (error) *error = QString::fromUtf8(failure.what());
+    }
+    return sessions;
 }
 
 Ledger readLedger(const Paths& paths)

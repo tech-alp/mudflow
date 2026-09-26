@@ -136,7 +136,8 @@ Kurulu sanılan ama hiç çalışmayan bir SessionStart hook'u, temiz bir projed
 ayırt edilemez: ikisinde de `status` sessizdir. Bu, projenin avladığı sessiz
 körlük sınıfının aynısıdır.
 
-`resume --hook` çağrıldığında `.runmark/hook-observed.json` yazılır. Üç sonuç:
+`resume --hook` çağrıldığında `.runmark/hook-observed.json` yazılır. (Güncelleme
+ADR-023: yerini oturum kayıtları aldı; herhangi bir kayıtlı oturum "gözlem var" demektir.) Üç sonuç:
 
 ```text
 hooks_expected yok        → kural değerlendirilmez
@@ -360,3 +361,29 @@ durumunun paylaşılıp paylaşılmayacağı kararıdır; ayrı konu.
 Yeniden değerlendirme tetikleyicileri: bir kullanıcı makineler arası kanıt
 ister ve Entire kullanıyordur; bir runtime yerel transcript yazmayı bırakır;
 Entire checkpoint biçimini belgelenmiş ve sürümlü bir sözleşme olarak yayınlar.
+
+## ADR-023 — Oturum kaydı hook'la, karar hatırlatması commit başına
+Accepted. Tarih: 2026-09-26. Kaynak: `docs/designs/runmark-cockpit.md` Faz 0a.
+
+Ajanlar çoğunlukla `rmk start` denmeden açılıyor ve oturum kapanınca kararları
+kayboluyordu. Karar:
+
+- Her ajan oturumu, nasıl başlatılırsa başlatılsın, plugin hook'larıyla
+  `.runmark/sessions/<session_id>.jsonl` dosyasına yazılır (açıldı, çalışıyor,
+  bekliyor, hatırlatıldı, kapandı). `hook-observed.json` kaldırıldı.
+- Tek `rmk hook <olay>` komutu hook JSON'unu stdin'den okur; tüm karar C++'ta,
+  plugin yalnız sürüm kontrolü yapıp iletir (kayıt biçimi yalnız `ledger.cpp`'de).
+- `rmk` projeyi üst dizinlerde, worktree'nin ana checkout'unda ve
+  `~/.config/runmark/projects.json` listesinde arar; worktree'de açılan hook'lar
+  eskiden projeyi bulamayıp sessizce çıkıyordu.
+- Stop hook'u, oturumda yeni bir commit varken ve o commit'ten sonra not yokken
+  commit başına bir kez ajanı `rmk note` yazmaya zorlar (`block`); `stop_hook_active`
+  iken asla. Block davranışı Claude 2.1.282 ve Codex 0.156.1'de ölçüldü. Yedek:
+  sonraki oturum açılışı notsuz kalan oturumu söyler.
+- Stop yolu < 100 ms (ölçülen 18 ms): ağ yok, transcript okunmaz.
+- `rmk note` execution'sız çağrılırsa not oturumun dosyasına gider.
+
+Sınırlar: hook'u hiç çalışmayan oturum bu yolla görünmez (transcript taraması
+T6 bunu kapatır). Oturum ana dizinde açılıp başka bir worktree'ye elle
+geçildiyse, o worktree'nin commit'leri yalnız oturum `rmk start` ile bir
+execution başlattıysa görülür.

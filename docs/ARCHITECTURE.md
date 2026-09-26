@@ -253,7 +253,7 @@ Hedef disk düzeni, mevcut JSON/JSONL sözleşmesini korur:
 ├── ledger/
 ├── handoffs/
 ├── evidence/
-└── hook-observed.json
+└── sessions/
 ```
 
 Mevcut `.runmark/` dosyaları ve preserved Git ref'leri geçiş yapılana kadar

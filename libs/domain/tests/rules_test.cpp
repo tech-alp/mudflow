@@ -328,12 +328,16 @@ int main()
         expects.hooksExpected = true;
         if (has(runmark::evaluate(config(), f), QStringLiteral("context.hooks_not_observed"))) return 1;
         if (!has(runmark::evaluate(expects, f), QStringLiteral("context.hooks_not_observed"))) return 1;
-        f.lastHookObserved = now.addSecs(-3600);
+        // Any recorded agent session proves a hook ran (sessions replaced
+        // hook-observed.json; regression from eng review D5).
+        runmark::SessionFacts seen;
+        seen.id = QStringLiteral("s-1");
+        f.sessions = {seen};
         if (has(runmark::evaluate(expects, f), QStringLiteral("context.hooks_not_observed"))) return 1;
-        // A corrupt record must not count as "seen"; the reason belongs in
-        // the explanation.
-        f.lastHookObserved.reset();
-        f.hookError = QStringLiteral("Invalid ts: soon");
+        // An unreadable session directory must not count as "seen"; the
+        // reason belongs in the explanation.
+        f.sessions.clear();
+        f.sessionsError = QStringLiteral("Invalid ts: soon");
         const QVector<runmark::Finding> broken = runmark::evaluate(expects, f);
         if (!has(broken, QStringLiteral("context.hooks_not_observed"))) return 1;
         bool explained = false;

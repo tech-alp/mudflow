@@ -3,6 +3,7 @@
 #include <QDir>
 #include <QCryptographicHash>
 #include <QDateTime>
+#include <QElapsedTimer>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -66,6 +67,24 @@ bool hasGap(const QJsonObject& package, const QString& id)
         if (gap.value(QStringLiteral("id")) == id) return true;
     }
     return false;
+}
+
+// Runs `rmk hook <event>` from `directory` with the runtime's JSON on stdin.
+QByteArray hook(const QString& executable, const QString& directory, const QString& event, const QByteArray& input,
+    int expectedExit = 0, qint64* elapsedMs = nullptr)
+{
+    QProcess process;
+    process.setWorkingDirectory(directory);
+    QElapsedTimer timer;
+    timer.start();
+    process.start(executable, {QStringLiteral("hook"), event});
+    check(process.waitForStarted(5000), "hook starts");
+    process.write(input);
+    process.closeWriteChannel();
+    check(process.waitForFinished(10000), "hook finishes");
+    if (elapsedMs) *elapsedMs = timer.elapsed();
+    check(process.exitCode() == expectedExit, "hook exit code");
+    return process.readAllStandardOutput();
 }
 
 void resumeContract(const QString& executable)
@@ -171,18 +190,19 @@ void resumeContract(const QString& executable)
         && markdown.contains(QStringLiteral("Agent note (weak evidence \u2014 unverified)").toUtf8()) && markdown.contains(handoff.value("sha1").toString().toUtf8()), "markdown contract");
     check(readFile(ledger) == before, "resume never appends delivery event");
 
-    // --hook: that the hook ran is written to a separate file, not the ledger.
-    // Without it, a hook that never ran looks like a clean project.
-    const QString hookObserved = root + "/.runmark/hook-observed.json";
-    check(!QFile::exists(hookObserved), "no observation before --hook");
+    // A session-start hook records the session in its own file, not the
+    // ledger. Without any session, a hook that never ran looks like a clean
+    // project (regression: this replaced hook-observed.json).
     QJsonObject hooked = config;
     hooked.insert("hooks_expected", true);
     check(writeFile(configPath, QJsonDocument(hooked).toJson()), "hooks_expected config");
     check(hasFinding(cli({"status"}), "context.hooks_not_observed"), "hook blindness reported");
-    cli({"resume", exec, "--hook"});
-    check(QFile::exists(hookObserved), "--hook records the observation");
-    check(readFile(ledger) == before, "--hook appends no ledger event");
-    check(!hasFinding(cli({"status"}), "context.hooks_not_observed"), "observation clears the finding");
+    const QByteArray context = hook(executable, root, "session-start",
+        R"({"session_id":"s-start","cwd":")" + root.toUtf8() + R"(","transcript_path":"/x/.claude/projects/p/s-start.jsonl","source":"startup"})");
+    check(context.startsWith("# Runmark resume:"), "session start hands the resume context to the agent");
+    check(QFile::exists(root + "/.runmark/sessions/s-start.jsonl"), "session start records the session");
+    check(readFile(ledger) == before, "session start appends no ledger event");
+    check(!hasFinding(cli({"status"}), "context.hooks_not_observed"), "a recorded session clears the finding");
     check(writeFile(configPath, QJsonDocument(config).toJson()), "restore config");
 
     check(writeFile(handoffPath, "changed handoff\n"), "tamper handoff");
@@ -438,6 +458,89 @@ void discoveryContract(const QString& executable)
     qunsetenv("RUNMARK_CONFIG_HOME");
 }
 
+// Session hooks (Phase 0a): one file per session, a one-time note reminder
+// after each new commit, never a block loop, notes without an execution, and
+// the next session told when an earlier one left decisions unrecorded.
+void sessionContract(const QString& executable)
+{
+    QTemporaryDir fixture;
+    check(fixture.isValid(), "session fixture");
+    const QString root = QFileInfo(fixture.path()).canonicalFilePath();
+    const auto git = [&](const QStringList& args) {
+        QByteArray out, err;
+        check(run(QStringLiteral("git"), QStringList{"-C", root} + args, 0, &out, &err), "session git command");
+    };
+    QByteArray out, err;
+    check(run(QStringLiteral("git"), {"init", "-b", "main", root}, 0, &out, &err), "session repo");
+    const auto commit = [&](const QString& message) {
+        git({"-c", "user.name=R", "-c", "user.email=r@example.invalid", "commit", "--allow-empty", "-m", message});
+    };
+    commit("initial");
+    check(QDir().mkpath(root + "/.runmark"), "session state");
+    check(writeFile(root + "/plan.md", "- [ ] MF-1\n"), "session plan");
+    check(writeFile(root + "/.runmark/project.json", R"({"version":1,"name":"s","worktree_root":"wt","repos":[{"name":"r","path":".","base":{"remote":"origin","branch":"main"}}],"plan":{"path":"plan.md"},"task_id_pattern":"MF-\\d+"})"), "session config");
+    const auto input = [&](const QString& id, const QByteArray& extra = {}) {
+        return R"({"session_id":")" + id.toUtf8() + R"(","cwd":")" + root.toUtf8()
+            + R"(","transcript_path":"/x/.codex/sessions/2026/09/26/rollout-)" + id.toUtf8() + R"(.jsonl")" + extra + "}";
+    };
+    const auto session = [&](const QString& id) {
+        for (const QJsonValue& value : QJsonDocument::fromJson(
+                [&] { QByteArray o, e; run(executable, {"--project", root + "/.runmark/project.json", "status"}, 0, &o, &e); return o; }())
+                .object().value("sessions").toArray()) {
+            if (value.toObject().value("id") == id) return value.toObject();
+        }
+        return QJsonObject{};
+    };
+
+    hook(executable, root, "session-start", input("s1", R"(,"source":"startup")"));
+    // Checked before any other command runs: status would add the exclude
+    // itself and hide a hook that does not.
+    {
+        QByteArray porcelain, error;
+        check(run(QStringLiteral("git"), {"-C", root, "status", "--porcelain", "--", ".runmark/sessions"}, 0, &porcelain, &error)
+            && porcelain.isEmpty(), "session files stay out of git status");
+    }
+    check(session("s1").value("runtime") == "codex" && session("s1").value("state") == "started", "runtime from the transcript path");
+    hook(executable, root, "prompt-submit", input("s1"));
+    check(session("s1").value("state") == "working", "a prompt means the agent works");
+    check(hook(executable, root, "stop", input("s1")).isEmpty(), "no commit, no reminder");
+    check(session("s1").value("state") == "waiting", "a finished reply means the agent waits");
+
+    commit("work one");
+    qint64 elapsed = 0;
+    const QByteArray block = hook(executable, root, "stop", input("s1"), 0, &elapsed);
+    const QJsonObject decision = QJsonDocument::fromJson(block).object();
+    check(decision.value("decision") == "block" && decision.value("reason").toString().contains("rmk note"), "a new commit without a note asks once");
+    QTextStream(stdout) << "stop hook with reminder: " << elapsed << " ms\n";
+    check(elapsed < 100, "stop hook stays within the 100 ms budget (eng review D9)");
+    check(hook(executable, root, "stop", input("s1")).isEmpty(), "the same commit is not asked twice");
+
+    commit("work two");
+    check(hook(executable, root, "stop", input("s1", R"(,"stop_hook_active":true)")).isEmpty(), "never blocks while a stop hook is active");
+    qputenv("CLAUDE_CODE_SESSION_ID", "s1");
+    check(run(executable, {"--project", root + "/.runmark/project.json", "note", "--kind", "decision", "--text", "kept the old API"}, 0, &out, &err),
+        "a note without an execution goes to the session");
+    qunsetenv("CLAUDE_CODE_SESSION_ID");
+    check(hook(executable, root, "stop", input("s1")).isEmpty(), "a note after the commit satisfies the reminder");
+    check(session("s1").value("notes") == 1, "the session holds its note");
+    check(run(executable, {"--project", root + "/.runmark/project.json", "note", "--kind", "decision", "--text", "x"}, 1, &out, &err),
+        "outside a session a note still needs an execution");
+    hook(executable, root, "session-end", input("s1", R"(,"reason":"other")"));
+    check(session("s1").value("state") == "ended" && session("s1").value("end_reason") == "other", "session end recorded");
+
+    // s2 commits, is reminded, never notes, ends: the next session hears of it.
+    hook(executable, root, "session-start", input("s2"));
+    commit("work three");
+    check(!hook(executable, root, "stop", input("s2")).isEmpty(), "s2 is reminded");
+    hook(executable, root, "session-end", input("s2", R"(,"reason":"other")"));
+    const QByteArray next = hook(executable, root, "session-start", input("s3"));
+    check(next.contains("## Unrecorded decisions") && next.contains("s2"), "the next session is told what went unrecorded");
+    check(!next.contains("(s1)"), "a session that noted its decision is not reported");
+
+    hook(executable, root, "session-start", R"({"session_id":"../escape","cwd":"/"})", 1);
+    check(!QFile::exists(root + "/.runmark/escape.jsonl") && !QFile::exists(root + "/.runmark/sessions/../escape.jsonl"), "unsafe session id rejected");
+}
+
 } // namespace
 
 int main(int argc, char* argv[])
@@ -470,6 +573,7 @@ int main(int argc, char* argv[])
         resumeContract(executable);
         transcriptContract(executable);
         discoveryContract(executable);
+        sessionContract(executable);
     } catch (const std::exception& error) {
         QTextStream(stderr) << error.what() << '\n';
         return 1;

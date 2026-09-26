@@ -160,6 +160,27 @@ struct NoteRecorded {
     QString text;
     QString source;
     QString ref;
+    // The agent session that wrote it, when rmk ran inside one. A note without
+    // an execution lives in that session's own file.
+    QString session;
+};
+
+// One agent session as its hooks reported it (.runmark/sessions/<id>.jsonl).
+// A session exists whether or not anyone ran `rmk start` in it.
+struct SessionFacts {
+    QString id;
+    QString runtime;           // claude | codex | unknown
+    QString cwd;
+    QString transcriptPath;
+    QString source;            // startup | resume | ...
+    QDateTime startedAt;
+    QString startHead;         // HEAD of cwd when it started; empty outside git
+    QDateTime lastWorkingAt;   // the user sent a prompt; the agent is working
+    QDateTime lastWaitingAt;   // the agent finished a reply and waits for the user
+    std::optional<QDateTime> endedAt;
+    QString endReason;
+    QStringList remindedHeads; // commits after which a note was already asked for
+    QVector<NoteRecorded> notes;
 };
 
 struct Ledger {
@@ -204,10 +225,10 @@ struct StatusFacts {
     Ledger ledger;
     QVector<ExecutionFacts> executions;
     PlanFacts plan;
-    // When the hook last ran. Absent means nullopt; hookError separates
-    // "never observed" from "could not be read".
-    std::optional<QDateTime> lastHookObserved;
-    QString hookError;
+    // Sessions the agent hooks recorded. None at all, with hooks expected, is
+    // indistinguishable from a clean project, so it is a finding.
+    QVector<SessionFacts> sessions;
+    QString sessionsError;     // non-empty: the session directory could not be read
 };
 
 struct FileFacts {

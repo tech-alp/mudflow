@@ -351,12 +351,12 @@ QVector<Finding> evaluate(const ProjectConfig& config, const StatusFacts& facts)
     // --- Hook ---
     // A hook believed to be installed but never run is indistinguishable from
     // a clean project. Once the expectation is declared, absence is a finding.
-    if (config.hooksExpected && !facts.lastHookObserved.has_value()) {
+    if (config.hooksExpected && facts.sessions.isEmpty()) {
         findings.append(finding(QStringLiteral("context.hooks_not_observed"), QStringLiteral("warning"), QStringLiteral("context"),
             QStringLiteral("No agent hook has been observed"),
-            facts.hookError.isEmpty()
-                ? QStringLiteral("project.hooks_expected is true but no session start hook has run rmk yet")
-                : QStringLiteral("Hook observation cannot be read: ") + facts.hookError,
+            facts.sessionsError.isEmpty()
+                ? QStringLiteral("project.hooks_expected is true but no agent session has been recorded yet")
+                : QStringLiteral("Session records cannot be read: ") + facts.sessionsError,
             QStringLiteral("Install the runmark-agent plugin, then open a new agent session.")));
     }
 

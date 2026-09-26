@@ -69,9 +69,38 @@ QJsonObject toJson(const StatusResult& result)
 {
     QJsonArray repositories;
     for (const RepoFacts& repository : result.repositories) repositories.append(toJson(repository));
+    QJsonArray sessions;
+    for (const SessionFacts& session : result.sessions) sessions.append(toJson(session));
     return {{QStringLiteral("project"), result.project},
             {QStringLiteral("repositories"), repositories},
-            {QStringLiteral("findings"), toJsonArray(result.findings)}};
+            {QStringLiteral("findings"), toJsonArray(result.findings)},
+            {QStringLiteral("sessions"), sessions}};
+}
+
+QJsonObject toJson(const SessionFacts& session)
+{
+    const auto time = [](const QDateTime& at) { return at.isValid() ? QJsonValue(at.toString(Qt::ISODateWithMs)) : QJsonValue::Null; };
+    // ended, else whichever of "user sent a prompt" / "agent finished a reply"
+    // happened last; a session that has done neither yet is starting.
+    const QString state = session.endedAt ? QStringLiteral("ended")
+        : session.lastWaitingAt.isValid() && session.lastWaitingAt >= session.lastWorkingAt ? QStringLiteral("waiting")
+        : session.lastWorkingAt.isValid() ? QStringLiteral("working") : QStringLiteral("started");
+    return {{QStringLiteral("id"), session.id}, {QStringLiteral("runtime"), session.runtime},
+        {QStringLiteral("cwd"), session.cwd}, {QStringLiteral("state"), state},
+        {QStringLiteral("started_at"), time(session.startedAt)},
+        {QStringLiteral("last_waiting_at"), time(session.lastWaitingAt)},
+        {QStringLiteral("ended_at"), time(session.endedAt.value_or(QDateTime()))},
+        {QStringLiteral("end_reason"), session.endReason.isEmpty() ? QJsonValue::Null : QJsonValue(session.endReason)},
+        {QStringLiteral("notes"), session.notes.size()},
+        {QStringLiteral("transcript"), session.transcriptPath.isEmpty() ? QJsonValue::Null : QJsonValue(session.transcriptPath)}};
+}
+
+QString sessionWithoutNotesMarkdown(const SessionFacts& session)
+{
+    return QStringLiteral("\n## Unrecorded decisions\n\nAn earlier %1 session (%2) committed work and ended without a "
+        "decision or open-item note. What it decided exists only in its transcript: %3\n"
+        "Read it if this work continues, and record what still holds with `rmk note`.\n")
+        .arg(session.runtime, session.id, session.transcriptPath.isEmpty() ? QStringLiteral("(unknown)") : session.transcriptPath);
 }
 
 QJsonObject toJson(const StartResult& result)

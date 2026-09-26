@@ -54,7 +54,7 @@ StatusFacts observe(const ProjectConfig& config, const Paths& paths)
         facts.repos.append(observeRepo(repository, expandPath(repository.path, paths.root)));
     }
 
-    facts.hookError = readHookObservation(paths, facts.lastHookObserved);
+    facts.sessions = readSessions(paths, &facts.sessionsError);
 
     for (const ExecutionStarted& started : facts.ledger.started) {
         ExecutionFacts execution;
@@ -123,6 +123,45 @@ TranscriptRecord recordRuntimeTests(const ProjectConfig& config, const Paths& pa
     return record;
 }
 
+// The agent session rmk runs inside, if any. Codex exports CODEX_THREAD_ID,
+// Claude Code CLAUDE_CODE_SESSION_ID.
+// ponytail: Codex launched from Claude inherits both and Codex wins, which is
+// the innermost session; the reverse nesting would pick the wrong one.
+QString currentSession()
+{
+    for (const char* name : {"CODEX_THREAD_ID", "CLAUDE_CODE_SESSION_ID"}) {
+        const QString id = qEnvironmentVariable(name);
+        if (isSafeSessionId(id)) return id;
+    }
+    return {};
+}
+
+// Measured transcript locations: ~/.codex/sessions/..., ~/.claude/projects/...
+QString runtimeOf(const QString& transcriptPath)
+{
+    if (transcriptPath.contains(QStringLiteral("/.codex/"))) return QStringLiteral("codex");
+    if (transcriptPath.contains(QStringLiteral("/.claude/"))) return QStringLiteral("claude");
+    return QStringLiteral("unknown");
+}
+
+QString headOf(const QString& directory)
+{
+    if (directory.isEmpty()) return {};
+    const ProcessResult result = git(directory, {QStringLiteral("rev-parse"), QStringLiteral("HEAD")});
+    return result.exitCode == 0 ? result.output.trimmed() : QString();
+}
+
+// Notes this session wrote: in its own file and in any execution ledger.
+QVector<NoteRecorded> notesOf(const Paths& paths, const SessionFacts& session, const Ledger* ledger = nullptr)
+{
+    QVector<NoteRecorded> notes = session.notes;
+    const Ledger loaded = ledger ? Ledger{} : readLedger(paths);
+    for (const NoteRecorded& note : (ledger ? *ledger : loaded).notes) {
+        if (note.session == session.id) notes.append(note);
+    }
+    return notes;
+}
+
 } // namespace
 
 ProjectConfig inspectProject(const QString& configPath)
@@ -138,17 +177,13 @@ StatusResult projectStatus(const QString& configPath)
 
     const StatusFacts facts = observe(config, paths);
 
-    return {config.name, facts.repos, evaluate(config, facts)};
+    return {config.name, facts.repos, evaluate(config, facts), facts.sessions};
 }
 
-ResumeResult resumeExecution(const QString& configPath, const QString& taskOrExecution, bool observedByHook)
+ResumeResult resumeExecution(const QString& configPath, const QString& taskOrExecution)
 {
     const ProjectConfig config = loadProjectConfig(configPath);
     const Paths paths = pathsFor(configPath);
-    // Nothing else proves the hook ran: a session opens, the hook fails
-    // silently, and status reads that as a clean project. If the write fails,
-    // ignore it -- the finding then says "never observed", the safe direction.
-    if (observedByHook) writeHookObservation(paths);
     ResumeFacts facts = observeResumeLedger(paths, taskOrExecution);
     if (facts.started) {
         facts.planSha1 = observePlan(config, paths.root).sha1;
@@ -354,8 +389,88 @@ void recordNote(const QString& configPath, const QString& executionId, const QSt
     if (!kinds.contains(kind) || text.trimmed().isEmpty()) fail(QStringLiteral("Invalid note kind or empty text"));
     const Paths paths = pathsFor(configPath);
     prepareState(paths);
-    startedEvent(readLedger(paths), executionId);
-    appendEvent(paths, NoteRecorded{executionId, QDateTime::currentDateTimeUtc(), kind, text, QStringLiteral("human"), reference});
+    const QString session = currentSession();
+    if (executionId.isEmpty()) {
+        if (session.isEmpty()) fail(QStringLiteral("rmk note needs an execution ID outside an agent session"));
+    } else {
+        startedEvent(readLedger(paths), executionId);
+    }
+    appendEvent(paths, NoteRecorded{executionId, QDateTime::currentDateTimeUtc(), kind, text, QStringLiteral("human"), reference, session});
+}
+
+bool isSessionId(const QString& id)
+{
+    return isSafeSessionId(id);
+}
+
+SessionStartResult sessionStarted(const QString& configPath, const HookInput& input)
+{
+    const Paths paths = pathsFor(configPath);
+    // Once per session: keeps sessions/ out of `git status`, so recording a
+    // session never shows up as a dirty workspace.
+    prepareState(paths);
+    SessionStartResult result;
+    // Before recording this one, so it is never its own predecessor.
+    for (const SessionFacts& earlier : readSessions(paths, nullptr)) {
+        if (earlier.id == input.sessionId || !earlier.endedAt || earlier.remindedHeads.isEmpty()) continue;
+        if (!notesOf(paths, earlier).isEmpty()) continue;
+        if (!result.previousWithoutNotes || *earlier.endedAt > *result.previousWithoutNotes->endedAt) {
+            result.previousWithoutNotes = earlier;
+        }
+    }
+    SessionFacts session;
+    session.id = input.sessionId;
+    session.runtime = runtimeOf(input.transcriptPath);
+    session.cwd = input.cwd;
+    session.transcriptPath = input.transcriptPath;
+    session.source = input.source;
+    session.startHead = headOf(input.cwd);
+    recordSessionStarted(paths, session);
+    return result;
+}
+
+void sessionWorking(const QString& configPath, const HookInput& input)
+{
+    recordSessionWorking(pathsFor(configPath), input.sessionId);
+}
+
+std::optional<QString> sessionStopped(const QString& configPath, const HookInput& input)
+{
+    const Paths paths = pathsFor(configPath);
+    recordSessionWaiting(paths, input.sessionId);
+    // Budget < 100 ms (eng review D9): local git and this project's files only,
+    // no fetch, no transcript. Never block twice in a row (no loop).
+    if (input.stopHookActive) return std::nullopt;
+    const std::optional<SessionFacts> session = readSession(paths, input.sessionId);
+    if (!session) return std::nullopt;
+
+    // Where this session's commits land: its own directory and the worktrees
+    // of executions it started, each against its baseline.
+    QVector<QPair<QString, QString>> places{{session->cwd, session->startHead}};
+    const Ledger ledger = readLedger(paths);
+    for (const ExecutionStarted& started : ledger.started) {
+        if (started.sessionId == session->id) places.append({started.worktree, started.headSha});
+    }
+    const QVector<NoteRecorded> notes = notesOf(paths, *session, &ledger);
+    for (const auto& [place, baseline] : places) {
+        const QString head = headOf(place);
+        if (head.isEmpty() || baseline.isEmpty() || head == baseline || session->remindedHeads.contains(head)) continue;
+        const QDateTime committed = QDateTime::fromString(
+            git(place, {QStringLiteral("log"), QStringLiteral("-1"), QStringLiteral("--format=%cI"), head}).output.trimmed(), Qt::ISODate);
+        bool noted = false;
+        for (const NoteRecorded& note : notes) noted = noted || (committed.isValid() && note.at >= committed.addSecs(-1));
+        if (noted) continue;
+        recordSessionReminded(paths, session->id, head);
+        return QStringLiteral("Runmark: commit %1 landed in this session and no decision or open item has been "
+            "recorded since. Record what was decided with `rmk note --kind decision --text \"...\"` "
+            "(or --kind unresolved / blocker), then stop.").arg(head.left(12));
+    }
+    return std::nullopt;
+}
+
+void sessionEnded(const QString& configPath, const HookInput& input)
+{
+    recordSessionEnded(pathsFor(configPath), input.sessionId, input.reason);
 }
 
 } // namespace runmark

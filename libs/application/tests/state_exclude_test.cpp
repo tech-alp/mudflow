@@ -66,7 +66,7 @@ int main()
         runmark::projectStatus(config);
         const QString commonDirValue = gitOutput({QStringLiteral("-C"), repository, QStringLiteral("rev-parse"), QStringLiteral("--git-common-dir")});
         const QString commonDir = QDir::isAbsolutePath(commonDirValue) ? commonDirValue : QDir(repository).filePath(commonDirValue);
-        for (const QString& pattern : {QStringLiteral("/.runmark/ledger/"), QStringLiteral("/.runmark/evidence/"), QStringLiteral("/.runmark/handoffs/"), QStringLiteral("/.runmark/hook-observed.json")}) {
+        for (const QString& pattern : {QStringLiteral("/.runmark/ledger/"), QStringLiteral("/.runmark/evidence/"), QStringLiteral("/.runmark/handoffs/"), QStringLiteral("/.runmark/sessions/")}) {
             const int occurrences = lineCount(commonDir + QStringLiteral("/info/exclude"), pattern);
             if (occurrences != 1) return 1;
         }

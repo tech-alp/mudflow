@@ -24,7 +24,7 @@ Genişleme noktaları en altta işaretli.
 ├ ledger/20260918T142231Z-SCMS-042.jsonl        execution başına 1 dosya
 ├ handoffs/20260918T142231Z-SCMS-042.md         execution başına 1 dosya
 ├ evidence/<sha1>.json                          büyük payload'lar
-└ hook-observed.json                            ajan hook'unun son çalıştığı an
+└ sessions/<session_id>.jsonl                   ajan oturumu başına 1 dosya (hook'lar yazar)
 ```
 
 **Execution başına ayrı dosya** — iki agent aynı anda iki worktree'de çalışırken
@@ -36,13 +36,26 @@ ayrı index'e gerek yok.
 Ledger birkaç yüz satır; her `status`'ta baştan okunur.
 `status` 200 ms'yi geçerse index eklenir.
 
-`hook-observed.json` tek alanlı (`ts`) ve execution'a bağlı değildir; bu yüzden
-ledger'da yeri yoktur. Ledger append-only bir **olay** kaydıdır, bu dosya ise
-üzerine yazılan tek bir **gözlem**dir. Son değerden fazlası tutulmaz: soru
-"hook en son ne zaman çalıştı" değil, "hiç çalıştı mı".
+**Oturum başına ayrı dosya** (`sessions/`) — ajan oturumlarının çoğu bir
+execution'a bağlı değildir (`rmk start` denmeden açılır), bu yüzden ledger'da
+sayfaları yoktur. Her oturumu hook'ları yazar; tek yazar olduğu için kilit yok.
+Olaylar (`ts` milisaniyeli, `session` alanlı):
+
+| type | Alanlar | Kim yazar |
+|---|---|---|
+| `session.started` | `runtime` (claude/codex, transcript yolundan), `cwd`, `transcript`, `source`, `head` (başlangıç HEAD'i) | `rmk hook session-start` |
+| `session.working` | — | `rmk hook prompt-submit` |
+| `session.waiting` | — (ajan cevabını bitirdi, kullanıcıyı bekliyor) | `rmk hook stop` |
+| `session.reminded` | `head` (not istenen commit) | `rmk hook stop` |
+| `session.ended` | `reason` | `rmk hook session-end` |
+| `note` | §3.4 ile aynı; `exec` null | `rmk note` (exec verilmeden) |
+
+Oturum yeniden açılırsa (`source: resume`) ilk `head` taban kalır. Herhangi bir
+oturum kaydı, hook'un çalıştığının kanıtıdır; eskiden bunu tutan
+`hook-observed.json` kaldırıldı (eng review D5).
 
 Project anchor bir Git worktree içindeyse Runmark yalnız ürettiği `ledger/`,
-`evidence/`, `handoffs/` ve `hook-observed.json` yollarını ortak Git dizinindeki `info/exclude`a
+`evidence/`, `handoffs/` ve `sessions/` yollarını ortak Git dizinindeki `info/exclude`a
 idempotent ekler. `.runmark/project.json` dışlanmaz; proje config'i takip
 edilir. Paylaşılan `.gitignore` Runmark tarafından değiştirilmez.
 
@@ -305,9 +318,15 @@ Karar ve açık maddeler.
   "kind": "unresolved",
   "text": "Config migration'da eski format okuma desteği kalacak mı?",
   "source": "agent",
-  "ref": null
+  "ref": null,
+  "session": "06a72e06-b1ae-49ab-83a5-de70513b6222"
 }
 ```
+
+`session`: notu yazan ajan oturumu (`CODEX_THREAD_ID`, yoksa `CLAUDE_CODE_SESSION_ID`);
+oturum dışından yazıldıysa `null`. `rmk note` execution ID'siz çağrılırsa not
+oturumun kendi dosyasına (`sessions/<id>.jsonl`) yazılır ve `exec` null olur;
+oturum dışında execution ID zorunludur.
 
 `kind`: `decision` | `unresolved` | `blocker`
 `source`: `agent` | `human`
@@ -537,10 +556,15 @@ adlarından task çıkarması TC-006'yı bozardı. Hiç execution yoksa yine pak
 döner, `context.no_execution` gap'iyle: sessiz boş çıktı ile "kayıt yok" aynı
 şeye benzememeli.
 
-`--hook`, çağıranın bir ajan hook'u olduğunu bildirir ve `hook-observed.json`'a
-zaman damgası yazar (§1). Paketi değiştirmez, ledger'a dokunmaz. Yazım
-başarısız olursa sessizce geçilir: hook'un asıl işi bağlam üretmek, bu kayıt
-yan ürün. Başarısızlık "görülmedi" tarafına düşer, güvenli yön budur.
+Ajan hook'ları `rmk hook <session-start|prompt-submit|stop|session-end>` çağırır;
+runtime'ın hook JSON'u stdin'den gelir (`session_id`, `cwd`, `transcript_path`,
+`source`, `reason`, `stop_hook_active`; Claude 2.1.282 ve Codex 0.156.1'de ölçüldü).
+`session-start` oturumu kaydeder ve bu paketin Markdown hâlini stdout'a yazar;
+önceki bir oturum commit'ten sonra hatırlatıldığı hâlde not bırakmadan kapandıysa
+"Unrecorded decisions" bölümü eklenir. `stop`, bu oturumda (kendi dizininde ya da
+başlattığı execution'ların worktree'lerinde) yeni bir commit varsa ve o commit'ten
+sonra bu oturumun notu yoksa commit başına bir kez `{"decision":"block","reason":…}`
+döndürür; `stop_hook_active` iken asla. Ağ ve transcript okumaz; ölçülen süre 18 ms.
 
 ```json
 {

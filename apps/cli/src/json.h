@@ -19,8 +19,12 @@ QJsonObject toJson(const StartResult& result);
 QJsonObject toJson(const WorktreeCleanupFacts& facts);
 QJsonObject toJson(const FinishResult& result);
 QJsonObject toJson(const ResumeResult& result);
+QJsonObject toJson(const SessionFacts& session);
 
 // The second presentation of the same result: markdown for an agent to read.
 QString resumeMarkdown(const QJsonObject& package);
+// Appended to the session-start context when an earlier session committed
+// work and left no note: its decisions live only in its transcript.
+QString sessionWithoutNotesMarkdown(const SessionFacts& session);
 
 } // namespace runmark

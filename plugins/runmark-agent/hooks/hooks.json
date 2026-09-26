@@ -6,10 +6,46 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/runmark-session-start.sh",
-            "commandWindows": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/runmark-session-start.js\"",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/runmark-hook.sh session-start",
+            "commandWindows": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/runmark-hook.js\" session-start",
             "timeout": 10,
             "statusMessage": "Checking Runmark session context"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/runmark-hook.sh prompt-submit",
+            "commandWindows": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/runmark-hook.js\" prompt-submit",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/runmark-hook.sh stop",
+            "commandWindows": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/runmark-hook.js\" stop",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/runmark-hook.sh session-end",
+            "commandWindows": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/runmark-hook.js\" session-end",
+            "timeout": 3
           }
         ]
       }

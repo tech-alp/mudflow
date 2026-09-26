@@ -59,6 +59,11 @@ kind, with concrete text and a durable `--ref` when available:
 rmk note "$EXEC" --kind unresolved --text "<open question and next action>"
 ```
 
+Without an execution (you were asked to look into something, no `rmk start`),
+omit `$EXEC`: the note is stored with this agent session. After you commit,
+Runmark may stop you once and ask for such a note before you finish; record
+what was actually decided, or `--kind unresolved` if nothing was.
+
 Close an execution with `rmk finish "$EXEC" --outcome finished` (or
 `interrupted` when work stops mid-way). This writes the handoff the next
 session reads, so finishing without recording evidence first produces a

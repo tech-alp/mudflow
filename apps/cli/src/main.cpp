@@ -8,6 +8,7 @@
 #include <QCommandLineParser>
 #include <QCoreApplication>
 #include <QDir>
+#include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTextStream>
@@ -25,6 +26,45 @@ int emitError(const QString& code, const QString& message, int exitCode)
     }}};
     QTextStream(stderr) << QJsonDocument(payload).toJson(QJsonDocument::Indented);
     return exitCode;
+}
+
+// `rmk hook <event>`: the agent runtime's hook JSON arrives on stdin. The
+// plugin script only checks the rmk version and forwards; every decision is
+// made here so it is covered by the contract tests (eng review D7).
+int runHook(const QString& configPath, const QString& event)
+{
+    QFile input;
+    if (!input.open(stdin, QIODevice::ReadOnly)) return emitError(QStringLiteral("runtime"), QStringLiteral("Cannot read hook input"), 1);
+    const QJsonObject json = QJsonDocument::fromJson(input.readAll()).object();
+    runmark::HookInput hook;
+    hook.sessionId = json.value(QStringLiteral("session_id")).toString();
+    hook.cwd = json.value(QStringLiteral("cwd")).toString();
+    hook.transcriptPath = json.value(QStringLiteral("transcript_path")).toString();
+    hook.source = json.value(QStringLiteral("source")).toString();
+    hook.reason = json.value(QStringLiteral("reason")).toString();
+    hook.stopHookActive = json.value(QStringLiteral("stop_hook_active")).toBool();
+    if (!runmark::isSessionId(hook.sessionId)) {
+        return emitError(QStringLiteral("runtime"), QStringLiteral("Hook input has no usable session_id"), 1);
+    }
+    QTextStream out(stdout);
+    if (event == QLatin1String("session-start")) {
+        const runmark::SessionStartResult started = runmark::sessionStarted(configPath, hook);
+        // Plain stdout is taken as context by both runtimes.
+        out << runmark::resumeMarkdown(toJson(runmark::resumeExecution(configPath, QString())));
+        if (started.previousWithoutNotes) out << sessionWithoutNotesMarkdown(*started.previousWithoutNotes);
+    } else if (event == QLatin1String("prompt-submit")) {
+        runmark::sessionWorking(configPath, hook);
+    } else if (event == QLatin1String("stop")) {
+        if (const std::optional<QString> reason = runmark::sessionStopped(configPath, hook)) {
+            out << QJsonDocument(QJsonObject{{QStringLiteral("decision"), QStringLiteral("block")},
+                {QStringLiteral("reason"), *reason}}).toJson(QJsonDocument::Compact) << '\n';
+        }
+    } else if (event == QLatin1String("session-end")) {
+        runmark::sessionEnded(configPath, hook);
+    } else {
+        return emitError(QStringLiteral("usage"), QStringLiteral("Unknown hook event: ") + event, 2);
+    }
+    return 0;
 }
 
 } // namespace
@@ -53,9 +93,8 @@ int main(int argc, char* argv[])
     const QCommandLineOption referenceOption(QStringLiteral("ref"), QStringLiteral("Durable source reference."), QStringLiteral("reference"));
     const QCommandLineOption instructionOption(QStringLiteral("instruction"), QStringLiteral("Instruction path, added to project instructions; repeatable."), QStringLiteral("path"));
     const QCommandLineOption markdownOption(QStringLiteral("markdown"), QStringLiteral("Render resume as Markdown."));
-    const QCommandLineOption hookOption(QStringLiteral("hook"), QStringLiteral("Record that an agent hook ran this command."));
-    parser.addOptions({agentOption, repositoryOption, outcomeOption, kindOption, summaryOption, textOption, referenceOption, instructionOption, markdownOption, hookOption});
-    parser.addPositionalArgument(QStringLiteral("command"), QStringLiteral("inspect, status, start, finish, resume, evidence, or note."));
+    parser.addOptions({agentOption, repositoryOption, outcomeOption, kindOption, summaryOption, textOption, referenceOption, instructionOption, markdownOption});
+    parser.addPositionalArgument(QStringLiteral("command"), QStringLiteral("inspect, status, start, finish, resume, evidence, note, or hook."));
     parser.addPositionalArgument(QStringLiteral("argument"), QStringLiteral("Task or execution ID, depending on command."), QStringLiteral("[argument]"));
     parser.process(app);
 
@@ -76,7 +115,7 @@ int main(int argc, char* argv[])
             // resume without an argument means the latest execution. The
             // SessionStart hook does not know which task it is on, so it must
             // be able to call this without a selector.
-            result = toJson(runmark::resumeExecution(configPath, arguments.size() == 2 ? arguments.constLast() : QString(), parser.isSet(hookOption)));
+            result = toJson(runmark::resumeExecution(configPath, arguments.size() == 2 ? arguments.constLast() : QString()));
             if (parser.isSet(markdownOption)) {
                 QTextStream(stdout) << runmark::resumeMarkdown(result);
                 return 0;
@@ -86,12 +125,14 @@ int main(int argc, char* argv[])
         } else if (arguments.size() == 2 && arguments.constFirst() == QLatin1String("evidence") && parser.isSet(kindOption) && parser.isSet(summaryOption)) {
             runmark::recordEvidence(configPath, arguments.constLast(), parser.value(kindOption), parser.value(summaryOption), parser.value(referenceOption));
             result = {{QStringLiteral("recorded"), QStringLiteral("evidence")}};
-        } else if (arguments.size() == 2 && arguments.constFirst() == QLatin1String("note") && parser.isSet(kindOption) && parser.isSet(textOption)) {
-            runmark::recordNote(configPath, arguments.constLast(), parser.value(kindOption), parser.value(textOption), parser.value(referenceOption));
+        } else if ((arguments.size() == 1 || arguments.size() == 2) && arguments.constFirst() == QLatin1String("note") && parser.isSet(kindOption) && parser.isSet(textOption)) {
+            runmark::recordNote(configPath, arguments.size() == 2 ? arguments.constLast() : QString(), parser.value(kindOption), parser.value(textOption), parser.value(referenceOption));
             result = {{QStringLiteral("recorded"), QStringLiteral("note")}};
+        } else if (arguments.size() == 2 && arguments.constFirst() == QLatin1String("hook")) {
+            return runHook(configPath, arguments.constLast());
         } else {
             return emitError(QStringLiteral("usage"),
-                QStringLiteral("Usage: rmk <inspect|status|start|finish|resume|evidence|note> [argument] [options]"), 2);
+                QStringLiteral("Usage: rmk <inspect|status|start|finish|resume|evidence|note|hook> [argument] [options]"), 2);
         }
         QTextStream(stdout) << QJsonDocument(result).toJson(QJsonDocument::Indented);
         return 0;
