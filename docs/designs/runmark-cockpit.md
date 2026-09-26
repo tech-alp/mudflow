@@ -110,19 +110,38 @@ kullanıyor. Tek bir genel okuyucu hepsini okur; yeni araç = config satırı, k
 
 | Faz | Hedef | İçerik | Kimin için |
 |---|---|---|---|
-| 0 — Süreklilik çekirdeği (2-3 hafta) | Kurucunun günlük acısı biter | Hook ile oturum kaydı, çok dosyalı plan okuyucusu, `rmk note` kararları, çok projeli kokpit v1, kurtarma düğmeleri ("worktree'yi aç", "bu oturumdan devam et"), "ajan senden yanıt bekliyor" bildirimi | Kurucu |
-| 1 — Başkası kurabilsin | 5 dakikada değer | Önce Nimbalyst incelemesi (en yakın rakip: iş akışı dosyalarını okuyor mu?); `rmk init` (araçları ve Git'i algılar, hook'ları kurar), Linux, paket, kısa doküman; **3 dış geliştiriciyle deneme** | 3 gönüllü |
+| 0 — Süreklilik çekirdeği (2-3 hafta) | Kurucunun günlük acısı biter | **0a:** hook ile oturum kaydı, çok dosyalı plan okuyucusu, `rmk note` kararları, **çakışma radarı**. **0b öncesi:** Nimbalyst incelemesi (motor mu, kendi kokpit mi kararı). **0b:** ince çok projeli kokpit, kurtarma düğmeleri, "ajan senden yanıt bekliyor" bildirimi | Kurucu |
+| 1 — Başkası kurabilsin | 5 dakikada değer | `rmk init` (araçları ve Git'i algılar, hook'ları kurar), Linux, paket, kısa doküman; **3 dış geliştiriciyle deneme** | 3 gönüllü |
 | 2 — GitHub | Kanıt dışarıdan da gelsin | Görev kartında PR/CI durumu (CI = güçlü ölçülen kanıt), issue `--ref`, **merge hazırlığı rozeti** (diff özeti + CI + runtime test kanıtı) | Kurucu + deneyenler |
-| 3 — Panel modülleri | Kokpit zenginleşir | Çakışma radarı, oturum zaman çizelgesi, maliyet paneli, block editor (ayrı proje, önce okuma) | Herkes |
-| 4 — Ajan yönetimi | Ver ve bırak | Multica runner (lisans), üstünde kendi chat ekranı, takım modu | Şirket içi |
+| 3 — Panel modülleri | Kokpit zenginleşir | Oturum zaman çizelgesi, maliyet paneli, block editor (ayrı proje, önce okuma) | Herkes |
+| 4 — Arka plan işleri (koşullu) | Ver ve bırak | Multica runner, **yalnız** lisans olumlu biterse ve gerçek bir ihtiyaç çıkarsa; takım modu ikinci kullanıcıyla. Chat ekranı yok | Şirket içi |
 
 Kaynak: nimbalyst.com "best agent management tools 2026" karşılaştırması; makalenin saydığı beş
 operatör sorunu (görünürlük, izolasyon, inceleme, organizasyon, kurtarma) fazlara dağıtıldı.
 Alınmayanlar: mobil uygulama, container izolasyonu, uzak/SSH çalışma, terminal çoklayıcı.
 
-Başka geliştiriciler için en değerli panel adayı **çakışma radarı**: iki aktif oturum aynı
-dosyaya veya göreve dokunuyorsa uyarır. Chat ekranı Faz 4'te, çünkü etkileşimsiz bir
-runner olmadan kendi ajan istemcimizi yazmak demek.
+**Çakışma radarı** Faz 0a'da: iki aktif oturum aynı göreve ya da aynı dosyaya
+dokunuyorsa (worktree'lerin base'e göre değişen dosyaları kesişiyorsa) `rmk status` uyarır.
+Kurucunun birinci acısını (iki ajan aynı işi yaptı) doğrudan çözer ve rakiplerde yok.
+
+## Değer sınaması ve karar (2026-09-26)
+
+Nihai hedef bir gün senaryosuyla sınandı. Karar: **değer motorda, ekranda ve ajan
+çalıştırmada değil.**
+
+- **Yüksek getiri, yapılır:** devir/"nerede kaldık", çakışma radarı, oturum sonu karar
+  kaydı, araçlar arası ilerleme, güven katmanı, merge hazırlığı. Rakiplerde yok ve bir
+  satıcının dışında durmadan anlamlı değiller; platformların yutması zor.
+- **Emtia, rekabet edilmez:** paralel oturum görünürlüğü ve "ajan bekliyor" (Nimbalyst,
+  Conductor, cmux yapıyor). Kokpitte yer alır ama farkı yaratan şey sayılmaz.
+- **Kesildi:** kendi chat ekranı ve genel ajan yöneticiliği. Emtia alan, bakımı yüksek.
+- **Yeniden sıralandı:** Nimbalyst incelemesi 0b'den önce. Nimbalyst iş akışı dosyalarını
+  okumuyor ve dışarıdan kaynak bağlamaya izin veriyorsa (MCP ya da dosya), Runmark kendi
+  kokpitini büyütmek yerine **motor** olarak ona bağlanır; desktop ince görünüm kalır.
+- **Kesme ölçütü:** 0a + 0b ile dört hafta kullanım. Oturum kayıtları yakalanan çakışmayı,
+  notsuz kapanışı ve "nerede kaldık" sorusunu nesnel sayar. Yakalama sıfıra yakınsa ya da
+  ajana hâlâ "nerede kaldık" soruluyorsa Runmark ürün olarak değil, kişisel araç olarak
+  dondurulur.
 
 ## Ölçülen hook verisi (2026-09-25)
 
@@ -170,7 +189,8 @@ sürümleme. Tek kullanıcı için ek dağıtım işi yok.
 Faz 0 iki dilim (eng review D2). **0a çekirdek + CLI — bitti ölçütü:** worktree veya alt
 klasörde açılan Claude/Codex oturumu `.runmark/sessions/` altında görünür; `rmk status`
 aktif/bekleyen/kapanmış oturumları ve kayıtsız oturumları listeler; plan ilerlemesi dosya
-başına N/M; commit'ten sonra not yoksa ajan bir kez hatırlatılır. **0b kokpit — bitti
+başına N/M; commit'ten sonra not yoksa ajan bir kez hatırlatılır; aynı görevde ya da aynı
+dosyada çalışan iki aktif oturum uyarı üretir. **0b kokpit — bitti
 ölçütü:** aynı veri çok projeli desktop panelinde; kurtarma düğmeleri ve "ajan bekliyor"
 bildirimi çalışır. Faz 3 kokpitin kendisi değil, ek paneller.
 
@@ -282,6 +302,8 @@ Kritik boşluk yok: sessiz kalan tek yol (bozuk stdin) transcript taramasıyla g
 - [ ] **T7 (P2, insan: ~2s / CC: ~15dk)** — plugin — hooks.json'a Stop ve SessionEnd; ince sh/JS; minimum rmk sürümü
   - Kaynak: D7 · Doğrula: `plugins/runmark-agent/test.sh`
 - [ ] **T8 (P3, insan: ~2s / CC: ~15dk)** — docs — DATA_MODEL (oturum olayları, plan.paths), TRUST_MODEL (hook-observed kalktı), ADR
+- [ ] **T9 (P1, insan: ~1g / CC: ~1s)** — domain/infrastructure — Çakışma radarı: aktif oturumların görevi ve worktree'lerinin base'e göre değişen dosyaları kesişirse bulgu
+  - Kaynak: değer sınaması (2026-09-26) · Doğrula: rules (kesişen/kesişmeyen/tek oturum) + contract (iki worktree aynı dosya)
 
 ### Paralelleştirme
 
@@ -293,8 +315,9 @@ Kritik boşluk yok: sessiz kalan tek yol (bozuk stdin) transcript taramasıyla g
 | T6 | libs/infrastructure | — |
 | T3, T4 | apps/cli, libs/application | T1, T2 |
 | T7 | plugins | T3 |
+| T9 | libs/domain, libs/infrastructure | T2 |
 
-Şerit A: T1 → T3 → T4 → T7. Şerit B: T2 → T5 → T6 (domain/infrastructure ortak, sıralı).
+Şerit A: T1 → T3 → T4 → T7. Şerit B: T2 → T9 → T5 → T6 (domain/infrastructure ortak, sıralı).
 A ile B paralel başlar; T3 T2'yi bekler. Çakışma: T2 ve T5 aynı modüllerde, aynı şeritte.
 
 ## What I noticed about how you think
