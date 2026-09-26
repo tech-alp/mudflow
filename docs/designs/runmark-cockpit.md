@@ -287,22 +287,22 @@ Kritik boşluk yok: sessiz kalan tek yol (bozuk stdin) transcript taramasıyla g
 
 ### Implementation Tasks (0a)
 
-- [ ] **T1 (P1, insan: ~4s / CC: ~30dk)** — CLI — Proje bulma fonksiyonu (üç adım) ve tüm komutların ondan geçmesi
+- [x] **T1 (P1, insan: ~4s / CC: ~30dk)** — CLI — Proje bulma fonksiyonu (üç adım) ve tüm komutların ondan geçmesi
   - Kaynak: D3 · Dosyalar: `apps/cli/src/main.cpp`, `libs/application` · Doğrula: contract (cwd, alt klasör, worktree, liste, bulunamadı)
-- [ ] **T2 (P1, insan: ~1g / CC: ~1s)** — domain/infrastructure — Oturum olayları (`SessionStarted/Waiting/Ended`, not) ve `.runmark/sessions/` okuyucu/yazıcı; `hook-observed.json` kaldırma
+- [x] **T2 (P1, insan: ~1g / CC: ~1s)** — domain/infrastructure — Oturum olayları (`SessionStarted/Waiting/Ended`, not) ve `.runmark/sessions/` okuyucu/yazıcı; `hook-observed.json` kaldırma
   - Kaynak: D5, D12 · Doğrula: rules + contract; **regresyon:** `hooks_not_observed` hâlâ tetiklenir ve oturumla kalkar
-- [ ] **T3 (P1, insan: ~1g / CC: ~1s)** — CLI — `rmk hook session-start|stop|session-end`; Stop'ta commit başına tek block, `stop_hook_active` koruması, < 100 ms
+- [x] **T3 (P1, insan: ~1g / CC: ~1s)** — CLI — `rmk hook session-start|stop|session-end`; Stop'ta commit başına tek block, `stop_hook_active` koruması, < 100 ms
   - Kaynak: D4, D7, D9, D11 · Doğrula: contract (stdin örnekleri, süre ölçümü)
-- [ ] **T4 (P2, insan: ~4s / CC: ~30dk)** — CLI — `rmk note` exec'siz: oturum sayfasına; not olayına `session_id`
+- [x] **T4 (P2, insan: ~4s / CC: ~30dk)** — CLI — `rmk note` exec'siz: oturum sayfasına; not olayına `session_id`
   - Kaynak: D9, D12 · Doğrula: contract
-- [ ] **T5 (P2, insan: ~1g / CC: ~1s)** — infrastructure/domain — `plan.paths` (glob), dosya başına N/M, görev dosyasının izi
+- [x] **T5 (P2, insan: ~1g / CC: ~1s)** — infrastructure/domain — `plan.paths` (glob), dosya başına N/M, görev dosyasının izi
   - Kaynak: D6 · Doğrula: rules + infra; bu reponun `project.json`'u taşınır
-- [ ] **T6 (P2, insan: ~4s / CC: ~30dk)** — infrastructure — Kayıtsız oturum taraması (son N gün, ilk satırdaki cwd)
+- [x] **T6 (P2, insan: ~4s / CC: ~30dk)** — infrastructure — Kayıtsız oturum taraması (son N gün, ilk satırdaki cwd)
   - Kaynak: D10 · Doğrula: gerçek transcript fixture'larıyla infra testi
-- [ ] **T7 (P2, insan: ~2s / CC: ~15dk)** — plugin — hooks.json'a Stop ve SessionEnd; ince sh/JS; minimum rmk sürümü
+- [x] **T7 (P2, insan: ~2s / CC: ~15dk)** — plugin — hooks.json'a Stop ve SessionEnd; ince sh/JS; minimum rmk sürümü
   - Kaynak: D7 · Doğrula: `plugins/runmark-agent/test.sh`
-- [ ] **T8 (P3, insan: ~2s / CC: ~15dk)** — docs — DATA_MODEL (oturum olayları, plan.paths), TRUST_MODEL (hook-observed kalktı), ADR
-- [ ] **T9 (P1, insan: ~1g / CC: ~1s)** — domain/infrastructure — Çakışma radarı: aktif oturumların görevi ve worktree'lerinin base'e göre değişen dosyaları kesişirse bulgu
+- [x] **T8 (P3, insan: ~2s / CC: ~15dk)** — docs — DATA_MODEL (oturum olayları, plan.paths), TRUST_MODEL (hook-observed kalktı), ADR
+- [x] **T9 (P1, insan: ~1g / CC: ~1s)** — domain/infrastructure — Çakışma radarı: aktif oturumların görevi ve worktree'lerinin base'e göre değişen dosyaları kesişirse bulgu
   - Kaynak: değer sınaması (2026-09-26) · Doğrula: rules (kesişen/kesişmeyen/tek oturum) + contract (iki worktree aynı dosya)
 
 ### Paralelleştirme
