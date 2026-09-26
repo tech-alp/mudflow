@@ -42,8 +42,7 @@ int main(int argc, char* argv[])
     const QCommandLineOption projectOption(
         {QStringLiteral("p"), QStringLiteral("project")},
         QStringLiteral("Path to project.json."),
-        QStringLiteral("path"),
-        QDir::current().filePath(QStringLiteral(".runmark/project.json")));
+        QStringLiteral("path"));
     parser.addOption(projectOption);
     const QCommandLineOption agentOption(QStringLiteral("agent"), QStringLiteral("Agent: codex or claude."), QStringLiteral("agent"), QStringLiteral("codex"));
     const QCommandLineOption repositoryOption(QStringLiteral("repo"), QStringLiteral("Repository name."), QStringLiteral("name"));
@@ -62,7 +61,10 @@ int main(int argc, char* argv[])
 
     const QStringList arguments = parser.positionalArguments();
     try {
-        const QString configPath = parser.value(projectOption);
+        QString configPath = parser.value(projectOption);
+        if (configPath.isEmpty()) configPath = runmark::locateProject(QDir::currentPath());
+        // Nothing found: keep the old default so the error names a concrete path.
+        if (configPath.isEmpty()) configPath = QDir::current().filePath(QStringLiteral(".runmark/project.json"));
         QJsonObject result;
         if (arguments == QStringList{QStringLiteral("inspect")}) {
             result = runmark::inspectProject(configPath).toJson();

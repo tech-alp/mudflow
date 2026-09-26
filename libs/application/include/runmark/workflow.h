@@ -47,6 +47,13 @@ struct ResumeResult {
     QVector<Finding> gaps;
 };
 
+// The project.json that governs `directory`: the directory or a parent, the
+// main checkout of a git worktree, or a project registered in
+// ~/.config/runmark/projects.json whose worktree root contains it. Empty when
+// none does. Agents work inside worktrees outside the project root, so the
+// current directory alone is not enough.
+QString locateProject(const QString& directory);
+
 QString initializeProject(const QString& folder, const QString& name, const QString& remote,
     const QString& branch, const QString& plan, const QString& taskPrefix);
 ProjectConfig inspectProject(const QString& configPath);

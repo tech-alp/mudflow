@@ -1,4 +1,5 @@
 #include <QFile>
+#include <QFileInfo>
 #include <QDir>
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -378,6 +379,65 @@ void transcriptContract(const QString& executable)
     for (const char* name : {"CLAUDE_CONFIG_DIR", "CLAUDE_CODE_SESSION_ID", "CODEX_HOME", "CODEX_THREAD_ID"}) qunsetenv(name);
 }
 
+// Runs rmk without --project from `directory`; returns the exit code.
+int runIn(const QString& executable, const QStringList& arguments, const QString& directory, QByteArray* output)
+{
+    QProcess process;
+    process.setWorkingDirectory(directory);
+    process.start(executable, arguments);
+    check(process.waitForStarted(5000) && process.waitForFinished(10000), "rmk runs");
+    *output = process.readAllStandardOutput();
+    return process.exitCode();
+}
+
+// Agents work in worktrees outside the project root and in subdirectories;
+// every command must still find the project without --project.
+void discoveryContract(const QString& executable)
+{
+    QTemporaryDir fixture, outside, elsewhere, configHome;
+    check(fixture.isValid() && outside.isValid() && elsewhere.isValid() && configHome.isValid(), "discovery fixtures");
+    const QString root = QFileInfo(fixture.path()).canonicalFilePath();
+    const QString worktrees = QFileInfo(outside.path()).canonicalFilePath();
+    const auto git = [](const QStringList& args) {
+        QByteArray out, err;
+        check(run(QStringLiteral("git"), args, 0, &out, &err), "discovery git fixture command");
+    };
+    git({"init", "--bare", root + "/remote.git"});
+    git({"init", "-b", "main", root + "/repo"});
+    git({"-C", root + "/repo", "-c", "user.name=R", "-c", "user.email=r@example.invalid", "commit", "--allow-empty", "-m", "initial"});
+    git({"-C", root + "/repo", "remote", "add", "origin", root + "/remote.git"});
+    git({"-C", root + "/repo", "push", "-u", "origin", "main"});
+    const QString project = root + "/repo";
+    check(QDir().mkpath(project + "/.runmark") && QDir().mkpath(project + "/src/deep"), "discovery layout");
+    check(writeFile(project + "/plan.md", "- [ ] MF-1\n"), "discovery plan");
+    check(writeFile(project + "/.runmark/project.json", QJsonDocument(QJsonObject{
+        {"version", 1}, {"name", "found"}, {"worktree_root", worktrees},
+        {"repos", QJsonArray{QJsonObject{{"name", "repo"}, {"path", "."}, {"base", QJsonObject{{"remote", "origin"}, {"branch", "main"}}}}}},
+        {"plan", QJsonObject{{"path", "plan.md"}}}, {"task_id_pattern", "MF-\\d+"}}).toJson()), "discovery config");
+    qputenv("RUNMARK_CONFIG_HOME", configHome.path().toUtf8());
+
+    QByteArray output;
+    check(runIn(executable, {"status"}, project + "/src/deep", &output) == 0
+        && QJsonDocument::fromJson(output).object().value("project") == "found", "found from a subdirectory");
+    check(runIn(executable, {"start", "MF-1", "--agent", "claude"}, project, &output) == 0, "start creates an outside worktree");
+    const QString worktree = QJsonDocument::fromJson(output).object().value("worktree").toString();
+    check(worktree.startsWith(worktrees), "worktree lies outside the project root");
+    check(runIn(executable, {"status"}, worktree, &output) == 0
+        && QJsonDocument::fromJson(output).object().value("project") == "found", "found from a worktree via its main checkout");
+    check(runIn(executable, {"status"}, elsewhere.path(), &output) == 1, "an unrelated directory finds nothing");
+
+    // A registered project claims directories under its worktree root even
+    // when git cannot lead there (the worktree was moved or is not a checkout).
+    const QString loose = worktrees + "/loose";
+    check(QDir().mkpath(loose), "loose directory");
+    check(runIn(executable, {"status"}, loose, &output) == 1, "unregistered loose directory finds nothing");
+    check(writeFile(configHome.path() + "/projects.json",
+        QJsonDocument(QJsonObject{{"projects", QJsonArray{project + "/.runmark/project.json"}}}).toJson()), "project list");
+    check(runIn(executable, {"status"}, loose, &output) == 0
+        && QJsonDocument::fromJson(output).object().value("project") == "found", "found through the project list");
+    qunsetenv("RUNMARK_CONFIG_HOME");
+}
+
 } // namespace
 
 int main(int argc, char* argv[])
@@ -409,6 +469,7 @@ int main(int argc, char* argv[])
     try {
         resumeContract(executable);
         transcriptContract(executable);
+        discoveryContract(executable);
     } catch (const std::exception& error) {
         QTextStream(stderr) << error.what() << '\n';
         return 1;
